@@ -360,7 +360,18 @@ window.UI = (function () {
     const thermo = thermoHtml(b);
 
     const photos = (D.photos && D.photos[b.id]) || [];
+    const surf = D.surfaces && D.surfaces[b.id];
+    const found = (G.state.found && G.state.found[b.id]) || {};
+    const nFound = surf ? surf.discoveries.filter((d) => found[d.key]).length : 0;
     $("paneInfo").innerHTML = `
+      ${surf ? `
+      <div class="box surface-cta">
+        <h3>👨‍🚀 Selbst erkunden</h3>
+        <p>Steig aus und finde selbst heraus, wie es auf ${b.id === "mond" ? "dem Mond" : b.name} wirklich ist!</p>
+        <button class="btn warm xl" id="btnExitShip">👨‍🚀 Aussteigen</button>
+        <ul class="found-list">${surf.discoveries.map((d) => `<li class="${found[d.key] ? "done" : ""}">${found[d.key] ? "✓" : "○"} ${d.icon} ${d.title}</li>`).join("")}</ul>
+        <p style="font-size:13px;color:var(--muted)">${nFound} von ${surf.discoveries.length} selbst entdeckt</p>
+      </div>` : ""}
       <p class="intro">${b.intro}</p>
       <div class="facts-grid">${tiles.map(([i, l, v]) => `<div class="fact"><div class="ico">${i}</div><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join("")}</div>
       <div class="box">
@@ -378,6 +389,7 @@ window.UI = (function () {
       </div>
       ${photos.length ? `<div class="box"><h3>📷 Echte Fotos (${photos.length})</h3><div class="gallery" id="gallery"></div></div>` : ""}`;
     requestAnimationFrame(() => setTimeout(thermo.animate, 150));
+    if ($("btnExitShip")) $("btnExitShip").onclick = () => G.enterSurface(b.id);
     if (photos.length) renderGallery($("gallery"), photos, 0, false);
   }
 
@@ -655,6 +667,7 @@ window.UI = (function () {
             ${ball(b.id, 52)}
             <div class="nm">${b.name}</div>
             <div class="st">${[1, 2, 3].map((k) => (k <= (s.quiz[b.id] || 0) ? "⭐" : "☆")).join("")}</div>
+            ${D.surfaces && D.surfaces[b.id] ? `<div class="st" style="font-size:12px">🔍 ${Object.keys((s.found && s.found[b.id]) || {}).length}/${D.surfaces[b.id].discoveries.length} entdeckt</div>` : ""}
           </div>`).join("")}
       </div>
       <div class="row-gap" style="margin-top:22px">
@@ -785,6 +798,6 @@ window.UI = (function () {
   return {
     nearId: null,
     init, onStateReady, showStart, countdown, showHUD, updateHUD, frame, warp,
-    openPanel, closePanel, toast, celebrate, confetti, speak, closeModal, modalOpen
+    openPanel, closePanel, toast, celebrate, confetti, speak, openModal, closeModal, modalOpen
   };
 })();

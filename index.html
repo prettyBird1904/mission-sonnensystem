@@ -137,6 +137,32 @@
     </div>
   </div>
 
+  <!-- Aussteigen & erkunden (Mondoberfläche) -->
+  <div id="surfaceHud" class="hidden">
+    <div id="surfLabels"></div>
+    <div id="radio" class="radio glass hidden">
+      <div class="radio-head">📻 Bodenstation <button class="chip icon" id="radioSpeak" title="Vorlesen">🔊</button></div>
+      <div id="radioText"></div>
+    </div>
+    <div class="surf-top-right">
+      <div class="disc-count glass" title="Entdeckungen">🔍 <b id="discCount">0/5</b></div>
+      <button class="btn warm" id="btnBoard">🚀 Einsteigen</button>
+    </div>
+    <div id="suit" class="suit glass">
+      <div class="suit-t">🌡️ <b id="suitTemp">120 °C</b></div>
+      <small id="suitState"></small>
+      <small class="suit-note">Dein Raumanzug schützt dich</small>
+    </div>
+    <div class="surf-keys glass"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> laufen · <kbd>Leertaste</kbd> springen · <kbd>E</kbd> benutzen · Maus ziehen = umschauen</div>
+    <button id="surfAction" class="btn primary explore hidden"></button>
+    <div class="touch">
+      <div class="joy" id="sJoy"><div class="joy-knob" id="sJoyKnob"></div></div>
+      <div class="touch-btns"><button id="sJump" class="tbtn gas">SPRINGEN</button></div>
+    </div>
+  </div>
+  <div id="scope" class="hidden"></div>
+  <div id="fade"></div>
+
   <div id="warp" style="display:none"></div>
   <div id="fps" class="hidden"></div>
 
@@ -187,6 +213,7 @@
   <script src="js/audio.js"></script>
   <script src="js/world.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/surface.js"></script>
   <script src="js/game.js"></script>
   <script>
     // Offline-Modus (nur wenn über einen Webserver geöffnet, nicht per Doppelklick)

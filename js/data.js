@@ -256,9 +256,48 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "8",
+  version: "9",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
+
+  /* Aussteigen & selbst erkunden (bisher: Mond).
+     {name} = Name des Kindes, {rest} = noch offene Entdeckungen, {hoehe} = gemessene Sprunghöhe */
+  surfaces: {
+    mond: {
+      gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81)
+      discoveries: [
+        { key: "sprung", icon: "🦘", title: "Leichte Anziehung",
+          text: "Du bist {hoehe} hoch gesprungen! Auf der Erde wären es nur etwa 0,3 Meter. Der Mond zieht dich nur ein Sechstel so stark an wie die Erde – deshalb springst du so hoch und schwebst so lange." },
+        { key: "apollo", icon: "👣", title: "Die erste Mondlandung", photo: "mond-1.jpg",
+          text: "Hier in der Nähe landeten im Juli 1969 Neil Armstrong und Buzz Aldrin mit der Mondfähre „Eagle“ – als allererste Menschen auf dem Mond! Das Unterteil der Fähre steht noch heute dort. Und ihre Fußabdrücke sind bis heute zu sehen: Auf dem Mond gibt es keinen Wind und keinen Regen, der sie verweht." },
+        { key: "himmel", icon: "🔭", title: "Schwarzer Himmel", photo: "erde-1.jpg",
+          text: "Obwohl die Sonne scheint, ist der Himmel schwarz! Auf der Erde verteilt die Luft das Sonnenlicht und macht den Himmel blau – auf dem Mond gibt es keine Luft. Und da oben schwebt unsere Erde: Vom Mond aus sieht sie fast 4-mal so groß aus wie der Mond bei uns am Himmel." },
+        { key: "temperatur", icon: "🌡️", title: "Hitze und Kälte",
+          text: "Hast du das Thermometer gesehen? In der Sonne wird der Mondboden bis zu 120 °C heiß. Im Schatten und in der Mondnacht wird es eiskalt – bis −170 °C! Ohne Luft wird die Wärme nicht verteilt. Nur dein Raumanzug schützt dich." },
+        { key: "fallversuch", icon: "🪶", title: "Hammer und Feder",
+          text: "Hammer und Feder sind genau gleichzeitig unten angekommen! Auf der Erde bremst die Luft die leichte Feder – sie segelt langsam herab. Auf dem Mond gibt es keine Luft, darum fällt alles gleich schnell. Astronaut Dave Scott hat genau diesen Versuch 1971 auf dem Mond gemacht!" }
+      ],
+      stations: {
+        apollo:      { label: "Landestelle von 1969", hint: "Geh zur Mondfähre" },
+        himmel:      { label: "Fernrohr", action: "🔭 Durchschauen" },
+        temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten" },
+        fallversuch: { label: "Experiment-Tisch", action: "🪶 Hammer & Feder fallen lassen" }
+      },
+      radio: {
+        start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es 5 Dinge zu entdecken. Die leuchtenden Lichtsäulen zeigen dir, wo. Probier doch zuerst mal zu springen!",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Willkommen zurück auf dem Mond, {name}! Dir fehlen noch {rest} Entdeckungen – folge den blauen Lichtsäulen.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch 3 Fragen an dich.",
+        tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
+        quizDone: "Mission erfüllt! Wenn du fertig bist, tippe auf „Einsteigen“ – oder erkunde noch ein bisschen."
+      },
+      quiz: [
+        { q: "Wie hoch konntest du auf dem Mond springen?", a: ["Genauso hoch wie auf der Erde", "Ungefähr 6-mal so hoch", "Gar nicht – man klebt am Boden"], c: 1, why: "Der Mond zieht nur ein Sechstel so stark wie die Erde." },
+        { q: "Warum ist der Himmel auf dem Mond schwarz?", a: ["Weil es dort keine Luft gibt", "Weil dort immer Nacht ist", "Weil die Sonne dort nicht scheint"], c: 0, why: "Ohne Luft wird das Sonnenlicht nicht verteilt – der Himmel bleibt schwarz." },
+        { q: "Was kommt auf dem Mond zuerst unten an?", a: ["Der Hammer", "Die Feder", "Beide gleichzeitig"], c: 2, why: "Ohne Luft bremst nichts die Feder – alles fällt gleich schnell." }
+      ]
+    }
+  },
 
   /* Echte Fotos (lokal in img/, verkleinert). Pro Himmelskörper: erst das Gesamtbild, dann Nahaufnahmen.
      Quellen & Lizenzen: siehe BILDNACHWEIS.md */

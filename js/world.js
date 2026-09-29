@@ -21,6 +21,7 @@ window.World = (function () {
   let FAST = false;
   try { FAST = localStorage.getItem("ms-grafik") === "schnell"; } catch (e) { /* egal */ }
   W.fast = FAST;
+  W.lite = LITE;
   W.maxPixelRatio = FAST ? 1 : Math.min(window.devicePixelRatio || 1, LITE ? 1.5 : 2);
 
   function rimMaterial(color, power = 2.5, intensity = 1.2) {
@@ -356,6 +357,8 @@ window.World = (function () {
   W.update = update;
   W.worldPos = worldPos;
   W.setShipColor = setShipColor;
+  // Zusätzliche Rakete (z. B. auf dem Mond), ohne die Flamme des Spieler-Schiffs zu überschreiben
+  W.makeRocket = (color) => { const f = W.flame; const r = buildShip(color); r.userData.flame = W.flame; W.flame = f; return r; };
   W.emitTrail = emitTrail;
   W.randomDustPos = randomDustPos;
   return W;

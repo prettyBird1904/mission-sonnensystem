@@ -28,7 +28,7 @@
 
   const Game = {
     state: null,
-    mode: "intro",           // intro | countdown | fly | landing | explore | takeoff
+    mode: "intro",           // intro | countdown | fly | landing | explore | takeoff | surface
     exploring: null,
     bodyById: {},
     save() {
@@ -46,7 +46,9 @@
     totalStars() {
       const s = this.state;
       const quiz = Object.values(s.quiz).reduce((a, b) => a + b, 0);
-      return quiz + Math.min(s.mission, D.missions.length) + s.orderStars + s.dustStars;
+      const found = Object.values(s.found || {}).reduce((a, m) => a + Object.keys(m).length, 0);
+      const surfaceQuiz = Object.values(s.surfaceQuiz || {}).reduce((a, b) => a + b, 0);
+      return quiz + Math.min(s.mission, D.missions.length) + s.orderStars + s.dustStars + found + surfaceQuiz;
     },
     currentMission() { return D.missions[this.state.mission] || null; }
   };
@@ -105,6 +107,44 @@
       Game.save();
       UI.updateHUD(true);
     }
+  };
+
+  // ---------- Aussteigen & erkunden ----------
+  Game.discover = function (id, key) {
+    const s = Game.state;
+    s.found = s.found || {};
+    s.found[id] = s.found[id] || {};
+    if (s.found[id][key]) return;
+    s.found[id][key] = true;
+    Game.save();
+    UI.updateHUD(true);
+  };
+  Game.onSurfaceQuiz = function (id, stars) {
+    const s = Game.state;
+    s.surfaceQuiz = s.surfaceQuiz || {};
+    if (stars > (s.surfaceQuiz[id] || 0) || s.surfaceQuiz[id] == null) s.surfaceQuiz[id] = Math.max(stars, s.surfaceQuiz[id] || 0);
+    Game.save();
+    UI.updateHUD(true);
+  };
+  function fade(on) { document.getElementById("fade").classList.toggle("on", on); }
+  Game.enterSurface = function (id) {
+    if (Game.mode !== "explore" || !seq || seq.kind !== "land" || !Surface.supports(id)) return;
+    Sound.click();
+    fade(true);
+    setTimeout(() => {
+      document.getElementById("panel").classList.add("hidden");
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      Game.mode = "surface";
+      Surface.enter(id, () => {
+        fade(true);
+        setTimeout(() => {
+          Game.mode = "explore";
+          UI.openPanel(id);
+          fade(false);
+        }, 450);
+      });
+      fade(false);
+    }, 450);
   };
 
   Game.onOrderFinished = function (stars) {
@@ -604,6 +644,13 @@
     adaptQuality(rawDt);
     updateFps(rawDt);
 
+    if (Game.mode === "surface") {
+      Surface.update(dt, elapsed);
+      W.renderer.render(Surface.scene, Surface.camera);
+      requestAnimationFrame(loop);
+      return;
+    }
+
     if (Game.mode === "intro") {
       const a = elapsed * 0.05;
       W.camera.position.set(Math.cos(a) * 260, 110, Math.sin(a) * 260);
@@ -688,11 +735,12 @@
       W.camera.updateProjectionMatrix();
       W.renderer.setSize(window.innerWidth, window.innerHeight);
     };
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", () => { onResize(); Surface.resize(); });
     onResize();
 
     setupInput(canvas);
     UI.init(Game);
+    Surface.init(Game, W, UI);
     requestAnimationFrame((t) => { last = t; requestAnimationFrame(loop); });
 
     document.getElementById("loader").classList.add("hidden");
