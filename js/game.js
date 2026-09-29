@@ -12,7 +12,7 @@
 
   // ---------- Spielstand ----------
   function freshState(name, color) {
-    return { name: name || "Pilot", color: color || "#ef4444", visited: {}, quiz: {}, mission: 0, dust: 0, dustStars: 0, orderStars: 0, hint: false };
+    return { name: name || "Astronaut", color: color || "#ef4444", visited: {}, quiz: {}, mission: 0, dust: 0, dustStars: 0, orderStars: 0, hint: false };
   }
   // Mehrere Kinder können sich ein Tablet teilen: jedes hat ein eigenes Profil.
   const profileKey = (name) => name.trim().toLowerCase();
@@ -477,6 +477,8 @@
 
   async function boot() {
     const canvas = document.getElementById("scene");
+    // Browser bitten, den Spielstand nicht automatisch zu löschen (z. B. bei wenig Speicher)
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* egal */ }
     const store = loadStore();
     const bar = document.getElementById("loadBar"), txt = document.getElementById("loadText");
     await W.build(canvas, "#ef4444", (p, t) => { bar.style.width = Math.round(p * 100) + "%"; txt.textContent = t; });

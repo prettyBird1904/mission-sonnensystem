@@ -1,6 +1,6 @@
 /* Offline-Speicher: Nach dem ersten Öffnen funktioniert das Spiel ohne Internet.
-   Bei Änderungen an den Dateien VERSION hochzählen, damit Tablets die neue Fassung laden. */
-const VERSION = "sonnensystem-v1";
+   Updates kommen automatisch: Beim nächsten Start mit Internet wird die neue Fassung geholt. */
+const VERSION = "sonnensystem-v2";
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "css/style.css", "fonts/fonts.css", "fonts/fredoka.woff2", "fonts/nunito.woff2",

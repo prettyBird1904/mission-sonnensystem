@@ -12,7 +12,7 @@ window.UI = (function () {
   let G = null;
   const labels = {};
   const ranks = [
-    [0, "Weltraum-Neuling", "🐣"], [6, "Sternen-Entdecker/in", "🔭"], [15, "Astronaut/in", "🧑‍🚀"],
+    [0, "Weltraum-Neuling", "🐣"], [6, "Sternen-Entdecker/in", "🔭"], [15, "Planeten-Forscher/in", "🧑‍🚀"],
     [26, "Raumschiff-Kapitän/in", "🚀"], [38, "Weltraum-Profi", "🏆"]
   ];
   function rankOf(stars) {
@@ -79,6 +79,11 @@ window.UI = (function () {
   // ---------- Start ----------
   function showStart(profiles, onGo) {
     $("start").classList.remove("hidden");
+    // iPad/iPhone im normalen Safari-Tab: Safari löscht Webseiten-Daten nach 7 Tagen ohne Nutzung,
+    // und der Home-Bildschirm hat einen eigenen Speicher → Hinweis zeigen.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const standalone = navigator.standalone || matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches;
+    if (isIOS && !standalone) $("installHint").classList.remove("hidden");
     let color = "#ef4444";
     const picks = [...$("colorPick").children];
     picks.forEach((b) => b.addEventListener("click", () => {
@@ -653,7 +658,7 @@ window.UI = (function () {
       </div>
       <div class="mnemonic">🧠 Merksatz für die Planeten: ${D.mnemonic.split(" ").map((w) => `<b>${w[0]}</b>${w.slice(1)}`).join(" ")}<br><small>(Merkur, Venus, Erde, Mars, Jupiter, Saturn, Uranus, Neptun)</small></div>
       <div class="row-gap">
-        <button class="btn primary" id="btnSwitch">👋 Pilot/in wechseln</button>
+        <button class="btn primary" id="btnSwitch">👋 Astronaut/in wechseln</button>
         <button class="btn ghost" id="btnReset">🗑️ Meinen Spielstand löschen</button>
       </div>`);
     $("btnSwitch").onclick = () => location.reload();

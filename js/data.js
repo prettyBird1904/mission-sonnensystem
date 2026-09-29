@@ -120,7 +120,7 @@ window.SPACE_DATA = {
       moons: "2", gravity: 0.38,
       intro: "Der Mars ist der „Rote Planet“. Seine Farbe kommt von Rost im Staub! Forscher-Roboter fahren dort herum und suchen nach Spuren von Wasser.",
       facts: [
-        "Auf dem Mars steht der höchste Vulkan im ganzen Sonnensystem: der Olympus Mons. Er ist fast dreimal so hoch wie der Mount Everest!",
+        "Auf dem Mars steht der höchste Vulkan im ganzen Sonnensystem: der Olympus Mons. Er ist etwa zweieinhalbmal so hoch wie der Mount Everest!",
         "Mars hat zwei kleine Monde: Phobos und Deimos.",
         "Ein Tag auf dem Mars ist nur etwas länger als bei uns.",
         "Auf dem Mars gibt es manchmal riesige Staubstürme, die den ganzen Planeten bedecken."
@@ -142,7 +142,7 @@ window.SPACE_DATA = {
       intro: "Jupiter ist der größte Planet – ein Riese aus Gas! Man könnte nicht auf ihm landen, denn er hat keinen festen Boden.",
       facts: [
         "In den Jupiter würden mehr als 1.300 Erden passen!",
-        "Der „Große Rote Fleck“ ist ein riesiger Sturm – größer als die ganze Erde. Er tobt schon seit über 300 Jahren.",
+        "Der „Große Rote Fleck“ ist ein riesiger Sturm – größer als die ganze Erde. Er tobt schon seit fast 200 Jahren.",
         "Jupiter dreht sich am schnellsten: Ein Tag dauert nur etwa 10 Stunden.",
         "Jupiter hat über 90 Monde. Der größte heißt Ganymed und ist sogar größer als Merkur."
       ],
@@ -165,7 +165,7 @@ window.SPACE_DATA = {
         "Saturn ist so leicht, dass er in einer riesigen Badewanne schwimmen würde!",
         "Saturn hat mehr Monde als jeder andere Planet – über 200!",
         "Sein größter Mond Titan hat eine dicke Lufthülle und Seen – aber nicht aus Wasser, sondern aus flüssigem Gas.",
-        "Die Ringe sind riesig breit, aber meist dünner als ein Fußballfeld lang ist."
+        "Die Ringe sind riesig breit – aber an vielen Stellen nur etwa so dick wie ein Haus hoch ist!"
       ],
       quiz: [
         { q: "Woraus bestehen Saturns Ringe?", a: ["Aus Eis und Gestein", "Aus Gold", "Aus Licht"], c: 0, why: "Aus unzähligen Brocken aus Eis und Gestein." },

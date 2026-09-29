@@ -35,9 +35,18 @@ Den Ordner auf den Webspace der Schule hochladen und die Adresse zu `index.html`
 ## 3. Mehrere Kinder an einem Gerät
 
 Beim Start tippt jedes Kind auf **seinen Namen** (oder „Ich bin neu hier“). Jedes Kind hat einen eigenen Spielstand.
-Wechseln: **❓ Hilfe → „Pilot/in wechseln“**. Einen einzelnen Spielstand löschen: **❓ Hilfe → „Meinen Spielstand löschen“** (zweimal tippen).
+Wechseln: **❓ Hilfe → „Astronaut/in wechseln“**. Einen einzelnen Spielstand löschen: **❓ Hilfe → „Meinen Spielstand löschen“** (zweimal tippen).
 
-> Hinweis: Der Spielstand wird im Browser des Geräts gespeichert. Wird der Browser-Verlauf/Websitedaten gelöscht, sind die Spielstände weg.
+### Bleibt der Fortschritt gespeichert?
+
+Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustarten des Tablets erhalten. Sie liegen **auf dem jeweiligen Gerät** (nicht im Internet). Weg sind sie nur, wenn …
+
+- die **Websitedaten / der Verlauf gelöscht** werden,
+- ein anderes Gerät oder ein anderer Browser benutzt wird,
+- im **privaten Modus** gespielt wird,
+- **auf dem iPad:** im normalen Safari-Tab gespielt und die Seite **7 Tage lang nicht geöffnet** wird (Safari räumt dann auf).
+
+➡️ **Auf iPads daher immer über das Symbol auf dem Home-Bildschirm starten.** Achtung: Safari-Tab und Home-Bildschirm-App haben getrennte Speicher – also von Anfang an nur die App benutzen.
 
 ---
 
