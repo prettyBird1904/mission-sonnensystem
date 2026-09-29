@@ -357,9 +357,7 @@ window.UI = (function () {
     else if (ratio >= 1) cmpText = `${b.id === "sonne" ? "Die Sonne" : b.name} ist etwa <b>${fmt(ratio, ratio < 10 ? 1 : 0)}-mal</b> so breit wie die Erde.`;
     else cmpText = `Die Erde ist etwa <b>${fmt(1 / ratio, 1)}-mal</b> so breit wie ${b.id === "mond" ? "der Mond" : b.name}.`;
 
-    const clampT = Math.max(-240, Math.min(500, b.tempC));
-    const pos = ((clampT + 240) / 740) * 100;
-    const home = ((15 + 240) / 740) * 100;
+    const thermo = thermoHtml(b);
 
     const photos = (D.photos && D.photos[b.id]) || [];
     $("paneInfo").innerHTML = `
@@ -376,13 +374,63 @@ window.UI = (function () {
       </div>
       <div class="box">
         <h3>🌡️ Wie warm ist es dort?</h3>
-        <div class="thermo"><div class="mark" style="left:${home}%;opacity:.4"></div><span class="home" style="left:${home}%">🏠 Erde</span><div class="mark" id="thermoMark" style="left:${home}%"></div></div>
-        <div class="thermo-scale"><span>🥶 −240 °C</span><span>0 °C</span><span>🔥 500 °C</span></div>
-        <p>${b.id === "sonne" ? "Die Sonne ist so heiß, dass sie gar nicht auf diese Skala passt! 🔥" : `${b.name}: <b>${b.tempText}</b>`}</p>
+        ${thermo.html}
       </div>
       ${photos.length ? `<div class="box"><h3>📷 Echte Fotos (${photos.length})</h3><div class="gallery" id="gallery"></div></div>` : ""}`;
-    requestAnimationFrame(() => setTimeout(() => { const m = $("thermoMark"); if (m) m.style.left = pos + "%"; }, 150));
+    requestAnimationFrame(() => setTimeout(thermo.animate, 150));
     if (photos.length) renderGallery($("gallery"), photos, 0, false);
+  }
+
+  // ---------- Thermometer ----------
+  // Lineare Skala von −240 °C bis 500 °C. Farben und Beschriftung sitzen an den echten Temperaturen.
+  const T_MIN = -240, T_MAX = 500;
+  const tPos = (t) => ((Math.max(T_MIN, Math.min(T_MAX, t)) - T_MIN) / (T_MAX - T_MIN)) * 100;
+  const fmtT = (t) => (t < 0 ? "−" : "") + fmt(Math.abs(t)) + " °C";
+  const T_COLORS = [[-240, "#3b5bdb"], [-100, "#60a5fa"], [-20, "#a5f3fc"], [0, "#e0f2fe"], [20, "#86efac"], [40, "#fde047"], [100, "#fb923c"], [300, "#ef4444"], [500, "#b91c1c"]];
+  const T_GRADIENT = `linear-gradient(90deg, ${T_COLORS.map(([t, c]) => `${c} ${tPos(t).toFixed(1)}%`).join(", ")})`;
+
+  // Kindgerechter Vergleich mit Dingen, die man kennt
+  function tempCompare(t) {
+    if (t >= 327) return "heißer als ein Backofen – sogar Blei würde schmelzen (327 °C)";
+    if (t >= 100) return "heißer als kochendes Wasser (100 °C)";
+    if (t >= 40) return "heißer als der heißeste Sommertag";
+    if (t >= 0) return "ähnlich warm wie bei uns";
+    if (t >= -18) return "so kalt wie im Winter";
+    if (t >= -89) return "kälter als ein Gefrierschrank (−18 °C)";
+    return "viel kälter als der kälteste Ort der Erde (−89 °C in der Antarktis)";
+  }
+
+  function thermoHtml(b) {
+    const home = tPos(15);
+    const range = b.tempMin != null && b.tempMax != null;
+    const hot = b.tempC > T_MAX; // Sonne: passt nicht auf die Skala
+    const center = range ? (tPos(b.tempMin) + tPos(b.tempMax)) / 2 : tPos(b.tempC);
+    const label = range ? `${fmtT(b.tempMin)} bis ${fmtT(b.tempMax)}` : hot ? `${fmtT(b.tempC)} ➜` : fmtT(b.tempC);
+    let text;
+    if (b.id === "sonne") text = "Die Sonne ist so heiß, dass sie gar nicht auf diese Skala passt! Schon außen hat sie etwa 5.500 °C – innen sogar 15 Millionen Grad. 🔥";
+    else if (b.id === "erde") text = "Im Durchschnitt etwa 15 °C – angenehm! Deshalb gibt es bei uns Wasser und Leben. 🌱";
+    else if (range) text = `Auf der Sonnenseite ist es ${tempCompare(b.tempMax)}, auf der Nachtseite ${tempCompare(b.tempMin)}. Das liegt daran, dass es keine Lufthülle gibt, die die Wärme festhält.`;
+    else text = `Dort ist es ${tempCompare(b.tempC)}.`;
+    const ticks = [-200, -100, 0, 100, 200, 300, 400, 500];
+    const html = `
+      <div class="thermo-wrap">
+        <div class="thermo-pin" id="thermoPin" style="left:${Math.min(86, Math.max(14, center))}%"><span>${b.id === "mond" ? "Mond" : b.name}: ${label}</span></div>
+        <div class="thermo" style="background:${T_GRADIENT}">
+          <span class="thermo-home" style="left:${home}%" title="Erde: 15 °C">🏠</span>
+          ${range
+            ? `<div class="thermo-range" id="thermoRange" style="left:${tPos(b.tempMin)}%;width:0%"></div>`
+            : `<div class="mark" id="thermoMark" style="left:${home}%"></div>`}
+        </div>
+        <div class="thermo-ticks">${ticks.map((t) => `<span style="left:${tPos(t)}%"${t === 500 ? ' class="end"' : ""}>${t < 0 ? "−" + Math.abs(t) : t}</span>`).join("")}</div>
+      </div>
+      <p class="thermo-legend">Zahlen in °C · 🏠 = Erde (15 °C) · 💧 Wasser gefriert bei 0 °C und kocht bei 100 °C</p>
+      <p>${text}</p>`;
+    const animate = () => {
+      const m = $("thermoMark"), r = $("thermoRange");
+      if (m) m.style.left = (hot ? 100 : tPos(b.tempC)) + "%";
+      if (r) r.style.width = (tPos(b.tempMax) - tPos(b.tempMin)) + "%";
+    };
+    return { html, animate };
   }
 
   // Fotogalerie: Blättern mit Pfeilen, Punkten oder Wischen; Antippen vergrößert

@@ -32,7 +32,7 @@ window.SPACE_DATA = {
       radius: 1.6, distance: 42, orbitYears: 0.24, tilt: 0,
       diameterKm: 4879, distanceKm: 58000000,
       day: "176 Erdtage", year: "88 Erdtage",
-      tempText: "−180 °C bis 430 °C", tempC: 170,
+      tempText: "−180 °C bis 430 °C", tempC: 170, tempMin: -180, tempMax: 430,
       moons: "0", gravity: 0.38,
       intro: "Merkur ist der kleinste Planet und der Sonne am nächsten. Er sieht ein bisschen aus wie unser Mond – voller Krater!",
       facts: [
@@ -95,7 +95,7 @@ window.SPACE_DATA = {
       radius: 0.85, parent: "erde", distance: 7, orbitYears: 0.075, tilt: 0,
       diameterKm: 3474, distanceKm: 384400, distanceFrom: "Erde",
       day: "ca. 27 Erdtage", year: "27 Tage um die Erde",
-      tempText: "−170 °C bis 120 °C", tempC: -25,
+      tempText: "−170 °C bis 120 °C", tempC: -25, tempMin: -170, tempMax: 120,
       moons: "–", gravity: 0.17,
       intro: "Der Mond ist der treue Begleiter der Erde. Er leuchtet nicht selbst – er wird von der Sonne angestrahlt, wie ein Spiegel.",
       facts: [
@@ -256,7 +256,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "7",
+  version: "8",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
