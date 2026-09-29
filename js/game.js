@@ -131,7 +131,9 @@
     if (Game.mode !== "explore" || !seq || seq.kind !== "land" || !Surface.supports(id)) return;
     Sound.click();
     fade(true);
-    setTimeout(() => {
+    const ready = Surface.prepare(id);
+    setTimeout(async () => {
+      await ready; // Modell & Landschaft fertig
       document.getElementById("panel").classList.add("hidden");
       if ("speechSynthesis" in window) speechSynthesis.cancel();
       Game.mode = "surface";

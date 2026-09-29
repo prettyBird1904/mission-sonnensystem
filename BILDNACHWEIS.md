@@ -88,7 +88,13 @@ Lizenzen: **gemeinfrei** (Public Domain, v. a. NASA) · **CC0** · **CC BY 2.0 /
 | `img/pluto.jpg` | Aus dem All | NASA / JHU APL / SwRI · gemeinfrei | [Commons](https://commons.wikimedia.org/wiki/File:Pluto_in_True_Color_-_High-Res.jpg) |
 | `img/pluto-1.jpg` | Ganz nah dran | NASA / JHU APL / SwRI · gemeinfrei | [Commons](https://commons.wikimedia.org/wiki/File:Pluto's_Majestic_Mountains,_Frozen_Plains_and_Foggy_Hazes.jpg) |
 
+## 3D-Modell
+
+| Datei | Werk | Urheber · Lizenz | Original |
+|---|---|---|---|
+| `models/astronaut.js` | „Rigged Astronaut“ (Spielfigur auf dem Mond; Farben der Anzugringe im Spiel angepasst) | J-Toastie · [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | [Poly Pizza](https://poly.pizza/m/0oBRDJ9Zl9) |
+
 ## Weitere verwendete Werke
 
 - Schriften „Fredoka“ und „Nunito“ – SIL Open Font License
-- 3D-Bibliothek three.js – MIT-Lizenz
+- 3D-Bibliothek three.js inkl. GLTFLoader – MIT-Lizenz

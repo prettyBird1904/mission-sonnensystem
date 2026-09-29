@@ -781,6 +781,7 @@ window.UI = (function () {
           <button class="btn ghost small ${World.fast ? "selected" : ""}" id="gfxFast">⚡ Flüssig</button>
           <button class="btn ghost small ${G.fpsVisible() ? "selected" : ""}" id="gfxFps">📊 Bildrate anzeigen</button>
         </div>
+        <p style="color:var(--muted);font-size:12px">Fotos: NASA u. a. (siehe BILDNACHWEIS.md) · Astronaut: „Rigged Astronaut“ von J-Toastie, CC BY 3.0 (poly.pizza)</p>
         <p style="color:var(--muted);font-size:13px">Version ${D.version} · Auflösung ${World.renderer.getPixelRatio().toFixed(2)} · Bilder/s ${Math.round(1 / G.perf.avg)}</p>
       </div>`);
     const setGfx = (mode) => { try { localStorage.setItem("ms-grafik", mode); } catch (e) { /* egal */ } location.reload(); };

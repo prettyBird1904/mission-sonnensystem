@@ -256,7 +256,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "9",
+  version: "10",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
@@ -267,7 +267,7 @@ window.SPACE_DATA = {
       gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81)
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Leichte Anziehung",
-          text: "Du bist {hoehe} hoch gesprungen! Auf der Erde wären es nur etwa 0,3 Meter. Der Mond zieht dich nur ein Sechstel so stark an wie die Erde – deshalb springst du so hoch und schwebst so lange." },
+          text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden durch die Luft geschwebt! Mit genau demselben Absprung kämst du auf der Erde nur ein Sechstel so hoch – der Mond zieht nur ein Sechstel so stark. Meterhoch geht es trotzdem nicht: Raumanzug und Rucksack wiegen zusammen fast so viel wie ein Erwachsener. So ähnlich ist Astronaut John Young 1972 für ein berühmtes Foto gesprungen." },
         { key: "apollo", icon: "👣", title: "Die erste Mondlandung", photo: "mond-1.jpg",
           text: "Hier in der Nähe landeten im Juli 1969 Neil Armstrong und Buzz Aldrin mit der Mondfähre „Eagle“ – als allererste Menschen auf dem Mond! Das Unterteil der Fähre steht noch heute dort. Und ihre Fußabdrücke sind bis heute zu sehen: Auf dem Mond gibt es keinen Wind und keinen Regen, der sie verweht." },
         { key: "himmel", icon: "🔭", title: "Schwarzer Himmel", photo: "erde-1.jpg",
@@ -292,7 +292,7 @@ window.SPACE_DATA = {
         quizDone: "Mission erfüllt! Wenn du fertig bist, tippe auf „Einsteigen“ – oder erkunde noch ein bisschen."
       },
       quiz: [
-        { q: "Wie hoch konntest du auf dem Mond springen?", a: ["Genauso hoch wie auf der Erde", "Ungefähr 6-mal so hoch", "Gar nicht – man klebt am Boden"], c: 1, why: "Der Mond zieht nur ein Sechstel so stark wie die Erde." },
+        { q: "Was passiert, wenn du auf dem Mond genauso kräftig abspringst wie auf der Erde?", a: ["Ich komme genauso hoch", "Ich komme etwa 6-mal so hoch und schwebe lange", "Ich fliege ins All davon"], c: 1, why: "Der Mond zieht nur ein Sechstel so stark wie die Erde – man kommt 6-mal so hoch und schwebt lange." },
         { q: "Warum ist der Himmel auf dem Mond schwarz?", a: ["Weil es dort keine Luft gibt", "Weil dort immer Nacht ist", "Weil die Sonne dort nicht scheint"], c: 0, why: "Ohne Luft wird das Sonnenlicht nicht verteilt – der Himmel bleibt schwarz." },
         { q: "Was kommt auf dem Mond zuerst unten an?", a: ["Der Hammer", "Die Feder", "Beide gleichzeitig"], c: 2, why: "Ohne Luft bremst nichts die Feder – alles fällt gleich schnell." }
       ]

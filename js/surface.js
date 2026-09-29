@@ -9,7 +9,7 @@ window.Surface = (function () {
   const S = { active: false, scene: null, camera: null };
   const worlds = {};          // fertig gebaute Welten (schneller Wiedereinstieg)
   let G = null, W = null, UI = null;
-  let world = null, cfg = null, bodyId = null, onExit = null;
+  let world = null, cfg = null, bodyId = null, onExit = null, astronautModel = null;
 
   S.supports = (id) => !!(D.surfaces && D.surfaces[id]);
 
@@ -30,7 +30,7 @@ window.Surface = (function () {
   const SUN_DIR = new V(-1, 0.32, -0.55).normalize();
   const MOON_LAYOUT = {
     rocket: [0, 0], spawn: [8, 10],
-    fallversuch: [-9, 20], himmel: [15, 27], apollo: [-24, 42], boulder: [28, 44]
+    fallversuch: [-7, 15], himmel: [12, 20], apollo: [-18, 32], boulder: [22, 34]
   };
   const SHADOW_DIR = new V(-SUN_DIR.x, 0, -SUN_DIR.z).normalize(); // Schatten fallen weg von der Sonne
 
@@ -127,6 +127,223 @@ window.Surface = (function () {
     [legL, legR].forEach((l) => { const boot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.34), grey); boot.position.set(0, -0.72, 0.05); boot.castShadow = true; l.add(boot); });
     g.userData = { armL, armR, legL, legR };
     return g;
+  }
+
+  // ---------- Realistischer Astronaut (glTF-Modell mit Skelett) ----------
+  // „Rigged Astronaut“ von J-Toastie (Poly Pizza, CC BY 3.0). Das Modell liegt als Base64 in models/astronaut.js,
+  // damit es auch per Doppelklick (file://) und offline funktioniert. Bewegungen berechnen wir selbst am Skelett.
+  let modelPromise = null;
+  function loadScript(src) {
+    return new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = rej; document.head.appendChild(el); });
+  }
+  function loadAstronautModel() {
+    if (modelPromise) return modelPromise;
+    modelPromise = (async () => {
+      if (!THREE.GLTFLoader) await loadScript("lib/GLTFLoader.js");
+      if (!window.ASTRONAUT_GLB) await loadScript("models/astronaut.js");
+      const bin = atob(window.ASTRONAUT_GLB), buf = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return await new Promise((res, rej) => new THREE.GLTFLoader().parse(buf.buffer, "", res, rej));
+    })().catch((e) => { console.warn("Astronauten-Modell nicht geladen – nehme einfaches Modell", e); return null; });
+    return modelPromise;
+  }
+
+  const BONES = {
+    hips: "Hips", spine: "Spine", spine2: "Spine2", head: "Head",
+    armL: "LeftArm", armR: "RightArm", foreL: "LeftForeArm", foreR: "RightForeArm",
+    legL: "LeftUpLeg", legR: "RightUpLeg", kneeL: "LeftLeg", kneeR: "RightLeg"
+  };
+  function makeModelAstronaut(gltf, accent) {
+    const root = gltf.scene;
+    const g = new THREE.Group();
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(root), size = box.getSize(new V());
+    const k = 1.85 / size.y; // echte Größe: ca. 1,85 m im Anzug
+    root.scale.setScalar(k);
+    root.position.y = -box.min.y * k;
+    g.add(root);
+    const rig = { bones: {}, rest: {} };
+    root.traverse((o) => {
+      if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+      if (o.isBone) {
+        const short = o.name.replace(/^mixamorig:?/, "");
+        for (const [key, name] of Object.entries(BONES)) if (short === name) { rig.bones[key] = o; rig.rest[key] = o.quaternion.clone(); }
+      }
+      if (o.material && o.material.name === "white") {
+        // Anzugstoff: leicht warmes Weiß, matt (wie der echte „Beta-Stoff“ der Apollo-Anzüge)
+        o.material.color.set(0xefede6); o.material.roughness = 0.85; o.material.metalness = 0;
+      }
+      if (o.material && o.material.name === "gray") {
+        // Ringe an Schultern, Handgelenken, Knien & Taille → Akzentfarbe (Farbe der eigenen Rakete)
+        o.material.roughness = 0.55; rig.accent = o.material;
+      }
+      if (o.material && /transparent|mask/i.test(o.material.name)) {
+        // Goldenes Helmvisier: spiegelnd wie bei echten Raumanzügen
+        o.material = new THREE.MeshStandardMaterial({ color: 0xd9a520, metalness: 0.95, roughness: 0.12, emissive: 0x2a1c00 });
+      }
+    });
+    paintSuit(g, rig, accent);
+    addSuitParts(g, rig);
+    g.userData = { rig };
+    return g;
+  }
+
+  // Farben nach dem Vorbild der Apollo-Anzüge (z. B. Buzz Aldrin, 1969):
+  // gebrochenes Weiß mit Stoff-Falten, dunkle Handschuhe & Stiefel, grauer Mondstaub an den Beinen,
+  // farbige Streifen an Oberarmen, Oberschenkeln und Helm (bei Apollo: rot für den Kommandanten).
+  function paintSuit(g, rig, accent) {
+    const C = (h) => new THREE.Color(h);
+    const BASE = C(0xccc6b8), DUST = C(0x66625b), GLOVE = C(0x303236), BOOT = C(0x46474c), SOLE = C(0x222327), RING = C(0x8e9196);
+    const tmpC = new THREE.Color();
+    g.updateMatrixWorld(true);
+    rig.accentVerts = [];
+    const whiteMats = new Set();
+    g.traverse((o) => {
+      if (!o.isSkinnedMesh || !o.material) return;
+      if (o.material.name === "gray") { paintGray(o); return; }
+      if (o.material.name !== "white") return;
+      whiteMats.add(o.material);
+      const pos = o.geometry.attributes.position, n = pos.count;
+      const col = new Float32Array(n * 3), acc = [];
+      const v = new V();
+      for (let i = 0; i < n; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); // T-Pose, Meter, Blick +Z
+        const x = v.x, y = v.y, z = v.z, ax = Math.abs(x);
+        // Stoff-Falten: leichte Helligkeitsschwankung
+        const fold = 0.8 + 0.2 * noise2(x * 22 + z * 9, y * 22 - z * 7);
+        tmpC.copy(BASE).multiplyScalar(fold);
+        let isAcc = false;
+        if (ax > 0.7 && y > 1.2) tmpC.copy(GLOVE).multiplyScalar(0.9 + 0.2 * fold - 0.1);           // Handschuhe
+        else if (y < 0.035) tmpC.copy(SOLE);                                                          // Sohlen
+        else if (y < 0.16) tmpC.copy(BOOT).lerp(DUST, 0.35 * fold);                                   // Stiefel, verstaubt
+        else {
+          if (y < 0.75) tmpC.lerp(DUST, smooth(0.75, 0.15, y) * 0.85);                               // Mondstaub an den Beinen
+          if (y > 0.4 && y < 0.58 && z > 0.05) tmpC.lerp(DUST, 0.35);                                 // Knie (vom Hinknien)
+          if (y > 1.3 && ax > 0.44 && ax < 0.5) isAcc = true;                                         // Streifen Oberarm
+          if (y > 0.6 && y < 0.66 && ax > 0.03 && ax < 0.24) isAcc = true;                            // Streifen Oberschenkel
+          if (o.name.startsWith("Helmet") && ax < 0.028 && y > 1.72) isAcc = true;                    // Streifen Helm
+        }
+        if (isAcc) acc.push(i);
+        tmpC.convertSRGBToLinear(); // Vertex-Farben rechnet three.js linear
+        col[i * 3] = tmpC.r; col[i * 3 + 1] = tmpC.g; col[i * 3 + 2] = tmpC.b;
+      }
+      const attr = new THREE.BufferAttribute(col, 3);
+      o.geometry.setAttribute("color", attr);
+      rig.accentVerts.push({ attr, idx: acc });
+    });
+    whiteMats.forEach((m) => { m.vertexColors = true; m.color.set(0xffffff); m.roughness = 0.9; m.metalness = 0; m.needsUpdate = true; });
+    setSuitAccent(rig, accent);
+  }
+  // Grauer Modellteil: Hände → dunkle Handschuhe, Rest → metallische Gelenkringe
+  function paintGray(o) {
+    const pos = o.geometry.attributes.position, n = pos.count, col = new Float32Array(n * 3), v = new V();
+    const GLOVE = new THREE.Color(0x303236).convertSRGBToLinear(), RING = new THREE.Color(0x8e9196).convertSRGBToLinear();
+    for (let i = 0; i < n; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      const c = Math.abs(v.x) > 0.66 && v.y > 1.2 ? GLOVE : RING;
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
+    o.geometry.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    o.material.vertexColors = true; o.material.color.set(0xffffff); o.material.metalness = 0.45; o.material.roughness = 0.45; o.material.needsUpdate = true;
+  }
+  function setSuitAccent(rig, accent) {
+    const c = new THREE.Color(accent).convertSRGBToLinear();
+    for (const { attr, idx } of rig.accentVerts || []) {
+      for (const i of idx) attr.setXYZ(i, c.r, c.g, c.b);
+      attr.needsUpdate = true;
+    }
+  }
+
+  // Anbauteile an Knochen hängen (bewegen sich mit): Steuerbox, Schlauchanschlüsse, Flagge
+  function attachToBone(g, bone, mesh, pos, quat) {
+    g.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(bone.matrixWorld).invert();
+    mesh.position.copy(pos).applyMatrix4(inv);
+    const bq = new THREE.Quaternion(); bone.getWorldQuaternion(bq);
+    mesh.quaternion.copy(bq.invert().multiply(quat || new THREE.Quaternion()));
+    const bs = new V(); bone.getWorldScale(bs);
+    mesh.scale.set(1 / bs.x, 1 / bs.y, 1 / bs.z);
+    mesh.castShadow = true;
+    bone.add(mesh);
+  }
+  function addSuitParts(g, rig) {
+    const chest = rig.bones.spine2 || rig.bones.spine;
+    if (chest) {
+      // Steuerbox auf der Brust (bei Apollo: „Remote Control Unit“)
+      const box = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.07), new THREE.MeshStandardMaterial({ color: 0xa9adb2, metalness: 0.7, roughness: 0.35 }));
+      box.add(body);
+      const knobMat = new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.5 });
+      for (const [kx, ky] of [[-0.06, 0.02], [0, 0.02], [0.06, 0.02], [-0.03, -0.03], [0.03, -0.03]]) {
+        const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 10), knobMat);
+        knob.rotation.x = Math.PI / 2; knob.position.set(kx, ky, 0.04); box.add(knob);
+      }
+      attachToBone(g, chest, box, new V(0, 1.24, 0.225));
+      // Rote und blaue Sauerstoff-Anschlüsse (typisch für die Apollo-Anzüge)
+      for (const [cx, color] of [[0.075, 0xc62828], [-0.075, 0x1e5bb8]]) {
+        const con = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.05, 16), new THREE.MeshStandardMaterial({ color, metalness: 0.5, roughness: 0.4 }));
+        attachToBone(g, rig.bones.spine || chest, con, new V(cx, 1.04, 0.2), new THREE.Quaternion().setFromAxisAngle(new V(1, 0, 0), Math.PI / 2));
+      }
+    }
+    if (rig.bones.armL) {
+      // US-Flagge am linken Oberarm (wie bei den Apollo-Astronauten)
+      const patch = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.07), new THREE.MeshStandardMaterial({ map: flagTexture(), roughness: 0.9, side: THREE.DoubleSide }));
+      attachToBone(g, rig.bones.armL, patch, new V(0.36, 1.535, 0.0),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, Math.PI / 2)));
+    }
+  }
+
+  // Pose am Skelett: Winkel relativ zur Ruhehaltung (T-Pose) in Bone-Achsen
+  const qa = new THREE.Quaternion(), AX = { x: new V(1, 0, 0), y: new V(0, 1, 0), z: new V(0, 0, 1) };
+  function setBone(rig, key, rx, ry, rz) {
+    const b = rig.bones[key]; if (!b) return;
+    b.quaternion.copy(rig.rest[key]);
+    if (rx) b.quaternion.multiply(qa.setFromAxisAngle(AX.x, rx));
+    if (ry) b.quaternion.multiply(qa.setFromAxisAngle(AX.y, ry));
+    if (rz) b.quaternion.multiply(qa.setFromAxisAngle(AX.z, rz));
+  }
+  // Achsen dieses Mixamo-Skeletts (im Browser nachgemessen, Blickrichtung +Z):
+  //   Arme senken: +X (beide) · Arme nach vorn: links +Z, rechts −Z · Beine nach vorn: +X
+  //   Knie beugen: −X · Ellbogen beugen: links +Z, rechts −Z · Oberkörper vorbeugen: −X
+  function setArm(rig, key, fwd, down) {
+    const b = rig.bones[key]; if (!b) return;
+    // Erst nach vorn drehen, dann absenken – so zeigt „nach vorn“ auch bei hängendem Arm nach vorn
+    b.quaternion.copy(rig.rest[key]).multiply(qa.setFromAxisAngle(AX.z, fwd)).multiply(qa.setFromAxisAngle(AX.x, down));
+  }
+  const POSE = {};
+  // Bewegungen nach Vorbild der Apollo-Filme: „Lope“ = gleitender Galopp mit kurzer Schwebephase,
+  // Oberkörper leicht vorgebeugt, Arme angewinkelt vor dem Körper (der Anzug ist steif).
+  function poseRig(rig, st) {
+    const breathe = Math.sin(st.t * 1.4) * 0.015;
+    let legL = 0, legR = 0, kneeL = 0, kneeR = 0, down = 1.3, fwd = 0.08, elbow = 0.3, lean = breathe;
+    if (st.mode === "lope") {
+      lean -= 0.2 * st.speed;
+      down = 1.0; fwd = 0.35; elbow = 0.75;
+      if (st.air) {
+        const f = st.airP;                    // 0 → 1 über die Flugphase
+        legL = 0.5 - 0.15 * f;  kneeL = -0.15;           // vorderes Bein streckt sich zur Landung
+        legR = -0.35 + 0.1 * f; kneeR = -0.6 + 0.2 * f;  // hinteres Bein angewinkelt
+        fwd += 0.05 * Math.sin(f * Math.PI);
+      } else {
+        const c = Math.min(1, st.contact / 0.18);
+        legL = 0.35 - 0.45 * c; legR = -0.25 + 0.55 * c;  // Körper schwingt über das Standbein
+        const squat = Math.sin(c * Math.PI) * 0.45;       // Abfedern
+        kneeL = -squat; kneeR = -squat - 0.2 * (1 - c);
+      }
+    } else if (st.mode === "walk") {
+      const sw = Math.sin(st.phase) * 0.3 * st.speed;
+      legL = sw; legR = -sw; kneeL = -Math.max(0, -Math.sin(st.phase)) * 0.4 * st.speed; kneeR = -Math.max(0, Math.sin(st.phase)) * 0.4 * st.speed;
+      down = 1.15; fwd = 0.2; elbow = 0.55; lean -= 0.08 * st.speed;
+    } else if (st.mode === "jump") {
+      legL = 0.25; legR = 0.1; kneeL = -0.45; kneeR = -0.35;
+      down = 0.85; fwd = 0.45; elbow = 0.6; lean -= 0.05;
+    }
+    if (st.hold) { down = 0.25; fwd = 1.35; elbow = 0.2; } // beide Arme waagerecht nach vorn
+    setBone(rig, "legL", legL, 0, 0); setBone(rig, "legR", legR, 0, 0);
+    setBone(rig, "kneeL", kneeL, 0, 0); setBone(rig, "kneeR", kneeR, 0, 0);
+    setArm(rig, "armL", fwd, down); setArm(rig, "armR", -fwd, down);
+    setBone(rig, "foreL", 0, 0, elbow); setBone(rig, "foreR", 0, 0, -elbow);
+    setBone(rig, "spine", lean, 0, 0);
   }
 
   function makeLander() {
@@ -241,12 +458,12 @@ window.Surface = (function () {
     }
     geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
     geo.computeVertexNormals();
-    const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: regolithTexture(), color: 0x9d9da2, vertexColors: true, roughness: 1, metalness: 0 }));
+    const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: regolithTexture(), color: 0x86837d, vertexColors: true, roughness: 1, metalness: 0 }));
     ground.receiveShadow = true;
     scene.add(ground);
 
     // Steine
-    const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x77777d, roughness: 1, flatShading: true }), FAST ? 140 : 280);
+    const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x6b6863, roughness: 1, flatShading: true }), FAST ? 140 : 280);
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V(), p = new V(), e = new THREE.Euler();
     let placed = 0, tries = 0;
     const keepFree = [[0, 0, 12], [...L.fallversuch, 5], [...L.himmel, 5], [...L.apollo, 9], [...L.shadowSpot, 7], [...L.spawn, 4]];
@@ -347,13 +564,13 @@ window.Surface = (function () {
       stations[key] = { marker: mk, x: mk.position.x, z: mk.position.z };
     }
 
-    const astronaut = makeAstronaut(G.state.color);
+    const astronaut = astronautModel ? makeModelAstronaut(astronautModel, G.state.color) : makeAstronaut(G.state.color);
     scene.add(astronaut);
 
     // Staubwolken
-    const dustMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(200,200,205,0.9)", "rgba(160,160,165,0.35)"), transparent: true, depthWrite: false });
+    const dustMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(150,146,140,1)", "rgba(130,126,120,0.9)"), transparent: true, depthWrite: false });
     const dust = [];
-    for (let i = 0; i < 40; i++) { const s = new THREE.Sprite(dustMat.clone()); s.visible = false; s.userData = { life: 0, v: new V() }; scene.add(s); dust.push(s); }
+    for (let i = 0; i < 120; i++) { const s = new THREE.Sprite(dustMat.clone()); s.visible = false; s.userData = { life: 0, v: new V() }; scene.add(s); dust.push(s); }
 
     // Einfache Kreis-Hindernisse: [x, z, Radius]
     const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], [...L.fallversuch, 1], [...L.himmel, 0.6]];
@@ -504,6 +721,13 @@ window.Surface = (function () {
   // ---------- Betreten / Verlassen ----------
   S.init = function (game, worldRef, ui) { G = game; W = worldRef; UI = ui; };
 
+  S.prepare = async function (id) {
+    if (worlds[id]) return;
+    astronautModel = await loadAstronautModel();
+    bodyId = id; cfg = D.surfaces[id];
+    worlds[id] = buildMoon();
+  };
+
   S.enter = function (id, exitCb) {
     bodyId = id; cfg = D.surfaces[id]; onExit = exitCb;
     if (!worlds[id]) worlds[id] = buildMoon();
@@ -523,6 +747,8 @@ window.Surface = (function () {
     quizDone = (G.state.surfaceQuiz && G.state.surfaceQuiz[id] != null) || false;
     experiment = null; jumpPressed = actionPressed = false;
     world.hammer.visible = world.feather.visible = true;
+    const rig = world.astronaut.userData.rig;
+    if (rig) setSuitAccent(rig, G.state.color);
     updateCounter();
     buildLabels();
     $("surfaceHud").classList.remove("hidden");
@@ -572,17 +798,20 @@ window.Surface = (function () {
     const len = Math.hypot(mx, my);
     const fwd = tmp.set(Math.sin(view.yaw), 0, Math.cos(view.yaw));
     const right = tmp2.set(-Math.cos(view.yaw), 0, Math.sin(view.yaw));
+    // Tempo wie bei Apollo: Astronauten liefen im „Lope“ mit etwa 1 bis 2 m/s
+    const LOPE_SPEED = 2.1;
     let targetSpeed = 0;
     if (len > 0.12) {
       const mvx = fwd.x * my + right.x * mx, mvz = fwd.z * my + right.z * mx;
       const th = Math.atan2(mvx, mvz);
-      ast.heading = angleLerp(ast.heading, th, 1 - Math.exp(-dt * 10));
-      targetSpeed = 5.2 * Math.min(1, len);
-      // Kamera folgt, außer man läuft auf sie zu
-      if (my > -0.3 && !(view.dragged > 0)) view.yaw = angleLerp(view.yaw, ast.heading, 1 - Math.exp(-dt * 1.6));
+      // Drehen geht nur mit Bodenkontakt richtig – in der Luft kaum
+      ast.heading = angleLerp(ast.heading, th, 1 - Math.exp(-dt * (ast.onGround ? 6 : 1.2)));
+      targetSpeed = LOPE_SPEED * Math.min(1, len);
+      if (my > -0.3 && !(view.dragged > 0)) view.yaw = angleLerp(view.yaw, ast.heading, 1 - Math.exp(-dt * 1.4));
     }
     view.dragged = Math.max(0, (view.dragged || 0) - dt);
-    ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * (ast.onGround ? 6 : 1.5));
+    // Wenig Halt auf dem Mondstaub: beschleunigen/bremsen nur am Boden – und gemächlich
+    if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * (targetSpeed > ast.speed ? 2.0 : 2.6));
     const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
     ast.pos.x += hx * ast.speed * dt; ast.pos.z += hz * ast.speed * dt;
 
@@ -597,53 +826,70 @@ window.Surface = (function () {
       if (elapsed - farWarned > 12) { farWarned = elapsed; radio(cfg.radio.tooFar); }
     }
 
-    // Springen & Schwerkraft (echte Mond-Schwerkraft!)
+    // Springen & Lope-Schritte – echte Mond-Schwerkraft (1,62 m/s²)
     const ground = H(ast.pos.x, ast.pos.z);
     if (jumpPressed && ast.onGround) {
-      ast.vy = 2.6; ast.onGround = false; ast.jumpBase = ast.pos.y; ast.maxY = ast.pos.y; ast.jumping = true;
+      // Realistisch: Anzug + Rucksack wiegen so viel wie ein Erwachsener → ca. 45 cm hoch, ~1,5 s in der Luft
+      ast.vy = 1.2; ast.onGround = false; ast.jumpBase = ast.pos.y; ast.maxY = ast.pos.y; ast.jumping = true; ast.hopping = false;
+      ast.airT = 0; ast.airDur = 2 * ast.vy / g;
       Sound.whoosh();
+      grains(ast.pos, 8, 0.6);
+    } else if (ast.onGround && ast.speed > 0.7 && (ast.contact || 0) > 0.18 && !paused) {
+      // Lope-Schritt: ein kleiner, echter Flug – so haben sich die Apollo-Astronauten fortbewegt
+      const hop = 0.05 + 0.05 * Math.min(1, ast.speed / LOPE_SPEED);
+      ast.vy = Math.sqrt(2 * g * hop); ast.onGround = false; ast.hopping = true;
+      ast.airT = 0; ast.airDur = 2 * ast.vy / g;
+      grains(tmp.set(ast.pos.x - hx * 0.25, ast.pos.y, ast.pos.z - hz * 0.25), 3, 0.9, -hx, -hz);
     }
     jumpPressed = false;
     if (!ast.onGround) {
+      ast.airT += dt;
       ast.vy -= g * dt; ast.pos.y += ast.vy * dt; ast.maxY = Math.max(ast.maxY, ast.pos.y);
       if (ast.pos.y <= ground) {
-        ast.pos.y = ground; ast.onGround = true; ast.vy = 0;
-        puff(ast.pos, 6);
+        ast.pos.y = ground; ast.onGround = true; ast.vy = 0; ast.contact = 0;
+        if (ast.hopping) {
+          ast.hopping = false;
+          footprint(0.17); footprint(-0.17, -0.35);
+          grains(ast.pos, 3, 0.5, -hx, -hz);
+        }
         if (ast.jumping) {
           ast.jumping = false;
+          grains(ast.pos, 14, 0.8);
+          footprint(0.17); footprint(-0.17);
+          Sound.land();
           const h = Math.max(0, ast.maxY - ast.jumpBase);
-          if (h > 0.8) discover("sprung", { hoehe: `${h.toFixed(1).replace(".", ",")} Meter` });
+          if (h > 0.3) discover("sprung", { hoehe: `${Math.round(h * 100)} Zentimeter`, zeit: ast.airT.toFixed(1).replace(".", ",") });
         }
       }
     } else {
+      ast.contact = (ast.contact || 0) + dt;
       ast.pos.y += (ground - ast.pos.y) * Math.min(1, dt * 12);
     }
 
-    // Eigene Fußabdrücke (bleiben liegen – kein Wind!)
-    if (ast.onGround && ast.speed > 0.5) {
+    // Langsames Gehen (ohne Hüpfer): Fußabdrücke nach Strecke
+    if (ast.onGround && ast.speed > 0.15 && ast.speed <= 0.7) {
       ast.walked += ast.speed * dt;
-      if (ast.walked > 0.85) {
-        ast.walked = 0; ast.foot = 1 - ast.foot;
-        const side = ast.foot ? 0.17 : -0.17;
-        const x = ast.pos.x - hz * side, z = ast.pos.z + hx * side;
-        const fp = world.myPrints[world.printIdx]; world.printIdx = (world.printIdx + 1) % world.myPrints.length;
-        fp.position.set(x, H(x, z) + 0.035, z); fp.rotation.y = ast.heading; fp.visible = true;
-        if (Math.random() < 0.3) puff(tmp.set(x, H(x, z), z), 1);
-      }
+      if (ast.walked > 0.55) { ast.walked = 0; ast.foot = 1 - ast.foot; footprint(ast.foot ? 0.17 : -0.17); }
     }
 
-    // Astronaut darstellen: leichtes Hüpfen beim Gehen (typisch für den Mond)
+    // Astronaut darstellen
     const a = world.astronaut, u = a.userData;
-    const walk = Math.min(1, ast.speed / 5.2);
-    if (ast.onGround) ast.phase += dt * (2 + ast.speed * 1.6);
-    const bob = ast.onGround ? Math.abs(Math.sin(ast.phase)) * 0.22 * walk : 0;
-    a.position.set(ast.pos.x, ast.pos.y + bob, ast.pos.z);
+    const speedFrac = Math.min(1, ast.speed / LOPE_SPEED);
+    ast.phase += dt * (1.5 + ast.speed * 3);
+    a.position.set(ast.pos.x, ast.pos.y, ast.pos.z);
     a.rotation.y = ast.heading;
-    const sw = ast.onGround ? Math.sin(ast.phase) * 0.55 * walk : 0.35;
-    u.legL.rotation.x = sw; u.legR.rotation.x = ast.onGround ? -sw : -0.2;
-    u.armL.rotation.x = -sw * 0.7 - (ast.onGround ? 0 : 0.6); u.armR.rotation.x = sw * 0.7 - (ast.onGround ? 0 : 0.6);
-    u.armL.rotation.z = 0.12; u.armR.rotation.z = -0.12;
-    if (experiment) { const hold = experiment.t < 0 ? -1.25 : -0.9; u.armL.rotation.x = hold; u.armR.rotation.x = hold; u.armL.rotation.z = 0.3; u.armR.rotation.z = -0.3; }
+    const hold = !!(experiment && experiment.t < 0.15);
+    if (u.rig) {
+      const mode = ast.jumping ? "jump" : (ast.hopping || (ast.speed > 0.7 && ast.onGround)) ? "lope" : ast.speed > 0.15 ? "walk" : "stand";
+      poseRig(u.rig, { mode, air: !ast.onGround, airP: ast.airDur ? Math.min(1, ast.airT / ast.airDur) : 0, contact: ast.contact || 0,
+        speed: speedFrac, phase: ast.phase, hold, t: elapsed });
+    } else {
+      const sw = ast.onGround ? Math.sin(ast.phase) * 0.45 * speedFrac : 0.35;
+      u.legL.rotation.x = sw; u.legR.rotation.x = ast.onGround ? -sw : -0.2;
+      u.armL.rotation.x = -sw * 0.5 - (ast.onGround ? 0 : 0.6); u.armR.rotation.x = sw * 0.5 - (ast.onGround ? 0 : 0.6);
+      u.armL.rotation.z = 0.12; u.armR.rotation.z = -0.12;
+      if (experiment) { const hd = experiment.t < 0 ? -1.25 : -0.9; u.armL.rotation.x = hd; u.armR.rotation.x = hd; u.armL.rotation.z = 0.3; u.armR.rotation.z = -0.3; }
+    }
 
     // Schatten & Temperatur (Raumanzug-Thermometer)
     temp.check -= dt;
@@ -715,7 +961,7 @@ window.Surface = (function () {
       if (sp.t > 5.6) { view.special = null; $("scope").classList.add("hidden"); c.fov = 60; c.updateProjectionMatrix(); discover("himmel"); }
       return;
     }
-    const dist = 7.5;
+    const dist = view.dist || 7.5;
     const want = tmp.set(ast.pos.x - Math.sin(view.yaw) * dist, ast.pos.y + view.height, ast.pos.z - Math.cos(view.yaw) * dist);
     want.y = Math.max(want.y, world.height(want.x, want.z) + 0.8);
     c.position.lerp(want, 1 - Math.exp(-dt * 5));
@@ -767,12 +1013,24 @@ window.Surface = (function () {
     }
   }
 
-  function puff(p, n) {
+  // Fußabdruck neben dem Astronauten (side = links/rechts, back = Versatz nach hinten)
+  function footprint(side, back = 0) {
+    const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
+    const x = ast.pos.x - hz * side + hx * back, z = ast.pos.z + hx * side + hz * back;
+    const fp = world.myPrints[world.printIdx]; world.printIdx = (world.printIdx + 1) % world.myPrints.length;
+    fp.position.set(x, world.height(x, z) + 0.035, z); fp.rotation.y = ast.heading; fp.visible = true;
+  }
+
+  function puff(p, n) { grains(p, n * 2, 0.7); }
+
+  // Mondstaub: Ohne Luft gibt es keine Staubwolken – die Körner fliegen in sauberen Bögen und fallen sofort zurück
+  function grains(p, n, power = 1, dirX = 0, dirZ = 0) {
     for (let i = 0; i < n; i++) {
       const s = world.dust[world.dustIdx]; world.dustIdx = (world.dustIdx + 1) % world.dust.length;
-      s.position.set(p.x + (Math.random() - 0.5) * 0.4, p.y + 0.1, p.z + (Math.random() - 0.5) * 0.4);
-      s.userData.v.set((Math.random() - 0.5) * 1.6, 0.6 + Math.random() * 0.8, (Math.random() - 0.5) * 1.6);
-      s.userData.life = 1.4; s.visible = true;
+      s.position.set(p.x + (Math.random() - 0.5) * 0.3, p.y + 0.05, p.z + (Math.random() - 0.5) * 0.3);
+      s.userData.v.set((Math.random() - 0.5) * 0.8 * power + dirX * power, (0.4 + Math.random() * 0.9) * power, (Math.random() - 0.5) * 0.8 * power + dirZ * power);
+      s.userData.life = 4; s.visible = true;
+      s.material.opacity = 0.85; s.scale.setScalar(0.035 + Math.random() * 0.035);
     }
   }
   function updateDust(dt) {
@@ -780,10 +1038,9 @@ window.Surface = (function () {
       if (!s.visible) continue;
       s.userData.life -= dt;
       if (s.userData.life <= 0) { s.visible = false; continue; }
-      s.userData.v.y -= cfg.gravity * dt; // Staub fällt auf dem Mond in hohem Bogen zurück
+      s.userData.v.y -= cfg.gravity * dt; // keine Luft: nur die Schwerkraft wirkt
       s.position.addScaledVector(s.userData.v, dt);
-      const k = s.userData.life / 1.4;
-      s.material.opacity = k * 0.6; s.scale.setScalar(0.3 + (1 - k) * 0.7);
+      if (s.position.y <= world.height(s.position.x, s.position.z)) s.visible = false; // gelandet
     }
   }
 
@@ -802,6 +1059,6 @@ window.Surface = (function () {
     }
   }
 
-  if (/[?&]test/.test(location.search)) S._test = { ast, get world() { return world; }, discover };
+  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, discover, POSE, setBone };
   return S;
 })();
