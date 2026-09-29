@@ -28,7 +28,7 @@
 
   const Game = {
     state: null,
-    mode: "intro",           // intro | countdown | fly | explore
+    mode: "intro",           // intro | countdown | fly | landing | explore | takeoff
     exploring: null,
     bodyById: {},
     save() {
@@ -141,37 +141,200 @@
     if (Game.compass) UI.toast(`🧭 Der gelbe Pfeil zeigt dir den Weg zu ${Game.bodyById[id].name}. Flieg selbst hin!`);
   };
 
+  // ---------- Landen / Umlaufbahn / Starten ----------
+  // Auf festem Boden wird gelandet; bei Sonne, Gas- und Eisriesen geht das nicht → Umlaufbahn.
+  const CAN_LAND = ["Gesteinsplanet", "Mond der Erde", "Zwergplanet"];
+  const NOSE = new V(0, 0, -1);
+  const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+  const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+  let seq = null; // laufende Animation: { kind: "land" | "orbit", phase: "in" | "stay" | "out", ... }
+
+  function orbitRadius(b) {
+    if (b.id === "sonne") return b.radius * 1.5;
+    if (b.rings) return b.radius * (b.faintRings ? 2.4 : 2.8); // außerhalb der Ringe
+    return b.radius * 1.8;
+  }
+
   Game.explore = function (id) {
+    if (Game.mode !== "fly") return;
     if (Game.compass === id) Game.compass = null;
-    Game.mode = "explore";
+    const b = Game.bodyById[id], entry = W.bodies[id];
+    const land = CAN_LAND.includes(b.kind);
+    // Die Rakete „hängt“ sich an den Himmelskörper, damit sie mit ihm mitfliegt (und beim Landen mitdreht)
+    const parent = land ? entry.mesh : (id === "sonne" ? W.scene : entry.group);
+    parent.attach(W.ship);
+    const p0 = W.ship.position.clone(), q0 = W.ship.quaternion.clone();
+    const r = b.radius;
+    seq = { kind: land ? "land" : "orbit", phase: "in", id, b, parent, t: 0, p0, q0, r };
+    if (land) {
+      const n = p0.clone().normalize();
+      seq.n = n;
+      seq.s = THREE.MathUtils.clamp(r * 0.14, 0.1, 0.55);
+      seq.hover = n.clone().multiplyScalar(r * 1.55 + 3 * seq.s);
+      seq.ground = n.clone().multiplyScalar(r + 0.95 * seq.s);
+      seq.qUp = new THREE.Quaternion().setFromUnitVectors(NOSE, n);
+      seq.dur = 4.3;
+      UI.toast(`🛬 Landeanflug auf ${id === "mond" ? "den Mond" : b.name} …`);
+    } else {
+      seq.s = THREE.MathUtils.clamp(r * 0.06, 0.25, 0.8);
+      seq.R = orbitRadius(b);
+      seq.a0 = seq.a = Math.atan2(p0.z, p0.x);
+      seq.w = id === "sonne" ? 0.18 : 0.32;
+      seq.dur = 4.0;
+      UI.toast(id === "sonne"
+        ? "🔥 Auf der Sonne kann man nicht landen – viel zu heiß! Wir fliegen eine Runde um sie herum."
+        : `🪐 ${b.name} hat keinen festen Boden – dort kann man nicht landen! Wir fliegen in eine Umlaufbahn.`);
+    }
+    Game.mode = "landing";
     Game.exploring = id;
     ship.speed = 0;
-    const P = bodyPos(id, new V());
-    cam.exploreAngle = Math.atan2(ship.pos.z - P.z, ship.pos.x - P.x);
-    W.ship.visible = false;
-    Sound.arrive();
-    Sound.engine(0);
-    UI.openPanel(id);
-    markVisited(id);
+    document.getElementById("hud").classList.add("hidden");
+    Sound.whoosh();
   };
 
+  // Erreicht der Anflug das Ziel: Infotafel öffnen, Stempel & Mission
+  function arrive() {
+    const id = seq.id, P = bodyPos(id, new V());
+    seq.phase = "stay";
+    Game.mode = "explore";
+    const cp = W.camera.position;
+    cam.exploreAngle = Math.atan2(cp.z - P.z, cp.x - P.x);
+    Sound.engine(0);
+    W.flame.visible = false;
+    UI.openPanel(id);
+    markVisited(id);
+  }
+
   function leaveExplore() {
-    const id = Game.exploring;
-    if (!id) return;
-    const b = Game.bodyById[id];
-    const P = bodyPos(id, new V());
-    const radial = tmpA.copy(W.camera.position).sub(P).setY(0).normalize();
-    ship.pos.copy(P).addScaledVector(radial, b.radius * 2.4 + 4);
-    ship.pos.y += b.radius * 0.4;
-    const tangent = tmpB.copy(UP).cross(radial).normalize();
-    aimAt(tangent);
-    ship.speed = 0;
-    W.ship.visible = true;
-    Game.exploring = null;
-    Game.mode = "fly";
+    if (Game.mode !== "explore" || !seq) return;
     UI.closePanel();
+    document.getElementById("hud").classList.add("hidden");
+    seq.phase = "out"; seq.t = 0;
+    seq.dur = seq.kind === "land" ? 1.9 : 1.3;
+    seq.from = W.ship.position.clone();
+    seq.fromScale = W.ship.scale.x;
+    if (seq.kind === "land") seq.to = seq.n.clone().multiplyScalar(seq.r * 2.3 + 4);
+    Game.mode = "takeoff";
+    Sound.whoosh();
   }
   Game.leaveExplore = leaveExplore;
+
+  // Rakete ist wieder frei: zurück in die Szene und normal weiterfliegen
+  function finishTakeoff() {
+    W.scene.attach(W.ship);
+    W.ship.scale.setScalar(1);
+    ship.pos.copy(W.ship.position);
+    const P = bodyPos(seq.id, new V());
+    const out = tmpA.copy(ship.pos).sub(P).normalize();
+    if (seq.kind === "land") aimAt(out);
+    else aimAt(tmpB.copy(UP).cross(out).normalize()); // tangential weiter
+    ship.pitch = THREE.MathUtils.clamp(ship.pitch, -1.0, 1.0);
+    ship.bank = 0;
+    ship.speed = 12;
+    seq = null;
+    Game.exploring = null;
+    Game.mode = "fly";
+    UI.showHUD();
+    UI.updateHUD();
+  }
+
+  // Überspringen per Tipp/Taste (wichtig, wenn Kinder zum zehnten Mal landen)
+  function skipSequence() {
+    if (seq && (Game.mode === "landing" || Game.mode === "takeoff")) seq.t = Math.max(seq.t, seq.dur - 0.0001);
+  }
+
+  const qTmp = new THREE.Quaternion();
+  function orbitPose(a, R, out) { return out.set(Math.cos(a) * R, 0, Math.sin(a) * R); }
+  function orbitQuat(a, out) { return out.setFromUnitVectors(NOSE, tmpC.set(-Math.sin(a), 0, Math.cos(a))); }
+
+  function updateSequence(dt, elapsed) {
+    if (!seq) return;
+    const s = W.ship;
+    seq.t += dt;
+    let flame = 0;
+
+    if (seq.kind === "land") {
+      if (seq.phase === "in") {
+        const t = seq.t;
+        if (t < 1.5) {
+          const e = ease(t / 1.5);
+          s.position.lerpVectors(seq.p0, seq.hover, e);
+          s.quaternion.slerpQuaternions(seq.q0, seq.qUp, e);
+          s.scale.setScalar(THREE.MathUtils.lerp(1, seq.s, e));
+          flame = 0.6;
+        } else if (t < 3.5) {
+          const e = easeOut((t - 1.5) / 2);
+          s.position.lerpVectors(seq.hover, seq.ground, e);
+          s.quaternion.copy(seq.qUp);
+          s.scale.setScalar(seq.s);
+          flame = 0.8 - e * 0.5;
+          if (e > 0.55) emitDust(3);
+        } else {
+          s.position.copy(seq.ground); s.quaternion.copy(seq.qUp); s.scale.setScalar(seq.s);
+          if (!seq.touched) {
+            seq.touched = true;
+            Sound.land();
+            for (let i = 0; i < 14; i++) emitDust(1);
+            UI.toast(`🛬 Gelandet auf ${seq.id === "mond" ? "dem Mond" : seq.b.name}!`, "gold");
+          }
+          if (t >= seq.dur) arrive();
+        }
+      } else if (seq.phase === "out") {
+        const e = Math.min(1, seq.t / seq.dur);
+        s.position.lerpVectors(seq.from, seq.to, ease(e));
+        s.scale.setScalar(THREE.MathUtils.lerp(seq.fromScale, 1, e));
+        flame = 1;
+        if (e < 0.3) emitDust(2);
+        if (e >= 1) { finishTakeoff(); return; }
+      }
+    } else {
+      // Umlaufbahn
+      if (seq.phase === "in") {
+        const t = seq.t;
+        if (t < 1.8) {
+          const e = ease(t / 1.8);
+          s.position.lerpVectors(seq.p0, orbitPose(seq.a0, seq.R, tmpA), e);
+          s.quaternion.slerpQuaternions(seq.q0, orbitQuat(seq.a0, qTmp), e);
+          s.scale.setScalar(THREE.MathUtils.lerp(1, seq.s, e));
+          flame = 0.6;
+          seq.a = seq.a0;
+        } else {
+          flame = 0.35;
+          if (t >= seq.dur) arrive();
+        }
+      } else if (seq.phase === "out") {
+        const e = Math.min(1, seq.t / seq.dur);
+        s.scale.setScalar(THREE.MathUtils.lerp(seq.fromScale, 1, e));
+        flame = 1;
+        if (e >= 1) { finishTakeoff(); return; }
+      }
+      // Kreisen (auch während die Infotafel offen ist)
+      if (seq.t >= 1.8 || seq.phase !== "in") {
+        seq.a += dt * seq.w;
+        if (seq.phase === "in") s.scale.setScalar(seq.s);
+        const R = seq.phase === "out" ? seq.R * (1 + 0.5 * Math.min(1, seq.t / seq.dur)) : seq.R;
+        orbitPose(seq.a, R, s.position);
+        orbitQuat(seq.a, s.quaternion);
+      }
+    }
+
+    W.flame.visible = flame > 0.02;
+    W.flame.scale.set(1, 1, 0.25 + flame * 1.5 + Math.sin(elapsed * 40) * 0.08 * (flame + 0.2));
+    Sound.engine(flame * 0.6);
+  }
+
+  // Staub beim Landen/Starten: kleine Wolken rund um den Landepunkt
+  function emitDust(n) {
+    const parent = seq.parent;
+    for (let i = 0; i < n; i++) {
+      const p = tmpA.copy(seq.n).multiplyScalar(seq.r + 0.1 * seq.s);
+      const side = tmpB.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).cross(seq.n).normalize()
+        .multiplyScalar(seq.s * (0.5 + Math.random() * 2));
+      p.add(side);
+      parent.localToWorld(p);
+      W.emitTrail(p, 0.8, seq.s * 2.2);
+    }
+  }
 
   // ---------- Eingabe ----------
   function setupInput(canvas) {
@@ -181,6 +344,7 @@
       if (block.includes(e.key)) e.preventDefault();
       const k = e.key.toLowerCase();
       input.keys[k] = true;
+      if (!e.repeat) skipSequence();
       if (k === "e" && Game.mode === "fly" && UI.nearId) Game.explore(UI.nearId);
       if (k === "escape") {
         if (UI.modalOpen()) UI.closeModal();
@@ -192,7 +356,7 @@
 
     // Maus/Finger ziehen auf dem Bild = lenken
     let drag = null;
-    canvas.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; Sound.unlock(); });
+    canvas.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; Sound.unlock(); skipSequence(); });
     window.addEventListener("pointermove", (e) => {
       if (!drag || drag.id !== e.pointerId || Game.mode !== "fly") return;
       input.dragX += e.clientX - drag.x; input.dragY += e.clientY - drag.y;
@@ -305,6 +469,12 @@
 
   function updateCamera(dt) {
     const c = W.camera;
+    // Nur beim Landen/Starten auf festem Boden darf die Kamera kippen – sonst wieder aufrichten
+    const tilting = (Game.mode === "landing" || Game.mode === "takeoff") && seq && seq.kind === "land";
+    if (!tilting && c.up.y < 0.9999) {
+      if (c.up.y < -0.95) c.up.x += 0.05; // genau „kopfüber“ (Südpol): erst etwas seitlich kippen
+      c.up.lerp(UP, 1 - Math.exp(-dt * 2.5)).normalize();
+    }
     if (Game.mode === "explore") {
       const id = Game.exploring, b = Game.bodyById[id];
       const P = bodyPos(id, new V());
@@ -319,6 +489,26 @@
       if (!bottomSheet) look.addScaledVector(fwd.cross(UP).normalize(), b.radius * 1.0 * (b.rings ? 1.3 : 1));
       else look.y -= b.radius * 1.35;
       cam.look.lerp(look, 1 - Math.exp(-dt * 3));
+      c.lookAt(cam.look);
+      setFov(55, dt);
+      return;
+    }
+    if ((Game.mode === "landing" || Game.mode === "takeoff") && seq) {
+      // Kamera schaut von der Seite zu, wie die Rakete landet bzw. kreist
+      const P = bodyPos(seq.id, new V());
+      const shipW = W.ship.getWorldPosition(tmpA);
+      const nW = tmpB.copy(shipW).sub(P).normalize();
+      const side = tmpC.copy(nW).cross(UP);
+      if (side.lengthSq() < 1e-4) side.set(1, 0, 0);
+      side.normalize();
+      const sc = W.ship.scale.x, r = seq.r;
+      const dist = seq.kind === "land" ? r * 0.9 + 5 * sc : r * 0.8 + 6 * sc;
+      const want = new V().copy(shipW).addScaledVector(side, dist).addScaledVector(nW, seq.kind === "land" ? r * 0.3 + 2 * sc : r * 0.5);
+      c.position.lerp(want, 1 - Math.exp(-dt * 2.5));
+      const look = new V().copy(shipW).addScaledVector(nW, seq.kind === "land" ? -r * 0.15 : -r * 0.4);
+      cam.look.lerp(look, 1 - Math.exp(-dt * 4));
+      // Beim Landen dreht sich die Kamera mit, damit der Boden immer „unten“ ist
+      if (seq.kind === "land") c.up.lerp(nW, 1 - Math.exp(-dt * 2)).normalize();
       c.lookAt(cam.look);
       setFov(55, dt);
       return;
@@ -374,9 +564,13 @@
     perf.check = 0;
     if (!perf.ratio) perf.ratio = W.renderer.getPixelRatio();
     // Nie unschärfer als ein normaler Bildschirm (1), außer das Gerät hat selbst weniger
-    const floor = Math.min(1, W.maxPixelRatio);
+    const floor = W.fast ? 0.75 : Math.min(1, W.maxPixelRatio);
     let next = perf.ratio;
-    if (perf.avg > 1 / 40) perf.bad++; else perf.bad = 0;
+    if (perf.avg > 1 / 50) perf.bad++; else perf.bad = 0;
+    if (perf.bad >= 3 && perf.ratio <= floor && !W.fast && !perf.suggested) {
+      perf.suggested = true;
+      UI.toast("🐢 Ruckelt es? Lehrkraft: ❓ Hilfe → Grafik → „⚡ Flüssig“");
+    }
     if (perf.bad >= 2 && perf.ratio > floor) { next = Math.max(floor, perf.ratio - 0.25); perf.goodFor = 0; perf.bad = 0; }
     else if (perf.avg < 1 / 57) { perf.goodFor += 2; if (perf.goodFor >= 20 && perf.ratio < W.maxPixelRatio) { next = Math.min(W.maxPixelRatio, perf.ratio + 0.25); perf.goodFor = 0; } }
     else perf.goodFor = 0;
@@ -388,11 +582,27 @@
   }
   Game.perf = perf;
 
+  // Bildrate-Anzeige zum Messen auf echten Geräten
+  const fpsEl = document.getElementById("fps");
+  let fpsShow = /[?&]fps/.test(location.search), fpsT = 0, fpsN = 0;
+  try { fpsShow = fpsShow || localStorage.getItem("ms-fps") === "1"; } catch (e) { /* egal */ }
+  Game.setFpsVisible = (on) => { fpsShow = on; fpsEl.classList.toggle("hidden", !on); try { localStorage.setItem("ms-fps", on ? "1" : "0"); } catch (e) { /* egal */ } };
+  Game.fpsVisible = () => fpsShow;
+  fpsEl.classList.toggle("hidden", !fpsShow);
+  function updateFps(rawDt) {
+    if (!fpsShow) return;
+    fpsT += rawDt; fpsN++;
+    if (fpsT < 0.5) return;
+    fpsEl.textContent = `${Math.round(fpsN / fpsT)} Bilder/s · Auflösung ${W.renderer.getPixelRatio().toFixed(2)}${W.fast ? " · ⚡" : ""}`;
+    fpsT = 0; fpsN = 0;
+  }
+
   function loop(now) {
     const rawDt = (now - last) / 1000;
     const dt = Math.min(0.05, rawDt);
     last = now; elapsed += dt;
     adaptQuality(rawDt);
+    updateFps(rawDt);
 
     if (Game.mode === "intro") {
       const a = elapsed * 0.05;
@@ -410,7 +620,8 @@
       }
       if (ship.pos.length() > 900) { ship.pos.setLength(900); ship.speed *= 0.5; UI.toast("🌌 Hier endet unser Sonnensystem-Spielplatz. Dreh um!"); }
     }
-    if (Game.mode !== "explore" && Game.mode !== "intro") updateShipVisual(dt, elapsed);
+    if (Game.mode === "fly" || Game.mode === "countdown") updateShipVisual(dt, elapsed);
+    if (Game.mode === "landing" || Game.mode === "takeoff" || Game.mode === "explore") updateSequence(dt, elapsed);
     if (Game.mode !== "fly") { ship.gas = 0; }
 
     W.update(dt, elapsed, false);

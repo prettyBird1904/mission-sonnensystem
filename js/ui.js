@@ -275,18 +275,33 @@ window.UI = (function () {
     if (!arrowShown) $("edgeArrow").classList.add("hidden");
 
     const sp = Math.abs(ship.speed);
-    $("speedVal").textContent = Math.round(sp * 10);
-    $("speedBar").style.width = Math.min(100, (sp / 120) * 100) + "%";
+    setText("speedVal", String(Math.round(sp * 10)));
+    const bar = Math.round(Math.min(100, (sp / 120) * 100)) + "%";
+    if (domCache.get("speedBar") !== bar) { domCache.set("speedBar", bar); $("speedBar").style.width = bar; }
     const near = UI.nearId;
-    if (near) $("nearText").textContent = `In der Nähe: ${G.bodyById[near].name}`;
-    else if (target) $("nearText").textContent = `🧭 Ziel: ${G.bodyById[target].name} – noch ${Math.round(World.worldPos(target, v3).distanceTo(ship.pos) * 10)}`;
-    else $("nearText").textContent = "Freier Weltraum";
-    const p = $("explorePrompt");
-    p.classList.toggle("hidden", !near);
-    if (near) p.querySelector("span").textContent = G.bodyById[near].name;
+    if (near) setText("nearText", `In der Nähe: ${G.bodyById[near].name}`);
+    else if (target) setText("nearText", `🧭 Ziel: ${G.bodyById[target].name} – noch ${Math.round(World.worldPos(target, v3).distanceTo(ship.pos) / 5) * 50}`);
+    else setText("nearText", "Freier Weltraum");
+    if (domCache.get("near") !== near) {
+      domCache.set("near", near);
+      const p = $("explorePrompt");
+      p.classList.toggle("hidden", !near);
+      if (near) p.querySelector("span").textContent = G.bodyById[near].name;
+    }
   }
 
-  function warp(v) { $("warp").style.opacity = Math.min(0.8, v).toFixed(2); }
+  let warpLast = -1;
+  function warp(v) {
+    const o = Math.round(Math.min(0.8, v) * 20) / 20;
+    if (o === warpLast) return;
+    warpLast = o;
+    const w = $("warp");
+    w.style.opacity = o;
+    w.style.display = o > 0 ? "" : "none"; // unsichtbar = auch keine Animation
+  }
+  // Text/Klasse nur anfassen, wenn sich wirklich etwas ändert (spart Arbeit bei jedem Bild)
+  const domCache = new Map();
+  function setText(id, text) { if (domCache.get(id) !== text) { domCache.set(id, text); $(id).textContent = text; } }
 
   // ---------- Infotafel ----------
   let current = null, factIdx = 0;
@@ -346,7 +361,9 @@ window.UI = (function () {
     const pos = ((clampT + 240) / 740) * 100;
     const home = ((15 + 240) / 740) * 100;
 
+    const photos = (D.photos && D.photos[b.id]) || [];
     $("paneInfo").innerHTML = `
+      ${photos.length ? `<div class="gallery" id="gallery"></div>` : ""}
       <p class="intro">${b.intro}</p>
       <div class="facts-grid">${tiles.map(([i, l, v]) => `<div class="fact"><div class="ico">${i}</div><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join("")}</div>
       <div class="box">
@@ -365,6 +382,42 @@ window.UI = (function () {
         <p>${b.id === "sonne" ? "Die Sonne ist so heiß, dass sie gar nicht auf diese Skala passt! 🔥" : `${b.name}: <b>${b.tempText}</b>`}</p>
       </div>`;
     requestAnimationFrame(() => setTimeout(() => { const m = $("thermoMark"); if (m) m.style.left = pos + "%"; }, 150));
+    if (photos.length) renderGallery($("gallery"), photos, 0, false);
+  }
+
+  // Fotogalerie: Blättern mit Pfeilen, Punkten oder Wischen; Antippen vergrößert
+  function renderGallery(host, photos, idx, big) {
+    const n = photos.length;
+    idx = (idx + n) % n;
+    const p = photos[idx];
+    host.innerHTML = `
+      <figure class="${big ? "photo-big" : "photo"}">
+        <div class="photo-stage">
+          <img src="img/${p.file}" alt="${p.caption.replace(/"/g, "&quot;")}" draggable="false">
+          <span class="photo-badge">📷 ${p.tag}</span>
+          ${n > 1 ? `<button class="photo-nav prev" aria-label="Voriges Foto">‹</button><button class="photo-nav next" aria-label="Nächstes Foto">›</button>` : ""}
+          ${!big ? `<span class="photo-zoom">🔍</span>` : ""}
+        </div>
+        ${n > 1 ? `<div class="photo-dots">${photos.map((_, k) => `<i class="${k === idx ? "on" : ""}" data-k="${k}"></i>`).join("")}</div>` : ""}
+        <figcaption>${p.caption}<small>${p.credit}${big ? ` · <a href="${p.url}" target="_blank" rel="noopener">Quelle</a>` : ""}</small></figcaption>
+      </figure>`;
+    const go = (k) => { Sound.click(); renderGallery(host, photos, k, big); };
+    host.querySelector(".prev")?.addEventListener("click", (e) => { e.stopPropagation(); go(idx - 1); });
+    host.querySelector(".next")?.addEventListener("click", (e) => { e.stopPropagation(); go(idx + 1); });
+    host.querySelectorAll(".photo-dots i").forEach((d) => d.addEventListener("click", () => go(+d.dataset.k)));
+    const stage = host.querySelector(".photo-stage");
+    let sx = null;
+    stage.addEventListener("pointerdown", (e) => { sx = e.clientX; });
+    stage.addEventListener("pointerup", (e) => {
+      if (sx === null) return;
+      const dx = e.clientX - sx; sx = null;
+      if (Math.abs(dx) > 40 && n > 1) go(idx + (dx < 0 ? 1 : -1));
+      else if (!big && !e.target.closest(".photo-nav")) {
+        Sound.click();
+        openModal(`<div class="gallery" id="galleryBig"></div>`);
+        renderGallery($("galleryBig"), photos, idx, true);
+      }
+    });
   }
 
   function renderFacts(i) {
@@ -658,7 +711,21 @@ window.UI = (function () {
       <div class="row-gap">
         <button class="btn primary" id="btnSwitch">👋 Astronaut/in wechseln</button>
         <button class="btn ghost" id="btnReset">🗑️ Meinen Spielstand löschen</button>
+      </div>
+      <div class="box" style="margin-top:18px">
+        <h3>⚙️ Grafik (für Lehrkräfte)</h3>
+        <p>Ruckelt das Spiel, stelle auf <b>⚡ Flüssig</b>. Das Spiel lädt dann neu.</p>
+        <div class="settings-row">
+          <button class="btn ghost small ${World.fast ? "" : "selected"}" id="gfxNice">✨ Schön</button>
+          <button class="btn ghost small ${World.fast ? "selected" : ""}" id="gfxFast">⚡ Flüssig</button>
+          <button class="btn ghost small ${G.fpsVisible() ? "selected" : ""}" id="gfxFps">📊 Bildrate anzeigen</button>
+        </div>
+        <p style="color:var(--muted);font-size:13px">Version ${D.version} · Auflösung ${World.renderer.getPixelRatio().toFixed(2)} · Bilder/s ${Math.round(1 / G.perf.avg)}</p>
       </div>`);
+    const setGfx = (mode) => { try { localStorage.setItem("ms-grafik", mode); } catch (e) { /* egal */ } location.reload(); };
+    $("gfxNice").onclick = () => { if (World.fast) setGfx("schoen"); };
+    $("gfxFast").onclick = () => { if (!World.fast) setGfx("schnell"); };
+    $("gfxFps").onclick = (e) => { const on = !G.fpsVisible(); G.setFpsVisible(on); e.currentTarget.classList.toggle("selected", on); };
     $("btnSwitch").onclick = () => location.reload();
     let armed = false;
     $("btnReset").onclick = (e) => {

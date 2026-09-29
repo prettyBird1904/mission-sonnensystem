@@ -57,6 +57,8 @@ Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustart
 | 🧭 **Kompass** | Unten auf einen Himmelskörper tippen – ein gelber Pfeil zeigt den Weg, fliegen müssen die Kinder selbst. |
 | 🎮 **Selbst fliegen** | Tastatur: `W` Gas, `A`/`D` lenken, `R`/`F` hoch/runter, Leertaste Turbo, `E` erforschen · Tablet: Joystick + GAS/TURBO · In Planetennähe schaltet sich der Turbo automatisch ab (Landeanflug), damit man nicht vorbeischießt. |
 | 🏅 **12 Missionen** | Rätsel („Finde den heißesten Planeten“) – mit 💡 Tipp-Knopf, der einen Pfeil zum Ziel zeigt |
+| 🛬 **Landen** | Auf Merkur, Venus, Erde, Mond, Mars und Pluto landet die Rakete. Bei Sonne, Jupiter, Saturn, Uranus und Neptun geht das nicht (kein fester Boden / zu heiß) – dort fliegt sie in eine Umlaufbahn und erklärt, warum. Antippen oder eine Taste überspringt die Animation. |
+| 📷 **Echte Fotos** | Oben im Steckbrief: Fotos von Raumsonden, Teleskopen und Astronauten – z. B. Buzz Aldrin auf dem Mond, Selfie des Mars-Rovers, der Boden der Venus. Wischen oder Pfeile zum Blättern, Antippen zum Vergrößern. Quellen: `BILDNACHWEIS.md` |
 | 📋 **Steckbrief** | Größe, Entfernung, Tag, Jahr, Temperatur, Monde, Größenvergleich mit der Erde, Thermometer |
 | 💡 **Wusstest du?** | 4–5 spannende Fakten pro Himmelskörper |
 | 🧪 **Labor** | „Wie schwer wäre ich dort?“, „Wie alt wäre ich dort?“, „Wie lange bräuchte ein Auto / das Licht?“ |
@@ -67,6 +69,13 @@ Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustart
 | 🔊 **Vorlesen** | Jeder Text kann vorgelesen werden (Leseförderung / DaZ) |
 
 Die Abstände und Größen sind – wie im Spiel erklärt – **nicht maßstabsgetreu**, damit alles sichtbar bleibt. Das eignet sich gut als Gesprächsanlass im Unterricht.
+
+## Wenn es ruckelt
+
+1. **❓ Hilfe → Grafik → „⚡ Flüssig“** wählen (das Spiel lädt neu). Das reicht auf den meisten Geräten.
+2. Laptop/Surface ans **Stromkabel** und in Windows den Energiemodus auf **„Beste Leistung“** stellen – im Akku-Sparmodus drosseln Windows und Edge das Spiel stark.
+3. Zum Messen: **❓ Hilfe → Grafik → „📊 Bildrate anzeigen“**. Unten erscheint z. B. „58 Bilder/s“. Ab etwa 45 läuft es flüssig.
+4. Unten in der Grafik-Box steht die **Versionsnummer**. Nach einem Update zeigt das Gerät die neue Version erst beim **zweiten** Öffnen an.
 
 ## Inhalte anpassen
 

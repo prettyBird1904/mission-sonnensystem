@@ -17,7 +17,11 @@ window.World = (function () {
   // Tablets/Handys: etwas weniger Grafiklast, damit es flüssig läuft
   const LITE = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || navigator.maxTouchPoints > 0;
   // Höchste Render-Auflösung; die automatische Qualitätsregelung (game.js) geht bei Ruckeln darunter.
-  W.maxPixelRatio = Math.min(window.devicePixelRatio || 1, LITE ? 1.5 : 2);
+  // Grafik-Modus (Hilfe → Grafik): "schnell" = ⚡ Flüssig für schwächere Geräte
+  let FAST = false;
+  try { FAST = localStorage.getItem("ms-grafik") === "schnell"; } catch (e) { /* egal */ }
+  W.fast = FAST;
+  W.maxPixelRatio = FAST ? 1 : Math.min(window.devicePixelRatio || 1, LITE ? 1.5 : 2);
 
   function rimMaterial(color, power = 2.5, intensity = 1.2) {
     return new THREE.ShaderMaterial({
@@ -117,7 +121,7 @@ window.World = (function () {
   }
 
   async function build(canvas, shipColor, onProgress) {
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: !FAST && (window.devicePixelRatio || 1) < 1.5, powerPreference: "high-performance" });
     renderer.setPixelRatio(W.maxPixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputEncoding = THREE.sRGBEncoding;
@@ -140,7 +144,7 @@ window.World = (function () {
 
     // Sterne
     const dot = T.dotTexture();
-    [[LITE ? 4000 : 7000, 2.2, 0.8], [900, 4.5, 1]].forEach(([n, size, op]) => {
+    [[FAST ? 2500 : LITE ? 4000 : 7000, 2.2, 0.8], [FAST ? 500 : 900, 4.5, 1]].forEach(([n, size, op]) => {
       const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
       const palette = [[1, 1, 1], [0.75, 0.85, 1], [1, 0.92, 0.75], [1, 0.8, 0.8]];
       for (let i = 0; i < n; i++) {
@@ -230,7 +234,7 @@ window.World = (function () {
 
     const big = b.radius > 4;
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(b.radius, 64, 48),
-      new THREE.MeshStandardMaterial({ map: T.planetTexture(b.id, b.id === "erde" ? (LITE ? 768 : 1024) : big && !LITE ? 768 : 512), roughness: 0.95, metalness: 0 }));
+      new THREE.MeshStandardMaterial({ map: T.planetTexture(b.id, FAST ? 512 : b.id === "erde" ? (LITE ? 768 : 1024) : big && !LITE ? 768 : 512), roughness: 0.95, metalness: 0 }));
     tilt.add(mesh);
 
     const atmo = { erde: 0x5aa9ff, venus: 0xffd28a, mars: 0xff9a6a, uranus: 0x9ff3ff, neptun: 0x6b8cff, jupiter: 0xffe0b0, saturn: 0xffe8c0 }[b.id];
@@ -256,7 +260,7 @@ window.World = (function () {
   }
 
   function buildBelt() {
-    const n = LITE ? 700 : 1100;
+    const n = FAST ? 350 : LITE ? 700 : 1100;
     const geo = new THREE.DodecahedronGeometry(1, 0);
     const mat = new THREE.MeshStandardMaterial({ color: 0x8a7f72, roughness: 1, flatShading: true });
     const belt = new THREE.InstancedMesh(geo, mat, n);
@@ -298,7 +302,7 @@ window.World = (function () {
 
   function buildTrail() {
     const mat = new THREE.SpriteMaterial({ map: T.glowTexture("rgba(255,220,160,1)", "rgba(255,140,60,0.5)"), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < (FAST ? 30 : 90); i++) {
       const s = new THREE.Sprite(mat.clone());
       s.visible = false;
       s.userData = { life: 0, max: 1 };
@@ -331,15 +335,16 @@ window.World = (function () {
       if (t.userData.life <= 0) { t.visible = false; continue; }
       const k = t.userData.life / t.userData.max;
       t.material.opacity = k * 0.7;
-      t.scale.setScalar(0.25 + (1 - k) * 0.9);
+      t.scale.setScalar((0.25 + (1 - k) * 0.9) * t.userData.size);
     }
   }
 
-  function emitTrail(pos, strength) {
+  function emitTrail(pos, strength, size = 1) {
     const s = W.trail[W.trailIndex];
     W.trailIndex = (W.trailIndex + 1) % W.trail.length;
     s.position.copy(pos);
     s.userData.max = s.userData.life = 0.35 + strength * 0.6;
+    s.userData.size = size;
     s.visible = true;
   }
 

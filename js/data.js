@@ -202,7 +202,7 @@ window.SPACE_DATA = {
       day: "ca. 16 Stunden", year: "165 Erdjahre",
       tempText: "etwa −200 °C", tempC: -200,
       moons: "über 15", gravity: 1.14,
-      intro: "Neptun ist der äußerste Planet – tiefblau und stürmisch! Hier wehen die stärksten Winde im ganzen Sonnensystem.",
+      intro: "Neptun ist der äußerste Planet – blau, eiskalt und stürmisch! Hier wehen die stärksten Winde im ganzen Sonnensystem.",
       facts: [
         "Auf Neptun toben Winde mit über 2.000 km/h – schneller als ein Düsenflugzeug!",
         "Seit seiner Entdeckung 1846 hat Neptun erst ein einziges Mal die Sonne umrundet.",
@@ -249,11 +249,244 @@ window.SPACE_DATA = {
     { target: "jupiter", text: "Fliege zum größten Planeten – dem Riesen mit dem roten Fleck." },
     { target: "saturn",  text: "Finde den Planeten mit den schönsten Ringen." },
     { target: "uranus",  text: "Finde den eisblauen Planeten, der auf der Seite liegt." },
-    { target: "neptun",  text: "Fliege zum stürmischen, tiefblauen Planeten ganz außen." },
+    { target: "neptun",  text: "Fliege zum stürmischen blauen Planeten ganz außen." },
     { target: "pluto",   text: "Suche den kleinen Zwergplaneten mit dem Herz." },
     { target: "#order",  text: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge!" }
   ],
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
-  mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten."
+  // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
+  version: "6",
+
+  mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
+
+  /* Echte Fotos (lokal in img/, verkleinert). Pro Himmelskörper: erst das Gesamtbild, dann Nahaufnahmen.
+     Quellen & Lizenzen: siehe BILDNACHWEIS.md */
+  photos: {
+    "sonne": [
+      {
+        "file": "sonne.jpg",
+        "tag": "Aus dem All",
+        "caption": "Die Sonne, durch einen Spezialfilter fotografiert. Die dunklen Punkte sind Sonnenflecken – die kleinen in der Mitte sind ungefähr so groß wie unsere Erde!",
+        "credit": "NASA · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Sun920607.jpg"
+      },
+      {
+        "file": "sonne-1.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "So nah wurde die Sonne noch nie fotografiert! Jede „Wabe“ ist eine riesige Blase aus heißem Gas – jede einzelne ist größer als Deutschland.",
+        "credit": "NSO / NSF / AURA · CC BY 4.0",
+        "url": "https://commons.wikimedia.org/wiki/File:NSF’s_Inouye_Solar_Telescope_First_Light_(cropped)_(NSO-DKIST-firstlight-crop).jpg"
+      },
+      {
+        "file": "sonne-2.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "Ein Sonnenausbruch: Glühend heißes Gas schießt weit hinaus ins All – viel weiter, als die Erde groß ist.",
+        "credit": "NASA / SDO · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Solar_Eruption.jpg"
+      }
+    ],
+    "merkur": [
+      {
+        "file": "merkur.jpg",
+        "tag": "Aus dem All",
+        "caption": "Merkur, fotografiert von der Raumsonde MESSENGER. Die Farben wurden verstärkt, damit man die verschiedenen Gesteine besser sieht.",
+        "credit": "NASA / JHU APL / Carnegie Institution of Washington · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Mercury_in_color_-_Prockter07-edit1.jpg"
+      },
+      {
+        "file": "merkur-1.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "Der Munch-Krater auf Merkur aus der Nähe. Er ist 58 Kilometer breit – größer als die Stadt Berlin!",
+        "credit": "NASA / JHU APL / ASU · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Munch_crater_on_Mercury.jpg"
+      }
+    ],
+    "venus": [
+      {
+        "file": "venus.jpg",
+        "tag": "Aus dem All",
+        "caption": "Die Venus, fotografiert von der Raumsonde Mariner 10. Man sieht nur die dicke Wolkendecke – den Boden darunter kann man nicht sehen!",
+        "credit": "NASA / JPL-Caltech · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:PIA23791-Venus-RealAndEnhancedContrastViews-20200608_(cropped).jpg"
+      },
+      {
+        "file": "venus-1.jpg",
+        "tag": "Auf der Oberfläche",
+        "caption": "Das ist wirklich der Boden der Venus! 1982 landete dort die Sonde Venera 13 aus der Sowjetunion und funkte dieses Foto zur Erde. Nach etwa 2 Stunden gab sie wegen der Hitze auf.",
+        "credit": "UdSSR / NASA · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:V13_vg261_262.tif"
+      }
+    ],
+    "erde": [
+      {
+        "file": "erde.jpg",
+        "tag": "Aus dem All",
+        "caption": "„Blue Marble“ – unsere Erde, fotografiert 1972 von den Astronauten von Apollo 17 auf dem Weg zum Mond.",
+        "credit": "NASA / Apollo 17 · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Blue_Marble_(remastered).jpg"
+      },
+      {
+        "file": "erde-1.jpg",
+        "tag": "Vom Mond aus",
+        "caption": "„Earthrise“ – der Erdaufgang: 1968 fotografierte der Astronaut Bill Anders, wie die Erde hinter dem Mond aufgeht.",
+        "credit": "NASA / Bill Anders · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:NASA-Apollo8-Dec24-Earthrise.jpg"
+      },
+      {
+        "file": "erde-2.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "Ein Astronaut steht auf dem Roboterarm der Raumstation ISS und arbeitet draußen im All – tief unter ihm die Erde.",
+        "credit": "NASA · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:STS-114_Steve_Robinson_on_Canadarm2.jpg"
+      }
+    ],
+    "mond": [
+      {
+        "file": "mond.jpg",
+        "tag": "Von der Erde aus",
+        "caption": "Der Vollmond, von der Erde aus fotografiert. Die dunklen Flecken nennt man „Meere“ – Wasser gibt es dort aber keins.",
+        "credit": "Foto: Luc Viatour · CC BY-SA 3.0",
+        "url": "https://commons.wikimedia.org/wiki/File:Full_Moon_Luc_Viatour.jpg"
+      },
+      {
+        "file": "mond-1.jpg",
+        "tag": "Mondlandung 1969",
+        "caption": "Buzz Aldrin auf dem Mond, 1969. Fotografiert hat ihn Neil Armstrong – in Aldrins Helm kannst du ihn sogar sehen!",
+        "credit": "NASA / Neil Armstrong · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Aldrin_Apollo_11.jpg"
+      },
+      {
+        "file": "mond-2.jpg",
+        "tag": "Mondlandung 1969",
+        "caption": "Buzz Aldrin klettert die Leiter der Mondfähre „Eagle“ hinunter – gleich betritt er den Mond.",
+        "credit": "NASA / Neil Armstrong · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Astronaut_Edwin_Aldrin_descends_the_Lunar_Module_ladder,_AS11-40-5868_(21037483754).jpg"
+      },
+      {
+        "file": "mond-3.jpg",
+        "tag": "Auf der Oberfläche",
+        "caption": "Ein echter Fußabdruck auf dem Mond! Weil es dort keinen Wind gibt, ist er wahrscheinlich heute noch da.",
+        "credit": "NASA / Buzz Aldrin · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Apollo_11_bootprint.jpg"
+      }
+    ],
+    "mars": [
+      {
+        "file": "mars.jpg",
+        "tag": "Aus dem All",
+        "caption": "Der Mars, aufgenommen von der Raumsonde „Hope“ der Vereinigten Arabischen Emirate.",
+        "credit": "EMM/EXI · Bearbeitung: Kevin M. Gill · CC BY 2.0",
+        "url": "https://commons.wikimedia.org/wiki/File:Mars_-_August_30_2021_-_Flickr_-_Kevin_M._Gill.png"
+      },
+      {
+        "file": "mars-1.jpg",
+        "tag": "Auf der Oberfläche",
+        "caption": "Ein Selfie vom Mars! Der Rover „Curiosity“ hat sich mit seinem Roboterarm selbst fotografiert – mitten in einer Sanddüne.",
+        "credit": "NASA / JPL-Caltech / MSSS · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Curiosity_rover_selfie_at_Namib_Dune_Sol_1128_(53678107023).jpg"
+      },
+      {
+        "file": "mars-2.jpg",
+        "tag": "Auf der Oberfläche",
+        "caption": "Der Jezero-Krater, fotografiert vom Rover „Perseverance“. Vorne steht der kleine Hubschrauber „Ingenuity“ – das erste Fluggerät, das je auf einem anderen Planeten geflogen ist.",
+        "credit": "NASA / JPL-Caltech · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Panorama_of_Jezero_crater_on_Mars,_sol_44_of_Perseverance_mission.png"
+      }
+    ],
+    "jupiter": [
+      {
+        "file": "jupiter.jpg",
+        "tag": "Aus dem All",
+        "caption": "Jupiter, fotografiert vom Hubble-Weltraumteleskop. Unten rechts siehst du den Großen Roten Fleck!",
+        "credit": "NASA / STScI · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Jupiter_OPAL_2024_(cropped).png"
+      },
+      {
+        "file": "jupiter-1.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "Der Große Rote Fleck ganz nah, aufgenommen von der Raumsonde Juno. Dieser Sturm ist größer als die ganze Erde!",
+        "credit": "NASA / SwRI / MSSS / Gerald Eichstädt / Seán Doran · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Great_red_spot_juno_20170712.jpg"
+      },
+      {
+        "file": "jupiter-2.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "Jupiter als Sichel mit dem Großen Roten Fleck. Das Bild hat ein Hobby-Forscher aus Daten der Sonde Juno zusammengesetzt.",
+        "credit": "NASA / JPL-Caltech / SwRI / MSSS / Roman Tkachenko · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:PIA21376_-_Crescent_Jupiter_with_the_Great_Red_Spot.jpg"
+      }
+    ],
+    "saturn": [
+      {
+        "file": "saturn.jpg",
+        "tag": "Aus dem All",
+        "caption": "Saturn mit seinen Ringen, fotografiert 2004 von der Raumsonde Cassini.",
+        "credit": "NASA / JPL / Space Science Institute · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Saturn_from_Cassini_Orbiter_(2004-10-06).jpg"
+      },
+      {
+        "file": "saturn-1.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "Saturn und seine Ringe von oben – so hat die Raumsonde Cassini den Planeten gesehen.",
+        "credit": "NASA / JPL-Caltech / SSI / Cornell · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Top_view_of_the_rings_of_Saturn_by_Cassini_-_October_10,_2013.jpg"
+      },
+      {
+        "file": "saturn-2.jpg",
+        "tag": "Auf dem Mond Titan",
+        "caption": "Der Boden von Titan, dem größten Saturnmond! 2005 landete dort die Sonde Huygens. Die „Steine“ sind vermutlich Brocken aus Eis.",
+        "credit": "ESA / NASA / JPL / University of Arizona · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Huygens_surface_and_sky_of_Titan.jpg"
+      }
+    ],
+    "uranus": [
+      {
+        "file": "uranus.jpg",
+        "tag": "Aus dem All",
+        "caption": "Uranus, fotografiert 1986 von Voyager 2 – der einzigen Raumsonde, die jemals dort war.",
+        "credit": "NASA / Voyager 2 · Farben: Ardenau4 · CC0",
+        "url": "https://commons.wikimedia.org/wiki/File:Uranus_Voyager2_color_calibrated.png"
+      },
+      {
+        "file": "uranus-1.jpg",
+        "tag": "Mond Miranda",
+        "caption": "Miranda, ein Mond des Uranus, fotografiert von Voyager 2. Dort gibt es riesige Steilwände – bis zu 20 Kilometer tief!",
+        "credit": "NASA / JPL · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Miranda_as_seen_by_Voyager_2_-_GPN-2003-000005_(cropped).jpg"
+      }
+    ],
+    "neptun": [
+      {
+        "file": "neptun.jpg",
+        "tag": "Aus dem All",
+        "caption": "Neptun, fotografiert 1989 von Voyager 2. Neue Messungen zeigen: In echt ist Neptun hellblau, fast wie Uranus – ältere Bilder waren zu dunkel eingefärbt.",
+        "credit": "NASA / Voyager 2 · Farben: Ardenau4 · CC0",
+        "url": "https://commons.wikimedia.org/wiki/File:Neptune_Voyager2_color_calibrated,_brightened.png"
+      },
+      {
+        "file": "neptun-1.jpg",
+        "tag": "Mond Triton",
+        "caption": "Triton, der größte Neptunmond, fotografiert von Voyager 2. Die dunklen Streifen stammen von Eis-Geysiren, die Staub in die Luft spucken.",
+        "credit": "NASA / JPL / USGS · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Triton_moon_mosaic_Voyager_2_(large).jpg"
+      }
+    ],
+    "pluto": [
+      {
+        "file": "pluto.jpg",
+        "tag": "Aus dem All",
+        "caption": "Pluto, fotografiert 2015 von der Raumsonde New Horizons. Siehst du das helle Herz?",
+        "credit": "NASA / JHU APL / SwRI · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Pluto_in_True_Color_-_High-Res.jpg"
+      },
+      {
+        "file": "pluto-1.jpg",
+        "tag": "Ganz nah dran",
+        "caption": "Plutos Berge und Ebenen, kurz nach dem Vorbeiflug von New Horizons fotografiert. Die Berge bestehen aus Eis – und darüber schweben Nebelschichten.",
+        "credit": "NASA / JHU APL / SwRI · gemeinfrei",
+        "url": "https://commons.wikimedia.org/wiki/File:Pluto's_Majestic_Mountains,_Frozen_Plains_and_Foggy_Hazes.jpg"
+      }
+    ]
+  }
 };

@@ -65,6 +65,7 @@ window.Sound = (function () {
     wrong() { tone(220, 0.3, "sawtooth", 0.12, 0, 150); },
     arrive() { tone(392, 0.5, "sine", 0.18, 0, 784); },
     fanfare() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.7 : 0.18, "triangle", 0.22, i * 0.12)); },
-    whoosh() { tone(180, 0.6, "sawtooth", 0.06, 0, 900); }
+    whoosh() { tone(180, 0.6, "sawtooth", 0.06, 0, 900); },
+    land() { tone(110, 0.45, "sine", 0.3, 0, 45); tone(70, 0.6, "triangle", 0.2, 0.03, 40); }
   };
 })();

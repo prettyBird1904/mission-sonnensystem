@@ -1,12 +1,14 @@
 /* Offline-Speicher: Nach dem ersten Öffnen funktioniert das Spiel ohne Internet.
    Updates kommen automatisch: Beim nächsten Start mit Internet wird die neue Fassung geholt. */
-const VERSION = "sonnensystem-v3";
+const VERSION = "sonnensystem-v6"; // gleich wie version in js/data.js
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "css/style.css", "fonts/fonts.css", "fonts/fredoka.woff2", "fonts/nunito.woff2",
   "lib/three.min.js",
   "js/data.js", "js/textures.js", "js/audio.js", "js/world.js", "js/ui.js", "js/game.js",
-  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
+  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
+  // Echte Fotos (Galerie im Steckbrief)
+  "img/erde-1.jpg", "img/erde-2.jpg", "img/erde.jpg", "img/jupiter-1.jpg", "img/jupiter-2.jpg", "img/jupiter.jpg", "img/mars-1.jpg", "img/mars-2.jpg", "img/mars.jpg", "img/merkur-1.jpg", "img/merkur.jpg", "img/mond-1.jpg", "img/mond-2.jpg", "img/mond-3.jpg", "img/mond.jpg", "img/neptun-1.jpg", "img/neptun.jpg", "img/pluto-1.jpg", "img/pluto.jpg", "img/saturn-1.jpg", "img/saturn-2.jpg", "img/saturn.jpg", "img/sonne-1.jpg", "img/sonne-2.jpg", "img/sonne.jpg", "img/uranus-1.jpg", "img/uranus.jpg", "img/venus-1.jpg", "img/venus.jpg"
 ];
 
 self.addEventListener("install", (e) => {
