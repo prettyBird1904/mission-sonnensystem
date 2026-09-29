@@ -1,0 +1,3 @@
+/* Lokale Schriften (SIL Open Font License) – funktionieren auch offline */
+@font-face { font-family: "Fredoka"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("fredoka.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-style: normal; font-weight: 200 1000; font-display: swap; src: url("nunito.woff2") format("woff2"); }

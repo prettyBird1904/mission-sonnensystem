@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Mission Sonnensystem</title>
+  <meta name="description" content="Spielerisch das Sonnensystem erkunden – für Grundschulkinder.">
+  <meta name="theme-color" content="#050816">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sonnensystem">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <script>
+    // Touch-Steuerung für Tablets, Smartboards und Touch-Laptops (Test am PC: ?touch)
+    if ((window.matchMedia && matchMedia("(pointer: coarse)").matches) || navigator.maxTouchPoints > 0 || /[?&]touch/.test(location.search))
+      document.documentElement.classList.add("touch-ui");
+  </script>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- Ladebildschirm -->
+  <div id="loader" class="screen">
+    <div class="loader-box">
+      <div class="loader-rocket">🚀</div>
+      <h1 class="brand">Mission <span>Sonnensystem</span></h1>
+      <div class="progress"><div id="loadBar"></div></div>
+      <p id="loadText">Starte Bordcomputer …</p>
+    </div>
+  </div>
+
+  <!-- Startbildschirm -->
+  <div id="start" class="screen hidden">
+    <div class="start-card glass">
+      <div class="start-orbit" aria-hidden="true">
+        <div class="orbit o1"><span class="mini p-erde"></span></div>
+        <div class="orbit o2"><span class="mini p-saturn"></span></div>
+        <div class="orbit o3"><span class="mini p-mars"></span></div>
+        <div class="sun-core"></div>
+      </div>
+      <h1 class="brand big">Mission <span>Sonnensystem</span></h1>
+      <p class="lead">Steig in deine Rakete, fliege durchs Weltall und werde zum Weltraum-Profi!</p>
+
+      <div id="continueBox" class="continue hidden">
+        <div class="field"><span>Wer fliegt jetzt? Tippe auf deinen Namen:</span></div>
+        <div id="pilotList" class="pilot-list"></div>
+        <button id="btnNewPilot" class="btn ghost">➕ Ich bin neu hier</button>
+      </div>
+
+      <div id="newBox">
+        <label class="field">
+          <span>Wie heißt du, Pilot/in?</span>
+          <input id="pilotName" maxlength="18" placeholder="Dein Name" autocomplete="off">
+        </label>
+        <div class="field">
+          <span>Wähle die Farbe deiner Rakete:</span>
+          <div id="colorPick" class="color-pick">
+            <button data-color="#ef4444" style="--c:#ef4444" class="active" aria-label="Rot"></button>
+            <button data-color="#f59e0b" style="--c:#f59e0b" aria-label="Orange"></button>
+            <button data-color="#22c55e" style="--c:#22c55e" aria-label="Grün"></button>
+            <button data-color="#3b82f6" style="--c:#3b82f6" aria-label="Blau"></button>
+            <button data-color="#a855f7" style="--c:#a855f7" aria-label="Lila"></button>
+            <button data-color="#ec4899" style="--c:#ec4899" aria-label="Pink"></button>
+          </div>
+        </div>
+        <button id="btnStart" class="btn primary xl">🚀 Los geht's!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Countdown -->
+  <div id="countdown" class="hidden"><span></span></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="pilot glass">
+        <div class="pilot-avatar" id="pilotAvatar">🧑‍🚀</div>
+        <div class="pilot-info">
+          <div class="pilot-name" id="hudName">Pilot</div>
+          <div class="pilot-rank" id="hudRank">Weltraum-Neuling</div>
+        </div>
+        <div class="pilot-stats">
+          <span class="stat" title="Sterne"><i>⭐</i><b id="hudStars">0</b></span>
+          <span class="stat" title="Sternenstaub"><i>✨</i><b id="hudDust">0</b></span>
+        </div>
+      </div>
+
+      <div class="mission glass" id="missionCard">
+        <div class="mission-head">
+          <span class="mission-tag" id="missionTag">Mission 1/12</span>
+          <button class="chip" id="btnHint">💡 Tipp</button>
+          <button class="chip icon" id="btnSpeakMission" title="Vorlesen">🔊</button>
+        </div>
+        <div class="mission-text" id="missionText"></div>
+      </div>
+
+      <div class="hud-buttons">
+        <button class="round glass" id="btnPass" title="Forscherpass">📘<span>Pass</span></button>
+        <button class="round glass" id="btnOrder" title="Planeten ordnen">🧩<span>Ordnen</span></button>
+        <button class="round glass" id="btnTime" title="Planeten anhalten">⏸️<span>Pause</span></button>
+        <button class="round glass" id="btnSound" title="Ton an/aus">🔊<span>Ton</span></button>
+        <button class="round glass" id="btnHelp" title="Hilfe">❓<span>Hilfe</span></button>
+      </div>
+    </div>
+
+    <div id="labels"></div>
+    <div id="edgeArrow" class="hidden"><div class="arrow-inner">➤</div><span></span></div>
+
+    <div class="speedo glass" id="speedo">
+      <div class="speed-val"><b id="speedVal">0</b><small>Tempo</small></div>
+      <div class="speed-bar"><div id="speedBar"></div></div>
+      <div class="near" id="nearText">Freier Weltraum</div>
+    </div>
+
+    <button id="explorePrompt" class="btn primary explore hidden">🔭 <span></span> erforschen <kbd>E</kbd></button>
+
+    <div id="autopilot" class="hidden glass">
+      <div class="ap-spinner"></div>
+      <div>Autopilot fliegt zu <b id="apTarget"></b> …</div>
+      <button class="chip" id="btnApCancel">Abbrechen</button>
+    </div>
+
+    <nav id="dock" class="glass" aria-label="Autopilot: Ziel wählen">
+      <div class="dock-title">🧭 Autopilot – tippe auf ein Ziel</div>
+      <div class="dock-items" id="dockItems"></div>
+    </nav>
+
+    <!-- Touch-Steuerung -->
+    <div id="touch" class="touch">
+      <div class="joy" id="joy"><div class="joy-knob" id="joyKnob"></div></div>
+      <div class="touch-btns">
+        <button id="tBoost" class="tbtn boost">TURBO</button>
+        <button id="tGas" class="tbtn gas">GAS</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="warp"></div>
+
+  <!-- Planeten-Infotafel -->
+  <aside id="panel" class="panel glass hidden" aria-live="polite">
+    <header class="panel-head">
+      <div class="panel-ball" id="pBall"></div>
+      <div class="panel-title">
+        <span class="kind" id="pKind"></span>
+        <h2 id="pName"></h2>
+      </div>
+      <button class="chip icon" id="pSpeak" title="Vorlesen">🔊</button>
+      <button class="chip icon close" id="pClose" title="Zurück ins Cockpit">✖</button>
+    </header>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="info">📋 Steckbrief</button>
+      <button class="tab" data-tab="facts">💡 Wusstest du?</button>
+      <button class="tab" data-tab="lab">🧪 Labor</button>
+      <button class="tab" data-tab="quiz">🏆 Quiz</button>
+    </div>
+    <div class="panel-body">
+      <section class="tabpane active" data-pane="info" id="paneInfo"></section>
+      <section class="tabpane" data-pane="facts" id="paneFacts"></section>
+      <section class="tabpane" data-pane="lab" id="paneLab"></section>
+      <section class="tabpane" data-pane="quiz" id="paneQuiz"></section>
+    </div>
+  </aside>
+
+  <!-- Modale Fenster -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card glass">
+      <button class="chip icon close modal-close" id="modalClose">✖</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+  <canvas id="confetti"></canvas>
+  <div id="printArea"></div>
+
+  <script src="lib/three.min.js"></script>
+  <script>
+    // Fallback, falls die lokale Datei fehlt
+    if (!window.THREE) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"><\/script>');
+  </script>
+  <script src="js/data.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+  <script>
+    // Offline-Modus (nur wenn über einen Webserver geöffnet, nicht per Doppelklick)
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http") && !/[?&]test/.test(location.search)) {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    }
+  </script>
+</body>
+</html>

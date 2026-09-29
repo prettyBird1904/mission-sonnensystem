@@ -1,0 +1,64 @@
+# 🚀 Mission Sonnensystem – Anleitung für Lehrkräfte
+
+Ein Lernspiel für die 4. Klasse: Die Kinder fliegen mit einer Rakete durchs Sonnensystem, erforschen Sonne, Planeten, Mond und Pluto, lösen Missionen und Quizze und sammeln Sterne.
+
+Der ganze Ordner ist nur **1,3 MB** groß, braucht **keine Installation**, **kein Konto** und **keine Internetverbindung** (nach dem ersten Öffnen). Es werden **keine Daten** verschickt – der Spielstand bleibt auf dem jeweiligen Gerät.
+
+---
+
+## 1. Am PC, Laptop oder Smartboard (am einfachsten)
+
+1. Ordner auf den Rechner kopieren (z. B. USB-Stick).
+2. **Doppelklick auf `index.html`** – fertig. Das Spiel öffnet sich im Browser (Chrome, Edge oder Firefox).
+
+Touch-Bildschirme (Smartboard, Touch-Laptop) bekommen automatisch Joystick und GAS-Knopf.
+
+## 2. Auf Tablets (iPad / Android)
+
+Tablets können Dateien nicht per Doppelklick öffnen – der Ordner muss einmal ins Netz. Kostenlose, einfache Wege:
+
+**Variante A – Netlify Drop (ca. 2 Minuten, kein Technikwissen nötig)**
+1. Am PC <https://app.netlify.com/drop> öffnen.
+2. Den **ganzen Ordner** `Vika` in das Browserfenster ziehen.
+3. Man erhält einen Link (z. B. `https://xyz.netlify.app`). **Wichtig:** Ohne Konto wird die Seite nach kurzer Zeit wieder gelöscht – also ein kostenloses Konto anlegen bzw. die Seite damit übernehmen, dann bleibt der Link dauerhaft.
+
+**Variante B – Schulserver / IServ / Schul-Homepage**
+Den Ordner auf den Webspace der Schule hochladen und die Adresse zu `index.html` verwenden.
+
+**Auf jedem Tablet einmalig:**
+1. Link in Safari (iPad) bzw. Chrome (Android) öffnen und warten, bis das Spiel geladen ist.
+2. **Als App ablegen:**
+   - iPad: Teilen-Symbol ⬆️ → „Zum Home-Bildschirm“
+   - Android: Menü ⋮ → „App installieren“ / „Zum Startbildschirm hinzufügen“
+3. Ab jetzt über das Raketen-Symbol starten – **funktioniert dann auch ohne WLAN**.
+
+## 3. Mehrere Kinder an einem Gerät
+
+Beim Start tippt jedes Kind auf **seinen Namen** (oder „Ich bin neu hier“). Jedes Kind hat einen eigenen Spielstand.
+Wechseln: **❓ Hilfe → „Pilot/in wechseln“**. Einen einzelnen Spielstand löschen: **❓ Hilfe → „Meinen Spielstand löschen“** (zweimal tippen).
+
+> Hinweis: Der Spielstand wird im Browser des Geräts gespeichert. Wird der Browser-Verlauf/Websitedaten gelöscht, sind die Spielstände weg.
+
+---
+
+## Was die Kinder machen können
+
+| Bereich | Inhalt |
+|---|---|
+| 🧭 **Autopilot** | Unten auf einen Himmelskörper tippen – die Rakete fliegt allein hin. Ideal für jüngere oder unsichere Kinder. |
+| 🎮 **Selbst fliegen** | Tastatur: `W` Gas, `A`/`D` lenken, `R`/`F` hoch/runter, Leertaste Turbo, `E` erforschen · Tablet: Joystick + GAS/TURBO |
+| 🏅 **12 Missionen** | Rätsel („Finde den heißesten Planeten“) – mit 💡 Tipp-Knopf, der einen Pfeil zum Ziel zeigt |
+| 📋 **Steckbrief** | Größe, Entfernung, Tag, Jahr, Temperatur, Monde, Größenvergleich mit der Erde, Thermometer |
+| 💡 **Wusstest du?** | 4–5 spannende Fakten pro Himmelskörper |
+| 🧪 **Labor** | „Wie schwer wäre ich dort?“, „Wie alt wäre ich dort?“, „Wie lange bräuchte ein Auto / das Licht?“ |
+| 🏆 **Quiz** | 3 Fragen pro Himmelskörper mit Erklärung, bis zu 3 Sterne |
+| 🧩 **Planeten ordnen** | Reihenfolge der Planeten + Merksatz „Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten“ |
+| 📘 **Forscherpass** | Stempel für besuchte Orte, Ränge (Weltraum-Neuling → Weltraum-Profi) |
+| 📜 **Urkunde** | Nach Besuch aller 8 Planeten – mit Namen, druckbar |
+| 🔊 **Vorlesen** | Jeder Text kann vorgelesen werden (Leseförderung / DaZ) |
+
+Die Abstände und Größen sind – wie im Spiel erklärt – **nicht maßstabsgetreu**, damit alles sichtbar bleibt. Das eignet sich gut als Gesprächsanlass im Unterricht.
+
+## Inhalte anpassen
+
+Alle Texte, Fakten, Quizfragen und Missionen stehen in **`js/data.js`** und lassen sich mit jedem Texteditor ändern.
