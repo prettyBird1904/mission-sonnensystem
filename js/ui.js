@@ -363,7 +363,6 @@ window.UI = (function () {
 
     const photos = (D.photos && D.photos[b.id]) || [];
     $("paneInfo").innerHTML = `
-      ${photos.length ? `<div class="gallery" id="gallery"></div>` : ""}
       <p class="intro">${b.intro}</p>
       <div class="facts-grid">${tiles.map(([i, l, v]) => `<div class="fact"><div class="ico">${i}</div><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join("")}</div>
       <div class="box">
@@ -380,7 +379,8 @@ window.UI = (function () {
         <div class="thermo"><div class="mark" style="left:${home}%;opacity:.4"></div><span class="home" style="left:${home}%">🏠 Erde</span><div class="mark" id="thermoMark" style="left:${home}%"></div></div>
         <div class="thermo-scale"><span>🥶 −240 °C</span><span>0 °C</span><span>🔥 500 °C</span></div>
         <p>${b.id === "sonne" ? "Die Sonne ist so heiß, dass sie gar nicht auf diese Skala passt! 🔥" : `${b.name}: <b>${b.tempText}</b>`}</p>
-      </div>`;
+      </div>
+      ${photos.length ? `<div class="box"><h3>📷 Echte Fotos (${photos.length})</h3><div class="gallery" id="gallery"></div></div>` : ""}`;
     requestAnimationFrame(() => setTimeout(() => { const m = $("thermoMark"); if (m) m.style.left = pos + "%"; }, 150));
     if (photos.length) renderGallery($("gallery"), photos, 0, false);
   }

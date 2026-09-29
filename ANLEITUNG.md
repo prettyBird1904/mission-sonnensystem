@@ -58,7 +58,7 @@ Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustart
 | 🎮 **Selbst fliegen** | Tastatur: `W` Gas, `A`/`D` lenken, `R`/`F` hoch/runter, Leertaste Turbo, `E` erforschen · Tablet: Joystick + GAS/TURBO · In Planetennähe schaltet sich der Turbo automatisch ab (Landeanflug), damit man nicht vorbeischießt. |
 | 🏅 **12 Missionen** | Rätsel („Finde den heißesten Planeten“) – mit 💡 Tipp-Knopf, der einen Pfeil zum Ziel zeigt |
 | 🛬 **Landen** | Auf Merkur, Venus, Erde, Mond, Mars und Pluto landet die Rakete. Bei Sonne, Jupiter, Saturn, Uranus und Neptun geht das nicht (kein fester Boden / zu heiß) – dort fliegt sie in eine Umlaufbahn und erklärt, warum. Antippen oder eine Taste überspringt die Animation. |
-| 📷 **Echte Fotos** | Oben im Steckbrief: Fotos von Raumsonden, Teleskopen und Astronauten – z. B. Buzz Aldrin auf dem Mond, Selfie des Mars-Rovers, der Boden der Venus. Wischen oder Pfeile zum Blättern, Antippen zum Vergrößern. Quellen: `BILDNACHWEIS.md` |
+| 📷 **Echte Fotos** | Unten im Steckbrief: Fotos von Raumsonden, Teleskopen und Astronauten – z. B. Buzz Aldrin auf dem Mond, Selfie des Mars-Rovers, der Boden der Venus. Wischen oder Pfeile zum Blättern, Antippen zum Vergrößern. Quellen: `BILDNACHWEIS.md` |
 | 📋 **Steckbrief** | Größe, Entfernung, Tag, Jahr, Temperatur, Monde, Größenvergleich mit der Erde, Thermometer |
 | 💡 **Wusstest du?** | 4–5 spannende Fakten pro Himmelskörper |
 | 🧪 **Labor** | „Wie schwer wäre ich dort?“, „Wie alt wäre ich dort?“, „Wie lange bräuchte ein Auto / das Licht?“ |
