@@ -3,7 +3,7 @@
    ========================================================= */
 window.Sound = (function () {
   let ctx = null, master = null, engineOsc = null, engineGain = null, engineFilter = null;
-  let enabled = true;
+  let enabled = true, engineLevel = -1;
 
   function ensure() {
     if (ctx) return true;
@@ -45,12 +45,17 @@ window.Sound = (function () {
     get enabled() { return enabled; },
     toggle() {
       enabled = !enabled;
-      if (!enabled && engineGain) engineGain.gain.value = 0;
+      if (!enabled && engineGain) { engineGain.gain.cancelScheduledValues(0); engineGain.gain.value = 0; engineLevel = -1; }
       return enabled;
     },
     engine(level) {
       if (!ctx || !enabled) return;
+      // Nicht jedes Bild neue Befehle planen – die sammeln sich sonst an und bremsen mit der Zeit
+      if (Math.abs(level - engineLevel) < 0.03) return;
+      engineLevel = level;
       const t = ctx.currentTime;
+      engineGain.gain.cancelScheduledValues(t);
+      engineFilter.frequency.cancelScheduledValues(t);
       engineGain.gain.setTargetAtTime(level * 0.35, t, 0.15);
       engineFilter.frequency.setTargetAtTime(200 + level * 700, t, 0.2);
     },

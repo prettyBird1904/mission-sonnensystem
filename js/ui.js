@@ -140,14 +140,14 @@ window.UI = (function () {
       const size = b.radius > 6 || b.id === "sonne" ? "large" : b.radius < 1.7 ? "small" : "";
       const it = el("button", "dock-item " + size, `${ball(b.id, 38)}<small>${b.name}</small>`);
       it.dataset.id = b.id;
-      it.title = `Autopilot: Fliege zu ${b.name}`;
-      it.onclick = () => { Sound.unlock(); Sound.click(); G.startAutopilot(b.id); };
+      it.title = `Kompass: Zeig mir den Weg zu ${b.name}`;
+      it.onclick = () => { Sound.unlock(); Sound.click(); G.setCompass(b.id); };
       dock.appendChild(it);
     });
     // Labels
     D.bodies.forEach((b) => {
       const l = el("div", "label", `<span class="dot" style="--c:${b.color}"></span>${b.name}<span class="check"></span>`);
-      l.onclick = () => { Sound.unlock(); Sound.click(); G.startAutopilot(b.id); };
+      l.onclick = () => { Sound.unlock(); Sound.click(); G.setCompass(b.id); };
       $("labels").appendChild(l);
       labels[b.id] = l;
     });
@@ -168,7 +168,6 @@ window.UI = (function () {
       const on = Sound.toggle();
       e.currentTarget.innerHTML = (on ? "🔊" : "🔇") + "<span>Ton</span>";
     };
-    $("btnApCancel").onclick = () => G.cancelAutopilot();
     $("explorePrompt").onclick = () => { if (UI.nearId) G.explore(UI.nearId); };
     $("pClose").onclick = () => { Sound.click(); G.leaveExplore(); };
     $("modalClose").onclick = closeModal;
@@ -207,7 +206,7 @@ window.UI = (function () {
     $("btnHint").classList.toggle("hidden", !m);
     $("missionCard").classList.toggle("done", !m);
 
-    const target = m && s.hint ? m.target : null;
+    const target = G.compass || (m && s.hint ? m.target : null);
     document.querySelectorAll(".dock-item").forEach((d) => {
       d.classList.toggle("target", d.dataset.id === target);
       d.querySelector(".tick")?.remove();
@@ -221,10 +220,6 @@ window.UI = (function () {
   }
   function bump(e) { e.classList.remove("bump"); void e.offsetWidth; e.classList.add("bump"); }
 
-  function setAutopilot(name) {
-    $("autopilot").classList.toggle("hidden", !name);
-    if (name) $("apTarget").textContent = name;
-  }
 
   // Pro Frame: Labels, Tacho, Nähe-Anzeige, Randpfeil
   const v3 = new THREE.Vector3(), rayDir = new THREE.Vector3();
@@ -246,13 +241,14 @@ window.UI = (function () {
   function frame(ship, camera) {
     const w = innerWidth, h = innerHeight;
     const m = G.currentMission();
-    const target = m && G.state.hint && m.target !== "#order" ? m.target : null;
+    const target = G.compass || (m && G.state.hint && m.target !== "#order" ? m.target : null);
     let arrowShown = false;
     for (const id in labels) {
       const b = G.bodyById[id], l = labels[id];
       World.worldPos(id, v3);
       const dist = v3.distanceTo(camera.position);
-      const hidden = occluded(camera.position, v3, dist, id);
+      // Das Kompass-/Missionsziel bleibt immer sichtbar, auch wenn es hinter der Sonne liegt
+      const hidden = id !== target && occluded(camera.position, v3, dist, id);
       v3.y += b.radius * 1.15;
       v3.project(camera);
       const onScreen = v3.z < 1 && Math.abs(v3.x) < 1.05 && Math.abs(v3.y) < 1.05;
@@ -282,7 +278,9 @@ window.UI = (function () {
     $("speedVal").textContent = Math.round(sp * 10);
     $("speedBar").style.width = Math.min(100, (sp / 120) * 100) + "%";
     const near = UI.nearId;
-    $("nearText").textContent = near ? `In der Nähe: ${G.bodyById[near].name}` : "Freier Weltraum";
+    if (near) $("nearText").textContent = `In der Nähe: ${G.bodyById[near].name}`;
+    else if (target) $("nearText").textContent = `🧭 Ziel: ${G.bodyById[target].name} – noch ${Math.round(World.worldPos(target, v3).distanceTo(ship.pos) * 10)}`;
+    else $("nearText").textContent = "Freier Weltraum";
     const p = $("explorePrompt");
     p.classList.toggle("hidden", !near);
     if (near) p.querySelector("span").textContent = G.bodyById[near].name;
@@ -563,7 +561,7 @@ window.UI = (function () {
       </div>
       ${allDone ? "" : `<p class="center" style="color:var(--muted)">Besuche alle 8 Planeten, um deine Urkunde zu bekommen! (${planetsVisited}/8)</p>`}
     `);
-    document.querySelectorAll(".stamp").forEach((st) => st.onclick = () => { closeModal(); G.startAutopilot(st.dataset.id); });
+    document.querySelectorAll(".stamp").forEach((st) => st.onclick = () => { closeModal(); G.setCompass(st.dataset.id); });
     $("btnCert").onclick = showCert;
   }
 
@@ -652,7 +650,7 @@ window.UI = (function () {
           <p style="color:var(--muted)">Du kannst auch mit der Maus ziehen, um zu lenken.</p>
         </div>
         <div class="box"><h3>📱 Tablet</h3><p>Links lenkst du mit dem Joystick. Rechts sind <b>GAS</b> und <b>TURBO</b>.</p>
-          <h3 style="margin-top:14px">🧭 Autopilot</h3><p>Tippe unten auf einen Planeten oder auf ein Namensschild – deine Rakete fliegt ganz von allein hin!</p></div>
+          <h3 style="margin-top:14px">🧭 Kompass</h3><p>Tippe unten auf einen Planeten oder auf ein Namensschild. Ein gelber Pfeil zeigt dir den Weg – fliegen musst du selbst!</p></div>
         <div class="box"><h3>⭐ Sterne sammeln</h3><p>🏅 Missionen lösen<br>🏆 Quiz bei jedem Planeten (bis zu 3 ⭐)<br>🧩 Planeten ordnen<br>✨ Goldenen Sternenstaub einfliegen (20 = 1 ⭐)</p></div>
         <div class="box"><h3>📏 Gut zu wissen</h3><p>In echt sind die Planeten <b>viel weiter</b> voneinander entfernt und die Sonne ist <b>viel größer</b>. Damit du alles gut sehen kannst, haben wir das Sonnensystem hier zusammengeschoben.</p></div>
       </div>
@@ -671,7 +669,7 @@ window.UI = (function () {
 
   return {
     nearId: null,
-    init, onStateReady, showStart, countdown, showHUD, updateHUD, setAutopilot, frame, warp,
+    init, onStateReady, showStart, countdown, showHUD, updateHUD, frame, warp,
     openPanel, closePanel, toast, celebrate, confetti, speak, closeModal, modalOpen
   };
 })();

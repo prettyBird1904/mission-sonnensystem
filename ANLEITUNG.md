@@ -54,8 +54,8 @@ Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustart
 
 | Bereich | Inhalt |
 |---|---|
-| 🧭 **Autopilot** | Unten auf einen Himmelskörper tippen – die Rakete fliegt allein hin. Ideal für jüngere oder unsichere Kinder. |
-| 🎮 **Selbst fliegen** | Tastatur: `W` Gas, `A`/`D` lenken, `R`/`F` hoch/runter, Leertaste Turbo, `E` erforschen · Tablet: Joystick + GAS/TURBO |
+| 🧭 **Kompass** | Unten auf einen Himmelskörper tippen – ein gelber Pfeil zeigt den Weg, fliegen müssen die Kinder selbst. |
+| 🎮 **Selbst fliegen** | Tastatur: `W` Gas, `A`/`D` lenken, `R`/`F` hoch/runter, Leertaste Turbo, `E` erforschen · Tablet: Joystick + GAS/TURBO · In Planetennähe schaltet sich der Turbo automatisch ab (Landeanflug), damit man nicht vorbeischießt. |
 | 🏅 **12 Missionen** | Rätsel („Finde den heißesten Planeten“) – mit 💡 Tipp-Knopf, der einen Pfeil zum Ziel zeigt |
 | 📋 **Steckbrief** | Größe, Entfernung, Tag, Jahr, Temperatur, Monde, Größenvergleich mit der Erde, Thermometer |
 | 💡 **Wusstest du?** | 4–5 spannende Fakten pro Himmelskörper |

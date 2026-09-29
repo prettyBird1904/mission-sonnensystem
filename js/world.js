@@ -15,7 +15,9 @@ window.World = (function () {
 
   const nextFrame = () => new Promise((r) => setTimeout(r, 0));
   // Tablets/Handys: etwas weniger Grafiklast, damit es flüssig läuft
-  const LITE = window.matchMedia && matchMedia("(pointer: coarse)").matches;
+  const LITE = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || navigator.maxTouchPoints > 0;
+  // Höchste Render-Auflösung; die automatische Qualitätsregelung (game.js) geht bei Ruckeln darunter.
+  W.maxPixelRatio = Math.min(window.devicePixelRatio || 1, LITE ? 1.5 : 2);
 
   function rimMaterial(color, power = 2.5, intensity = 1.2) {
     return new THREE.ShaderMaterial({
@@ -116,7 +118,7 @@ window.World = (function () {
 
   async function build(canvas, shipColor, onProgress) {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, LITE ? 1.5 : 2));
+    renderer.setPixelRatio(W.maxPixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;

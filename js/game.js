@@ -1,5 +1,5 @@
 /* =========================================================
-   Spiellogik: Zustand, Steuerung, Autopilot, Missionen
+   Spiellogik: Zustand, Steuerung, Kompass, Missionen
    ========================================================= */
 (function () {
   const D = window.SPACE_DATA;
@@ -28,7 +28,7 @@
 
   const Game = {
     state: null,
-    mode: "intro",           // intro | countdown | fly | auto | explore
+    mode: "intro",           // intro | countdown | fly | explore
     exploring: null,
     bodyById: {},
     save() {
@@ -57,9 +57,8 @@
   const ship = { pos: new V(), yaw: 0, pitch: 0, bank: 0, speed: 0, gas: 0 };
   const input = { keys: {}, joyX: 0, joyY: 0, tGas: false, tBoost: false, dragX: 0, dragY: 0 };
   const cam = { look: new V(), exploreAngle: 0 };
-  let ap = null;              // Autopilot: { id, waypoint }
   let lastHeatWarn = 0;
-  const tmpA = new V(), tmpB = new V(), tmpC = new V(), UP = new V(0, 1, 0);
+  const tmpA = new V(), tmpB = new V(), tmpC = new V(), UP = new V(0, 1, 0), camEuler = new THREE.Euler();
 
   function forwardVec(out) {
     const cp = Math.cos(ship.pitch);
@@ -68,11 +67,6 @@
   function aimAt(dir) {
     ship.yaw = Math.atan2(-dir.x, -dir.z);
     ship.pitch = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
-  }
-  function angleLerp(a, b, t) {
-    let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
-    if (d < -Math.PI) d += Math.PI * 2;
-    return a + d * t;
   }
   function bodyPos(id, out) { return W.worldPos(id, out); }
 
@@ -128,45 +122,27 @@
     UI.updateHUD();
     if (Game.state.hint) {
       const m = Game.currentMission();
-      if (m && m.target !== "#order") UI.toast(`💡 Folge dem gelben Pfeil – oder tippe unten auf „${Game.bodyById[m.target].name}“!`);
+      if (m && m.target !== "#order") UI.toast("💡 Folge dem gelben Pfeil – er zeigt dir, wohin du fliegen musst!");
       else if (m) UI.toast("💡 Tippe oben rechts auf 🧩 „Ordnen“!");
     }
   };
 
   // ---------- Modi ----------
-  Game.startAutopilot = function (id) {
+  // Kompass: zeigt mit einem Pfeil die Richtung zum gewählten Ziel – fliegen müssen die Kinder selbst.
+  Game.compass = null;
+  Game.setCompass = function (id) {
     if (Game.mode === "countdown" || Game.mode === "intro") return;
     if (Game.mode === "explore") {
       if (Game.exploring === id) return;
       leaveExplore();
     }
-    const P = bodyPos(id, new V());
-    ap = { id, waypoint: null };
-    // Nicht durch die Sonne fliegen: ggf. Umweg über einen Wegpunkt
-    if (id !== "sonne") {
-      const seg = tmpA.copy(P).sub(ship.pos);
-      const t = THREE.MathUtils.clamp(-ship.pos.dot(seg) / seg.lengthSq(), 0, 1);
-      const closest = tmpB.copy(ship.pos).addScaledVector(seg, t);
-      if (closest.length() < 34) {
-        const perp = tmpC.copy(seg).cross(UP).normalize();
-        ap.waypoint = perp.multiplyScalar(48).setY(18).clone();
-      }
-    }
-    Game.mode = "auto";
-    UI.setAutopilot(Game.bodyById[id].name);
-    Sound.whoosh();
-  };
-
-  Game.cancelAutopilot = function () {
-    if (Game.mode !== "auto") return;
-    ap = null;
-    Game.mode = "fly";
-    UI.setAutopilot(null);
+    Game.compass = Game.compass === id ? null : id;
+    UI.updateHUD();
+    if (Game.compass) UI.toast(`🧭 Der gelbe Pfeil zeigt dir den Weg zu ${Game.bodyById[id].name}. Flieg selbst hin!`);
   };
 
   Game.explore = function (id) {
-    ap = null;
-    UI.setAutopilot(null);
+    if (Game.compass === id) Game.compass = null;
     Game.mode = "explore";
     Game.exploring = id;
     ship.speed = 0;
@@ -205,12 +181,10 @@
       if (block.includes(e.key)) e.preventDefault();
       const k = e.key.toLowerCase();
       input.keys[k] = true;
-      if (Game.mode === "auto" && ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k)) Game.cancelAutopilot();
       if (k === "e" && Game.mode === "fly" && UI.nearId) Game.explore(UI.nearId);
       if (k === "escape") {
         if (UI.modalOpen()) UI.closeModal();
         else if (Game.mode === "explore") Game.leaveExplore();
-        else if (Game.mode === "auto") Game.cancelAutopilot();
       }
     });
     window.addEventListener("keyup", (e) => { input.keys[e.key.toLowerCase()] = false; });
@@ -236,7 +210,6 @@
       const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
       input.joyX = x; input.joyY = y;
       knob.style.transform = `translate(${x * 38}px, ${y * 38}px)`;
-      if (Game.mode === "auto" && l > 0.3) Game.cancelAutopilot();
     };
     joy.addEventListener("pointerdown", (e) => {
       joyId = e.pointerId;
@@ -249,7 +222,7 @@
 
     [["tGas", "tGas"], ["tBoost", "tBoost"]].forEach(([elId, key]) => {
       const el = document.getElementById(elId);
-      const on = (e) => { e.preventDefault(); input[key] = true; el.classList.add("on"); Sound.unlock(); if (Game.mode === "auto") Game.cancelAutopilot(); };
+      const on = (e) => { e.preventDefault(); input[key] = true; el.classList.add("on"); Sound.unlock(); };
       const off = () => { input[key] = false; el.classList.remove("on"); };
       el.addEventListener("pointerdown", on);
       el.addEventListener("pointerup", off); el.addEventListener("pointerleave", off); el.addEventListener("pointercancel", off);
@@ -297,45 +270,24 @@
     const brake = k.s || k.arrowdown;
     const boost = k[" "] || k.shift || input.tBoost;
 
-    ship.yaw += turn * 1.5 * dt - input.dragX * 0.004;
+    // Langsam lässt sich enger lenken – so kann man Planeten gut treffen
+    const turnRate = 2.3 - Math.min(Math.abs(ship.speed) / 65, 1) * 0.9;
+    ship.yaw += turn * turnRate * dt - input.dragX * 0.004;
     ship.pitch = THREE.MathUtils.clamp(ship.pitch + climb * 1.0 * dt - input.dragY * 0.003, -1.1, 1.1);
+    // Alle Planeten liegen in einer Ebene: ohne Hoch/Runter-Eingabe sanft waagerecht ausrichten
+    if (Math.abs(climb) < 0.05 && input.dragY === 0) ship.pitch *= Math.exp(-dt * 0.9);
     input.dragX = input.dragY = 0;
     ship.bank = THREE.MathUtils.lerp(ship.bank, turn * 0.45, 1 - Math.exp(-dt * 4));
 
-    const target = gas || boost ? (boost ? 65 : 22) : brake ? -5 : 0;
+    // Anflughilfe: nahe an einem Himmelskörper gibt es keinen Turbo, damit man nicht vorbeischießt
+    const approach = nearestSurface() < 45;
+    const useBoost = boost && !approach;
+    if (boost && approach && !ship.boostWarned) { ship.boostWarned = true; UI.toast("🛬 Landeanflug: Turbo ist in Planetennähe aus!"); }
+    if (!approach) ship.boostWarned = false;
+    const target = gas || boost ? (useBoost ? 65 : 22) : brake ? -5 : 0;
     ship.speed += (target - ship.speed) * Math.min(1, dt * (target > ship.speed ? 1.2 : 1.6));
-    ship.gas = gas || boost ? (boost ? 1 : 0.55) : 0;
+    ship.gas = gas || boost ? (useBoost ? 1 : 0.55) : 0;
     ship.pos.addScaledVector(forwardVec(tmpB), ship.speed * dt);
-  }
-
-  function updateAuto(dt) {
-    const id = ap.id, b = Game.bodyById[id];
-    const P = bodyPos(id, new V());
-    let goal, arriveDist;
-    const standoff = id === "sonne" ? b.radius * 2.6 : Math.max(b.radius * 3.2, 5.5);
-    if (ap.waypoint) {
-      goal = ap.waypoint; arriveDist = 6;
-    } else {
-      const dir = tmpA.copy(ship.pos).sub(P).normalize();
-      if (b.parent) dir.add(bodyPos(b.parent, tmpB).sub(P).normalize().multiplyScalar(-1.5)).normalize();
-      goal = tmpC.copy(P).addScaledVector(dir, standoff);
-      arriveDist = 1.2;
-    }
-    const toGoal = new V().subVectors(goal, ship.pos);
-    const dist = toGoal.length();
-    if (!ap.waypoint && (dist < arriveDist || ship.pos.distanceTo(P) < standoff * 1.15)) { Game.explore(id); return; }
-    if (ap.waypoint && dist < arriveDist) { ap.waypoint = null; return; }
-
-    const dir = toGoal.normalize();
-    const tYaw = Math.atan2(-dir.x, -dir.z), tPitch = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
-    const prevYaw = ship.yaw;
-    ship.yaw = angleLerp(ship.yaw, tYaw, 1 - Math.exp(-dt * 3));
-    ship.pitch = THREE.MathUtils.lerp(ship.pitch, tPitch, 1 - Math.exp(-dt * 3));
-    ship.bank = THREE.MathUtils.lerp(ship.bank, THREE.MathUtils.clamp((ship.yaw - prevYaw) / dt, -1, 1) * 0.6, 1 - Math.exp(-dt * 4));
-    const want = Math.min(120, 6 + dist * 1.4);
-    ship.speed += (want - ship.speed) * Math.min(1, dt * 1.5);
-    ship.gas = Math.min(1, ship.speed / 90);
-    ship.pos.addScaledVector(dir, Math.min(ship.speed * dt, dist));
   }
 
   function updateShipVisual(dt, elapsed) {
@@ -372,7 +324,7 @@
       return;
     }
     if (Game.mode === "intro" || Game.mode === "countdown") return;
-    const off = tmpA.set(0, 1.25, 4.4 + Math.max(0, ship.speed) * 0.025).applyEuler(new THREE.Euler(ship.pitch, ship.yaw, 0, "YXZ"));
+    const off = tmpA.set(0, 1.25, 4.4 + Math.max(0, ship.speed) * 0.025).applyEuler(camEuler.set(ship.pitch, ship.yaw, 0, "YXZ"));
     const want = off.add(ship.pos);
     c.position.lerp(want, 1 - Math.exp(-dt * 7));
     const look = forwardVec(tmpB).multiplyScalar(6).add(ship.pos);
@@ -387,12 +339,19 @@
     if (Math.abs(f - c.fov) > 0.01) { c.fov = f; c.updateProjectionMatrix(); }
   }
 
+  // Abstand der Rakete zur nächsten Oberfläche (für die Anflughilfe)
+  function nearestSurface() {
+    let best = Infinity;
+    for (const id in W.bodies) best = Math.min(best, bodyPos(id, tmpC).distanceTo(ship.pos) - Game.bodyById[id].radius);
+    return best;
+  }
+
   function findNear() {
     let best = null, bestD = Infinity;
     for (const id in W.bodies) {
       const b = Game.bodyById[id];
       const d = bodyPos(id, tmpA).distanceTo(ship.pos) - b.radius;
-      const range = Math.max(9, b.radius * 2.4);
+      const range = Math.max(14, b.radius * 2.6);
       if (d < range && d < bestD) { best = id; bestD = d; }
     }
     return best;
@@ -400,9 +359,40 @@
 
   // ---------- Hauptschleife ----------
   let last = performance.now(), elapsed = 0;
+
+  // Automatische Qualität: Wird es ruckelig (z. B. wenn das Gerät warm wird), rendern wir mit
+  // etwas weniger Pixeln; läuft es lange flüssig, wieder etwas mehr.
+  const perf = { avg: 1 / 60, check: 0, goodFor: 0, bad: 0, ratio: 0, warmup: 0 };
+  function adaptQuality(rawDt) {
+    // Nur beim Fliegen/Erforschen messen, nicht direkt nach Start oder Moduswechsel (Anlauf-Ruckler)
+    if (rawDt > 0.25 || (Game.mode !== "fly" && Game.mode !== "explore")) { perf.warmup = 0; return; }
+    perf.warmup += rawDt;
+    if (perf.warmup < 5) return;
+    perf.avg += (rawDt - perf.avg) * 0.05;
+    perf.check += rawDt;
+    if (perf.check < 2) return;
+    perf.check = 0;
+    if (!perf.ratio) perf.ratio = W.renderer.getPixelRatio();
+    // Nie unschärfer als ein normaler Bildschirm (1), außer das Gerät hat selbst weniger
+    const floor = Math.min(1, W.maxPixelRatio);
+    let next = perf.ratio;
+    if (perf.avg > 1 / 40) perf.bad++; else perf.bad = 0;
+    if (perf.bad >= 2 && perf.ratio > floor) { next = Math.max(floor, perf.ratio - 0.25); perf.goodFor = 0; perf.bad = 0; }
+    else if (perf.avg < 1 / 57) { perf.goodFor += 2; if (perf.goodFor >= 20 && perf.ratio < W.maxPixelRatio) { next = Math.min(W.maxPixelRatio, perf.ratio + 0.25); perf.goodFor = 0; } }
+    else perf.goodFor = 0;
+    if (next !== perf.ratio) {
+      perf.ratio = next;
+      W.renderer.setPixelRatio(next);
+      W.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  }
+  Game.perf = perf;
+
   function loop(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const rawDt = (now - last) / 1000;
+    const dt = Math.min(0.05, rawDt);
     last = now; elapsed += dt;
+    adaptQuality(rawDt);
 
     if (Game.mode === "intro") {
       const a = elapsed * 0.05;
@@ -411,8 +401,7 @@
       cam.look.set(0, 0, 0);
     }
     if (Game.mode === "fly") updateFly(dt);
-    if (Game.mode === "auto") updateAuto(dt);
-    if (Game.mode === "fly" || Game.mode === "auto") {
+    if (Game.mode === "fly") {
       collide(ship.pos);
       collectDust();
       if (ship.pos.length() < Game.bodyById.sonne.radius * 1.7 && elapsed - lastHeatWarn > 6) {
@@ -422,13 +411,13 @@
       if (ship.pos.length() > 900) { ship.pos.setLength(900); ship.speed *= 0.5; UI.toast("🌌 Hier endet unser Sonnensystem-Spielplatz. Dreh um!"); }
     }
     if (Game.mode !== "explore" && Game.mode !== "intro") updateShipVisual(dt, elapsed);
-    if (Game.mode !== "fly" && Game.mode !== "auto") { ship.gas = 0; }
+    if (Game.mode !== "fly") { ship.gas = 0; }
 
     W.update(dt, elapsed, false);
     updateCamera(dt);
 
-    if (Game.mode === "fly" || Game.mode === "auto") {
-      UI.nearId = Game.mode === "fly" ? findNear() : null;
+    if (Game.mode === "fly") {
+      UI.nearId = findNear();
       UI.frame(ship, W.camera);
       Sound.engine(Math.min(1, Math.abs(ship.speed) / 70));
     }
@@ -460,8 +449,8 @@
       cam.look.copy(lookTo);
       UI.showHUD();
       UI.toast(document.documentElement.classList.contains("touch-ui")
-        ? "🎮 Links lenken, rechts GAS geben – oder unten einen Planeten antippen (Autopilot)!"
-        : "🎮 Steuerung: W = Gas, A/D = Lenken, Leertaste = Turbo – oder unten den Autopiloten nutzen!");
+        ? "🎮 Links lenken, rechts GAS geben! Tippe unten einen Planeten an – der Pfeil zeigt dir den Weg."
+        : "🎮 W = Gas, A/D = Lenken, Leertaste = Turbo! Tippe unten einen Planeten an – der Pfeil zeigt dir den Weg.");
     });
     (function fly() {
       const t = Math.min(1, (performance.now() - t0) / dur);
