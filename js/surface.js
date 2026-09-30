@@ -1562,7 +1562,7 @@ window.Surface = (function () {
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2], // zuerst: die Exponate daneben haben Vorrang
       apollo: L.apollo, himmel: L.himmel, temperatur: L.shadowSpot, fallversuch: L.fallversuch, waage: L.waage,
       spiegel: L.spiegel, wegweiser: L.wegweiser, antenne: L.antenne, mondstein: L.mondstein, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] },
-    { apollo: [6, -5] });
+    { apollo: [6, -5], himmel: MARS_SCOPE_DOOR(L.himmel) }); // Markierung am Fuß der Treppe
 
     // Einfache Kreis-Hindernisse: [x, z, Radius]
     const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], [...L.fallversuch, 1], [...L.himmel, 2.8],
