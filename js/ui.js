@@ -333,18 +333,7 @@ window.UI = (function () {
     const thermo = thermoHtml(b);
 
     const photos = (D.photos && D.photos[b.id]) || [];
-    const surf = D.surfaces && D.surfaces[b.id];
-    const found = (G.state.found && G.state.found[b.id]) || {};
-    const nFound = surf ? surf.discoveries.filter((d) => found[d.key]).length : 0;
     $("paneInfo").innerHTML = `
-      ${surf ? `
-      <div class="box surface-cta">
-        <h3>👨‍🚀 Selbst erkunden</h3>
-        <p>Steig aus und finde selbst heraus, wie es auf ${b.id === "mond" ? "dem Mond" : b.name} wirklich ist!</p>
-        <button class="btn warm xl" id="btnExitShip">👨‍🚀 Aussteigen</button>
-        <ul class="found-list">${surf.discoveries.map((d) => `<li class="${found[d.key] ? "done" : ""}">${found[d.key] ? "✓" : "○"} ${d.icon} ${d.title}</li>`).join("")}</ul>
-        <p style="font-size:13px;color:var(--muted)">${nFound} von ${surf.discoveries.length} selbst entdeckt</p>
-      </div>` : ""}
       <p class="intro">${b.intro}</p>
       <div class="facts-grid">${tiles.map(([i, l, v]) => `<div class="fact"><div class="ico">${i}</div><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join("")}</div>
       <div class="box">
@@ -362,7 +351,6 @@ window.UI = (function () {
       </div>
       ${photos.length ? `<div class="box"><h3>📷 Echte Fotos (${photos.length})</h3><div class="gallery" id="gallery"></div></div>` : ""}`;
     requestAnimationFrame(() => setTimeout(thermo.animate, 150));
-    if ($("btnExitShip")) $("btnExitShip").onclick = () => G.enterSurface(b.id);
     if (photos.length) renderGallery($("gallery"), photos, 0, false);
   }
 
@@ -419,7 +407,8 @@ window.UI = (function () {
   }
 
   // Fotogalerie: Blättern mit Pfeilen, Punkten oder Wischen; Antippen vergrößert
-  function renderGallery(host, photos, idx, big) {
+  // noZoom: Galerie steckt schon in einem Fenster (Entdeckungskarte) – Antippen vergrößert dann nicht
+  function renderGallery(host, photos, idx, big, noZoom) {
     const n = photos.length;
     idx = (idx + n) % n;
     const p = photos[idx];
@@ -429,12 +418,12 @@ window.UI = (function () {
           <img src="img/${p.file}" alt="${p.caption.replace(/"/g, "&quot;")}" draggable="false">
           <span class="photo-badge">📷 ${p.tag}</span>
           ${n > 1 ? `<button class="photo-nav prev" aria-label="Voriges Foto">‹</button><button class="photo-nav next" aria-label="Nächstes Foto">›</button>` : ""}
-          ${!big ? `<span class="photo-zoom">🔍</span>` : ""}
+          ${!big && !noZoom ? `<span class="photo-zoom">🔍</span>` : ""}
         </div>
         ${n > 1 ? `<div class="photo-dots">${photos.map((_, k) => `<i class="${k === idx ? "on" : ""}" data-k="${k}"></i>`).join("")}</div>` : ""}
         <figcaption>${p.caption}<small>${p.credit}${big ? ` · <a href="${p.url}" target="_blank" rel="noopener">Quelle</a>` : ""}</small></figcaption>
       </figure>`;
-    const go = (k) => { Sound.click(); renderGallery(host, photos, k, big); };
+    const go = (k) => { Sound.click(); renderGallery(host, photos, k, big, noZoom); };
     host.querySelector(".prev")?.addEventListener("click", (e) => { e.stopPropagation(); go(idx - 1); });
     host.querySelector(".next")?.addEventListener("click", (e) => { e.stopPropagation(); go(idx + 1); });
     host.querySelectorAll(".photo-dots i").forEach((d) => d.addEventListener("click", () => go(+d.dataset.k)));
@@ -445,7 +434,7 @@ window.UI = (function () {
       if (sx === null) return;
       const dx = e.clientX - sx; sx = null;
       if (Math.abs(dx) > 40 && n > 1) go(idx + (dx < 0 ? 1 : -1));
-      else if (!big && !e.target.closest(".photo-nav")) {
+      else if (!big && !noZoom && !e.target.closest(".photo-nav")) {
         Sound.click();
         openModal(`<div class="gallery" id="galleryBig"></div>`);
         renderGallery($("galleryBig"), photos, idx, true);
@@ -767,6 +756,6 @@ window.UI = (function () {
   return {
     nearId: null,
     init, onStateReady, showStart, countdown, showHUD, updateHUD, frame, warp,
-    openPanel, closePanel, toast, celebrate, confetti, openModal, closeModal, modalOpen
+    openPanel, closePanel, toast, celebrate, confetti, renderGallery, openModal, closeModal, modalOpen
   };
 })();

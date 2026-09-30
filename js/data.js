@@ -267,23 +267,43 @@ window.SPACE_DATA = {
       gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81); gilt für den Hammer-und-Feder-Versuch
       moveGravity: 2.4, // fürs Laufen und Springen etwas stärker, damit es sich nicht zu zäh anfühlt
       discoveries: [
-        { key: "sprung", icon: "🦘", title: "Leichte Anziehung", fallback: { hoehe: "etwa 45 Zentimeter", zeit: "über 1" },
+        { key: "sprung", icon: "🦘", title: "Leichte Anziehung", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 45 Zentimeter", zeit: "über 1" },
           text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden durch die Luft geschwebt! Mit genau demselben Absprung kämst du auf der Erde nur ein Sechstel so hoch – der Mond zieht nur ein Sechstel so stark. Meterhoch geht es trotzdem nicht: Raumanzug und Rucksack wiegen zusammen fast so viel wie ein Erwachsener. So ähnlich ist Astronaut John Young 1972 für ein berühmtes Foto gesprungen." },
-        { key: "apollo", icon: "👣", title: "Die erste Mondlandung", photo: "mond-1.jpg",
+        { key: "apollo", icon: "👣", title: "Die erste Mondlandung", gallery: ["mond-1.jpg", "mond-2.jpg", "mond-3.jpg"],
           text: "Hier in der Nähe landeten im Juli 1969 Neil Armstrong und Buzz Aldrin mit der Mondfähre „Eagle“ – als allererste Menschen auf dem Mond! Das Unterteil der Fähre steht noch heute dort. Und ihre Fußabdrücke sind bis heute zu sehen: Auf dem Mond gibt es keinen Wind und keinen Regen, der sie verweht." },
         { key: "himmel", icon: "🔭", title: "Schwarzer Himmel", photo: "erde-1.jpg",
           text: "Obwohl die Sonne scheint, ist der Himmel schwarz! Auf der Erde verteilt die Luft das Sonnenlicht und macht den Himmel blau – auf dem Mond gibt es keine Luft. Und da oben schwebt unsere Erde: Vom Mond aus sieht sie fast 4-mal so groß aus wie der Mond bei uns am Himmel." },
         { key: "temperatur", icon: "🌡️", title: "Hitze und Kälte",
           text: "Hast du das Thermometer gesehen? In der Sonne wird der Mondboden bis zu 120 °C heiß. Im Schatten und in der Mondnacht wird es eiskalt – bis −170 °C! Ohne Luft wird die Wärme nicht verteilt. Nur dein Raumanzug schützt dich." },
         { key: "fallversuch", icon: "🪶", title: "Hammer und Feder",
-          text: "Hammer und Feder sind genau gleichzeitig unten angekommen! Auf der Erde bremst die Luft die leichte Feder – sie segelt langsam herab. Auf dem Mond gibt es keine Luft, darum fällt alles gleich schnell. Astronaut Dave Scott hat genau diesen Versuch 1971 auf dem Mond gemacht!" }
+          text: "Hammer und Feder sind genau gleichzeitig unten angekommen! Auf der Erde bremst die Luft die leichte Feder – sie segelt langsam herab. Auf dem Mond gibt es keine Luft, darum fällt alles gleich schnell. Astronaut Dave Scott hat genau diesen Versuch 1971 auf dem Mond gemacht!" },
+        { key: "waage", icon: "⚖️", title: "Federleicht", fallback: { erde: "30", mond: "5,0" },
+          text: "Auf der Erde wiegst du {erde} Kilo – hier zeigt die Waage nur {mond} Kilo! Dein Körper ist genau derselbe geblieben. Aber der Mond ist viel kleiner als die Erde und zieht nur ein Sechstel so stark an dir. Darum fühlst du dich hier so leicht." },
+        // Fundstücke: die Inhalte des früheren Steckbriefs („Wusstest du?“, Eckdaten, Reisezeit) zum Selbst-Finden
+        { key: "wegweiser", icon: "🪧", title: "Der weite Weg nach Hause",
+          text: "Bis zur Erde sind es 384.400 Kilometer. Mit dem Auto (100 km/h) wärst du ohne Pause 160 Tage unterwegs! Die Apollo-Astronauten brauchten mit ihrer Rakete etwa 3 Tage. Und das Licht? Das schafft die Strecke in etwas mehr als 1 Sekunde." },
+        { key: "antenne", icon: "📡", title: "Immer dieselbe Seite",
+          text: "Die Sonne ist einmal über den ganzen Himmel gewandert – aber die Erde ist nicht vom Fleck gerückt! Der Mond dreht sich nämlich so, dass er der Erde immer dieselbe Seite zeigt. Darum muss diese Antenne nie nachgestellt werden. Und wir sehen von zu Hause immer dasselbe „Mondgesicht“ – die Rückseite des Mondes kann man von der Erde aus nie sehen! Ein Tag auf dem Mond dauert fast einen Monat: etwa zwei Wochen ist es hell, dann zwei Wochen dunkel." },
+        { key: "spiegel", icon: "🪞", title: "Der Laser-Spiegel",
+          text: "Das Licht war in nur 2,6 Sekunden von der Erde zum Mond und wieder zurück! So einen Spiegel haben die Apollo-Astronauten 1969 auf dem Mond aufgestellt – Forscher benutzen ihn bis heute. Aus der gemessenen Zeit rechnen sie aus, wie weit der Mond entfernt ist: rund 384.400 Kilometer. Übrigens: Auch der Mond selbst leuchtet nicht. Er wird von der Sonne angestrahlt und wirft ihr Licht zurück – wie ein Spiegel." },
+        { key: "mondstein", icon: "🪨", title: "Krater und Mondgestein", photo: "mond.jpg",
+          text: "Du stehst mitten in einem Krater! Er ist entstanden, als ein Brocken aus dem All eingeschlagen ist. Auf der Erde verglühen die meisten Brocken in der Luft – der Mond hat keine Luft, die ihn schützt. Darum ist er voller Krater. Die Apollo-Astronauten haben 382 Kilo Mondgestein mit zur Erde gebracht. Der Mond ist 3.474 Kilometer breit – etwa ein Viertel so breit wie die Erde." }
       ],
       stations: {
         // action = Knopf an der Station · again = Knopf, um schon Entdecktes nochmal anzusehen · reach = Reichweite in Metern
+        // hint = Tipp in der Liste „Meine Entdeckungen“ · small + auto = Fundstück: kleines Licht, Entdeckung beim Hingehen (Meter)
         apollo:      { label: "Landestelle von 1969", hint: "Geh zur Mondfähre", again: "👣 Nochmal ansehen", reach: 6 },
-        himmel:      { label: "Fernrohr", action: "🔭 Durchschauen" },
-        temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten", again: "🌡️ Nochmal ansehen", reach: 5 },
-        fallversuch: { label: "Experiment-Tisch", action: "🪶 Hammer & Feder fallen lassen" },
+        himmel:      { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
+        temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten des großen Felsens", again: "🌡️ Nochmal ansehen", reach: 5 },
+        fallversuch: { label: "Experiment-Tisch", hint: "Probier den Versuch am Tisch aus", action: "🪶 Hammer & Feder fallen lassen" },
+        waage:       { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        wegweiser:   { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        // Tafelwand der Mondstation: keine Entdeckung (info), öffnet die Liste „Meine Entdeckungen“
+        wand:        { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
+        // Exponate auf dem Platz vor der Mondstation
+        antenne:     { label: "Antenne", hint: "Geh zur Mondstation und probier die Antenne aus", action: "⏩ Zeit vorspulen" },
+        spiegel:     { label: "Laser-Spiegel", hint: "Geh zur Mondstation und probier den Laser-Spiegel aus", action: "🔦 Laser-Messung starten" },
+        mondstein:   { label: "Mondstein im Krater", hint: "Such ein goldenes Licht im Krater hinter deiner Rakete", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       // Fernrohr: Erde selbst suchen → Größe vergleichen → ausprobieren, was Luft mit dem Himmel macht
@@ -303,11 +323,33 @@ window.SPACE_DATA = {
         airOffText: "Ohne Luft: Nichts verteilt das Sonnenlicht. Der Himmel bleibt schwarz – sogar mitten am Tag!",
         done: "Fertig ✓"
       },
+      // Waage: eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf dem Mond zeigt ({mond})
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Mond zeigt die Waage nur {mond} Kilo!",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      // Laser-Spiegel: Licht von der Erde zum Spiegel und zurück, die Stoppuhr läuft in echter Zeit mit
+      laser: {
+        ready: "Die Bodenstation schickt gleich einen Laserstrahl von der Erde zu diesem Spiegel. Stopp die Zeit mit: Achtung … fertig …",
+        hin: "Los! Das Licht rast von der Erde zum Mond …",
+        zurueck: "Treffer! Der Spiegel wirft das Licht zurück zur Erde …",
+        end: "Wieder auf der Erde – nach nur 2,6 Sekunden! Ein Auto bräuchte für diesen Weg hin und zurück fast ein ganzes Jahr.",
+        again: "🔦 Nochmal", done: "Fertig ✓"
+      },
+      // Antenne: Zeitraffer über einen Mond-Tag ({tag} von {tage} Erdtagen)
+      lapse: {
+        ready: "Die Antenne zeigt genau zur Erde. Jetzt spulen wir die Zeit vor: Beobachte die Sonne, die Schatten – und die Erde!",
+        day: "Erdtag {tag} von {tage}: Die Sonne wandert über den Himmel. Und die Erde?",
+        night: "Erdtag {tag} von {tage}: Jetzt ist Mondnacht – zwei Wochen lang! Und die Erde?",
+        end: "Ein ganzer Mond-Tag ist vorbei. Die Sonne ist einmal rundherum gewandert – aber die Erde steht noch genau an derselben Stelle!",
+        again: "⏩ Nochmal", done: "Fertig ✓"
+      },
+      // {anzahl} = Zahl der Entdeckungen, {fragen} = Zahl der Funk-Fragen am Ende
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es 5 Dinge zu entdecken. Die leuchtenden Lichtsäulen zeigen dir, wo. Probier doch zuerst mal zu springen!",
+        start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Mondstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
-        back: "Willkommen zurück auf dem Mond, {name}! Dir fehlen noch {rest} Entdeckungen – folge den blauen Lichtsäulen.",
-        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch 3 Fragen an dich.",
+        back: "Willkommen zurück auf dem Mond, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
         quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
       },

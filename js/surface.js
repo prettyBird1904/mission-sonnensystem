@@ -29,8 +29,12 @@ window.Surface = (function () {
   // Richtung ZUR Sonne: tief am Himmel → lange, deutliche Schatten
   const SUN_DIR = new V(-1, 0.32, -0.55).normalize();
   const MOON_LAYOUT = {
-    rocket: [0, 0], spawn: [8, 10],
-    fallversuch: [-7, 15], himmel: [12, 20], apollo: [-18, 32], boulder: [22, 34]
+    rocket: [0, 0], spawn: [-6.9, 4], // Start neben der Leiter (siehe HATCH), aber außer Reichweite von „Einsteigen“
+    fallversuch: [-7, 15], himmel: [12, 20], apollo: [-18, 32], boulder: [22, 34], waage: [4, 27],
+    // Fundstücke (kleine goldene Lichter): Inhalte des Steckbriefs zum Selbst-Finden
+    wegweiser: [-16, 8], mondstein: [25, -30], // mondstein liegt mitten in einem Krater
+    // Mondstation „Wusstest du?“: Wand mit den Entdeckungs-Tafeln (Vorderseite zeigt zur Rakete), davor zwei Exponate zum Ausprobieren
+    station: [2, 52], spiegel: [-4, 45], antenne: [8, 45]
   };
   const SHADOW_DIR = new V(-SUN_DIR.x, 0, -SUN_DIR.z).normalize(); // Schatten fallen weg von der Sonne
 
@@ -40,7 +44,7 @@ window.Surface = (function () {
       [55, 25, 5, 0.7], [-45, 30, 4, 0.6], [25, -30, 6, 0.9]];
     const b = layout.boulder, sh = [b[0] + SHADOW_DIR.x * 12, b[1] + SHADOW_DIR.z * 12];
     layout.shadowSpot = sh;
-    const flats = [[0, 0, 11], [...layout.fallversuch, 5], [...layout.himmel, 5], [...layout.apollo, 10], [...layout.boulder, 7], [...sh, 8]];
+    const flats = [[0, 0, 11], [...layout.fallversuch, 5], [...layout.himmel, 5], [...layout.apollo, 10], [...layout.boulder, 7], [...sh, 8], [...layout.waage, 3], [...layout.station, 16]];
     return function height(x, z) {
       let h = (fbm2(x * 0.02, z * 0.02) - 0.5) * 6 + (fbm2(x * 0.12 + 7, z * 0.12) - 0.5) * 0.8;
       for (const [cx, cz, r, d] of craters) {
@@ -429,6 +433,168 @@ window.Surface = (function () {
     return g;
   }
 
+  // Waage: Trittfläche und Anzeige dahinter (lokal +Z = Blickrichtung des Astronauten, dort steht die Kamera)
+  const WEIGH_DIR = new V(SUN_DIR.x, 0, SUN_DIR.z).normalize(); // zur Sonne hin, damit der Astronaut von vorn beleuchtet ist
+  function makeScale() {
+    const g = new THREE.Group();
+    const metal = new THREE.MeshStandardMaterial({ color: 0xaab2bd, metalness: 0.6, roughness: 0.4 });
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.06, 1.1), metal);
+    plate.position.y = 0.03; plate.receiveShadow = true; g.add(plate);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.5, 8), metal);
+    pole.position.set(0, 1.25, -0.95); pole.castShadow = true; g.add(pole);
+    const cv = document.createElement("canvas"); cv.width = 384; cv.height = 160;
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+    const display = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.62), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+    display.position.set(0, 2.55, -0.9); g.add(display);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.72, 0.06), metal);
+    back.position.set(0, 2.55, -0.94); back.castShadow = true; g.add(back);
+    // Auch von hinten lesbar – je nachdem, von wo man auf die Waage zuläuft
+    const display2 = display.clone(); display2.position.z = -0.98; display2.rotation.y = Math.PI; g.add(display2);
+    g.userData.show = (text) => {
+      const x = cv.getContext("2d");
+      x.fillStyle = "#06121c"; x.fillRect(0, 0, 384, 160);
+      x.fillStyle = "#5eead4"; x.font = "bold 96px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+      x.fillText(text, 192, 86);
+      tex.needsUpdate = true;
+    };
+    g.userData.show("0,0 kg");
+    return g;
+  }
+
+  // Fundstücke: Laser-Spiegel (steht wirklich seit Apollo 11 auf dem Mond), Wegweiser, Antenne, Mondstein
+  function makeReflector() {
+    const g = new THREE.Group();
+    const frame = new THREE.MeshStandardMaterial({ color: 0x6b7280, metalness: 0.6, roughness: 0.4 });
+    const panel = new THREE.Group(); panel.position.y = 0.45; panel.rotation.x = -0.9; // schräg nach oben, zur Erde
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.08), frame); box.castShadow = true; panel.add(box);
+    const glass = new THREE.MeshStandardMaterial({ color: 0xdbeafe, metalness: 1, roughness: 0.12, emissive: 0x1e3a5f });
+    for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(0.055, 12), glass);
+      m.position.set(-0.26 + i * 0.13, -0.26 + j * 0.13, 0.042); panel.add(m);
+    }
+    g.add(panel);
+    for (const x of [-0.3, 0.3]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 6), frame); leg.position.set(x, 0.2, -0.15); g.add(leg); }
+    return g;
+  }
+  function makeSignpost() {
+    const g = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 8), new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.5, roughness: 0.4 }));
+    pole.position.y = 1.15; pole.castShadow = true; g.add(pole);
+    const cv = document.createElement("canvas"); cv.width = 512; cv.height = 160;
+    const x = cv.getContext("2d");
+    x.fillStyle = "#1d4ed8"; x.fillRect(0, 0, 512, 160);
+    x.strokeStyle = "#fff"; x.lineWidth = 8; x.strokeRect(8, 8, 496, 144);
+    x.fillStyle = "#fff"; x.textAlign = "center"; x.textBaseline = "middle";
+    x.font = "bold 58px sans-serif"; x.fillText("ERDE", 256, 54);
+    x.font = "bold 44px sans-serif"; x.fillText("384.400 km", 256, 112);
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 });
+    for (const r of [0, Math.PI]) { // beidseitig lesbar
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.5), mat);
+      board.position.set(0, 2.0, r ? -0.03 : 0.03); board.rotation.y = r; board.castShadow = true; g.add(board);
+    }
+    return g;
+  }
+  function makeAntenna(earthDir) {
+    const g = new THREE.Group();
+    const white = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.5, side: THREE.DoubleSide });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.5, roughness: 0.4 });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.6, 8), dark);
+    pole.position.y = 0.8; pole.castShadow = true; g.add(pole);
+    // Schüssel: offene Seite zeigt genau zur Erde
+    const head = new THREE.Group(); head.position.y = 1.7;
+    head.quaternion.setFromUnitVectors(new V(0, -1, 0), earthDir.clone().normalize());
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 10, 0, Math.PI * 2, 0, 0.75), white);
+    dish.position.y = -0.75; dish.castShadow = true; head.add(dish);
+    const feed = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6), dark);
+    feed.position.y = -0.2; head.add(feed);
+    g.add(head);
+    return g;
+  }
+  function makeMoonRock() {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.32, 0), new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.9, flatShading: true }));
+    m.scale.set(1.2, 0.8, 1); m.rotation.set(0.4, 0.8, 0.2); m.castShadow = true;
+    return m;
+  }
+
+  // ---------- Mondstation „Wusstest du?“ ----------
+  // Kuppel, Wohnmodul und Sonnensegel – davor eine Wand mit einer Tafel pro Entdeckung.
+  // Die Tafeln zeigen erst dann etwas, wenn das Kind die Entdeckung selbst gemacht hat (lokal: Vorderseite = −Z).
+  function wrapText(x, text, maxW) {
+    const lines = []; let line = "";
+    for (const w of text.split(" ")) {
+      const t = line ? line + " " + w : w;
+      if (line && x.measureText(t).width > maxW) { lines.push(line); line = w; } else line = t;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  function drawPanel(cv, d, found) {
+    const x = cv.getContext("2d"), W2 = cv.width, H2 = cv.height;
+    x.fillStyle = found ? "#0b2a4a" : "#111827"; x.fillRect(0, 0, W2, H2);
+    x.strokeStyle = found ? "#fcd34d" : "#374151"; x.lineWidth = 8; x.strokeRect(4, 4, W2 - 8, H2 - 8);
+    x.textBaseline = "alphabetic";
+    if (!found) {
+      x.textAlign = "center"; x.fillStyle = "#4b5563";
+      x.font = "bold 130px sans-serif"; x.fillText("?", W2 / 2, 150);
+      x.font = "26px sans-serif"; x.fillText("Noch nicht entdeckt", W2 / 2, 210);
+      return;
+    }
+    // Nur Bild und Überschrift – groß genug, um sie im Vorbeilaufen zu erkennen. Den Text dazu gibt es per Knopf an der Wand.
+    x.textAlign = "center";
+    x.font = "96px sans-serif"; x.fillStyle = "#fff"; x.fillText(d.icon, W2 / 2, 112);
+    x.font = "bold 46px sans-serif"; x.fillStyle = "#fde68a";
+    const lines = wrapText(x, d.title, W2 - 40).slice(0, 2);
+    lines.forEach((l, i) => x.fillText(l, W2 / 2, (lines.length > 1 ? 172 : 196) + i * 50));
+  }
+  function makeStation(discoveries) {
+    const g = new THREE.Group();
+    const hull = new THREE.MeshStandardMaterial({ color: 0xe8eaee, roughness: 0.6, metalness: 0.1 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.5, metalness: 0.4 });
+    const lit = new THREE.MeshStandardMaterial({ color: 0x0b1220, emissive: 0xfde68a, emissiveIntensity: 0.8 });
+    const add = (m, x, y, z, shadow = true) => { m.position.set(x, y, z); m.castShadow = shadow; g.add(m); return m; };
+    // Kuppel hinter der Wand
+    add(new THREE.Mesh(new THREE.SphereGeometry(6, 32, 14, 0, Math.PI * 2, 0, Math.PI / 2), hull), 0, 0, 7.5).receiveShadow = true;
+    add(new THREE.Mesh(new THREE.CylinderGeometry(6.15, 6.3, 0.5, 32), dark), 0, 0.25, 7.5, false);
+    // Wohnmodul: liegende Röhre mit leuchtenden Fenstern
+    add(new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 8, 20), hull), -10.5, 2, 6.5).rotation.z = Math.PI / 2;
+    for (const e of [-1, 1]) add(new THREE.Mesh(new THREE.SphereGeometry(2, 20, 12), hull), -10.5 + e * 4, 2, 6.5);
+    for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.CircleGeometry(0.45, 16), lit), -13.2 + i * 1.8, 2.3, 4.49, false).rotation.y = Math.PI;
+    // Sonnensegel
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 8), dark), 11, 1.5, 6);
+    const sail = add(new THREE.Mesh(new THREE.BoxGeometry(5, 0.08, 2.4), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 })), 11, 3.1, 6);
+    sail.rotation.x = -0.9; // zur Sonne geneigt
+    // Wand mit Schild
+    add(new THREE.Mesh(new THREE.BoxGeometry(15.6, 3.7, 0.3), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 })), 0, 1.85, 0).receiveShadow = true;
+    for (const px of [-4.6, 4.6]) add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 8), dark), px, 4.2, 0);
+    const sv = document.createElement("canvas"); sv.width = 1024; sv.height = 200;
+    const sx = sv.getContext("2d");
+    sx.fillStyle = "#7c3aed"; sx.fillRect(0, 0, 1024, 200);
+    sx.strokeStyle = "#fde68a"; sx.lineWidth = 10; sx.strokeRect(8, 8, 1008, 184);
+    sx.fillStyle = "#fff"; sx.textAlign = "center"; sx.textBaseline = "middle";
+    sx.font = "bold 110px sans-serif"; sx.fillText("Wusstest du?", 512, 86);
+    sx.font = "bold 34px sans-serif"; sx.fillStyle = "#fde68a"; sx.fillText("MONDSTATION · DEINE ENTDECKUNGEN", 512, 166);
+    const signTex = new THREE.CanvasTexture(sv); signTex.encoding = THREE.sRGBEncoding; signTex.anisotropy = 4;
+    add(new THREE.Mesh(new THREE.BoxGeometry(10.4, 2.2, 0.12), dark), 0, 5.4, 0);
+    add(new THREE.Mesh(new THREE.PlaneGeometry(10.2, 2), new THREE.MeshBasicMaterial({ map: signTex, toneMapped: false })), 0, 5.4, -0.07, false).rotation.y = Math.PI;
+    // Tafeln: obere Reihe die ersten fünf, untere Reihe die nächsten fünf (von vorn gelesen: links → rechts)
+    const panels = discoveries.map((d, i) => {
+      const cv = document.createElement("canvas"); cv.width = 512; cv.height = 256;
+      const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+      add(new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.4), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })),
+        (2 - (i % 5)) * 3, i < 5 ? 2.75 : 1.15, -0.16, false).rotation.y = Math.PI;
+      return { d, cv, tex, state: null };
+    });
+    g.userData.refresh = (found) => {
+      for (const p of panels) {
+        const on = !!found[p.d.key];
+        if (p.state === on) continue;
+        p.state = on; drawPanel(p.cv, p.d, on); p.tex.needsUpdate = true;
+      }
+    };
+    return g;
+  }
+
   function makeTable() {
     const g = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.5, roughness: 0.4 });
@@ -497,7 +663,8 @@ window.Surface = (function () {
     const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x6b6863, roughness: 1, flatShading: true }), FAST ? 140 : 280);
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V(), p = new V(), e = new THREE.Euler();
     let placed = 0, tries = 0;
-    const keepFree = [[0, 0, 12], [...L.fallversuch, 5], [...L.himmel, 5], [...L.apollo, 9], [...L.shadowSpot, 7], [...L.spawn, 4]];
+    const keepFree = [[0, 0, 12], [...L.fallversuch, 5], [...L.himmel, 5], [...L.apollo, 9], [...L.shadowSpot, 7], [...L.spawn, 4],
+      [...L.waage, 4], [...L.wegweiser, 3], [...L.mondstein, 3], [L.station[0], L.station[1] + 2, 18]];
     while (placed < rocks.count && tries++ < 5000) {
       const x = (hash2(tries, 1.3) - 0.5) * 300, z = (hash2(tries, 7.7) - 0.5) * 300;
       if (keepFree.some(([fx, fz, r]) => Math.hypot(x - fx, z - fz) < r)) continue;
@@ -573,6 +740,22 @@ window.Surface = (function () {
     on(boulder, ...L.boulder, 5.5);
 
     const telescope = on(makeTelescope(earthDir), ...L.himmel);
+    const scale = on(makeScale(), ...L.waage);
+    scale.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
+    on(makeReflector(), ...L.spiegel).rotation.y = Math.atan2(earthDir.x, earthDir.z);
+    const station = on(makeStation(cfg.discoveries), ...L.station);
+    // Laserstrahl zwischen Spiegel und Erde (nur während der Messung sichtbar)
+    const laserFrom = new V(L.spiegel[0], height(...L.spiegel) + 0.5, L.spiegel[1]);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 880, 8, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
+    beam.position.copy(laserFrom).addScaledVector(earthDir, 440);
+    beam.quaternion.setFromUnitVectors(new V(0, 1, 0), earthDir);
+    const pulse = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(220,255,220,1)", "rgba(74,222,128,0.7)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    beam.visible = pulse.visible = false;
+    scene.add(beam, pulse);
+    on(makeSignpost(), ...L.wegweiser).rotation.y = Math.atan2(L.wegweiser[0], L.wegweiser[1]) + Math.PI; // Schild zeigt zur Rakete
+    on(makeAntenna(earthDir), ...L.antenne);
+    on(makeMoonRock(), ...L.mondstein, 0.18);
     const table = on(makeTable(), ...L.fallversuch);
     const hammer = makeHammer(), feather = makeFeather();
     hammer.scale.setScalar(1.6); feather.scale.setScalar(1.6);
@@ -598,9 +781,13 @@ window.Surface = (function () {
 
     // Markierungen (Lichtsäulen) für die Entdeckungs-Stationen
     const stations = {};
-    const stationPos = { apollo: L.apollo, himmel: L.himmel, temperatur: L.shadowSpot, fallversuch: L.fallversuch, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] };
+    const stationPos = { wand: [L.station[0], L.station[1] - 2.2], // zuerst: die Exponate daneben haben Vorrang
+      apollo: L.apollo, himmel: L.himmel, temperatur: L.shadowSpot, fallversuch: L.fallversuch, waage: L.waage,
+      spiegel: L.spiegel, wegweiser: L.wegweiser, antenne: L.antenne, mondstein: L.mondstein, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] };
     for (const [key, [x, z]] of Object.entries(stationPos)) {
       const mk = on(makeMarker(), key === "apollo" ? x + 6 : x, key === "apollo" ? z - 5 : z);
+      if (cfg.stations[key].small) mk.scale.set(0.45, 0.2, 0.45); // Fundstück: nur ein kleines Licht
+      if (cfg.stations[key].info) mk.visible = false;              // Tafelwand: keine Entdeckung, also kein Licht
       stations[key] = { marker: mk, x: mk.position.x, z: mk.position.z };
     }
 
@@ -613,11 +800,16 @@ window.Surface = (function () {
     for (let i = 0; i < 120; i++) { const s = new THREE.Sprite(dustMat.clone()); s.visible = false; s.userData = { life: 0, v: new V() }; scene.add(s); dust.push(s); }
 
     // Einfache Kreis-Hindernisse: [x, z, Radius]
-    const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], [...L.fallversuch, 1], [...L.himmel, 0.6]];
+    const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], [...L.fallversuch, 1], [...L.himmel, 0.6],
+      [...L.spiegel, 0.5], [...L.wegweiser, 0.3], [...L.antenne, 0.6], [...L.mondstein, 0.4], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25]];
+    // Mondstation: Tafelwand (Kette aus Kreisen), Kuppel, Wohnmodul, Mast des Sonnensegels
+    const [sx0, sz0] = L.station;
+    for (let x = -6.6; x <= 6.61; x += 2.2) colliders.push([sx0 + x, sz0 + 0.1, 1]);
+    colliders.push([sx0, sz0 + 7.5, 6.4], [sx0 - 13, sz0 + 6.5, 2.4], [sx0 - 8.5, sz0 + 6.5, 2.4], [sx0 + 11, sz0 + 6, 0.5]);
 
     return {
-      scene, camera, height, L, sun, ambient, hemi, stars, earth, earthDir, cmpMoon, cmpRight, rocket, rocketY: rocket.position.y, hatch, hatchY: hatch.position.y, lander, boulder, telescope, table, hammer, feather,
-      stations, astronaut, myPrints, printIdx: 0, dust, dustIdx: 0, colliders, shadowCasters: [boulder, rocket, lander]
+      scene, camera, height, L, sun, sunGlow, ambient, hemi, stars, station, laserFrom, beam, pulse, earth, earthDir, cmpMoon, cmpRight, rocket, rocketY: rocket.position.y, hatch, hatchY: hatch.position.y, scale, lander, boulder, telescope, table, hammer, feather,
+      stations, astronaut, myPrints, printIdx: 0, dust, dustIdx: 0, colliders, shadowCasters: [boulder, rocket, lander, station]
     };
   }
 
@@ -629,7 +821,11 @@ window.Surface = (function () {
   let temp = { shown: 120, inShadow: false, shadowTime: 0, sunSeen: false, check: 0 };
   let radioTimer = 0, farWarned = 0, experiment = null, quizDone = false, boarding = null;
 
-  function fmtVars(t, vars) { return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : k === "name" ? G.state.name : "")); }
+  function allQuestions() { return cfg.quiz.map((q) => ({ ...q, own: true })).concat(G.bodyById[bodyId].quiz || []); }
+  function fmtVars(t, vars) {
+    const std = { name: G.state.name, anzahl: cfg.discoveries.length, fragen: allQuestions().length };
+    return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : ""));
+  }
 
   function radio(text, vars) {
     const msg = fmtVars(text, vars);
@@ -643,9 +839,10 @@ window.Surface = (function () {
 
   function updateCounter() {
     $("discCount").textContent = `${foundCount()}/${cfg.discoveries.length}`;
+    world.station.userData.refresh(foundMap()); // Tafeln an der Mondstation
     for (const [key, st] of Object.entries(world.stations)) {
       const home = !!cfg.stations[key].home, done = !!foundMap()[key];
-      const color = home ? 0xfbbf24 : done ? 0x4ade80 : 0x7dd3fc;
+      const color = home ? 0xfbbf24 : done ? 0x4ade80 : cfg.stations[key].small ? 0xfcd34d : 0x7dd3fc;
       st.marker.userData.beam.material.color.set(color);
       st.marker.userData.ring.material.color.set(color);
       st.marker.userData.beam.scale.y = done || home ? 0.25 : 1;
@@ -671,10 +868,12 @@ window.Surface = (function () {
         <div class="disc-icon">${d.icon}</div>
         <div class="disc-kicker">${known ? "✓ Schon entdeckt – nochmal angesehen" : "Neue Entdeckung! +1 ⭐"}</div>
         <h2>${d.title}</h2>
-        ${d.photo ? `<img src="img/${d.photo}" alt="" class="disc-photo">` : ""}
+        ${d.gallery ? `<div class="gallery" id="discGallery"></div>` : d.photo ? `<img src="img/${d.photo}" alt="" class="disc-photo">` : ""}
         <p>${text}</p>
         <div class="row-gap"><button class="btn primary" id="discOk">Weiter erkunden ▶</button></div>
       </div>`);
+    // Echte Fotos zum Durchblättern (aus der früheren Steckbrief-Galerie)
+    if (d.gallery) UI.renderGallery($("discGallery"), (D.photos[bodyId] || []).filter((p) => d.gallery.includes(p.file)), 0, false, true);
     $("discOk").onclick = () => {
       UI.closeModal();
       if (known) return;
@@ -695,7 +894,7 @@ window.Surface = (function () {
         <h2>Meine Entdeckungen</h2>
         <div class="answers">${cfg.discoveries.map((d) => f[d.key]
           ? `<button class="answer" data-key="${d.key}">✓ ${d.icon} ${d.title}</button>`
-          : `<button class="answer" disabled style="opacity:.55">○ ❓ Noch nicht entdeckt</button>`).join("")}</div>
+          : `<button class="answer" disabled style="opacity:.6">○ ❓ Tipp: ${d.hint || (cfg.stations[d.key] || {}).hint || "Noch nicht entdeckt"}</button>`).join("")}</div>
         <div class="row-gap">${all ? `<button class="btn ghost" id="foundQuiz">📻 Funk-Fragen nochmal</button>` : ""}<button class="btn primary" id="foundOk">Weiter erkunden ▶</button></div>
       </div>`);
     document.querySelectorAll("#modalContent .answer[data-key]").forEach((b) => b.onclick = () => discover(b.dataset.key, null, true));
@@ -705,7 +904,8 @@ window.Surface = (function () {
 
   function startQuiz() {
     if (!S.active || UI.modalOpen()) { if (S.active) setTimeout(startQuiz, 1500); return; }
-    const qs = cfg.quiz; let i = 0, right = 0;
+    // Erst die Fragen zum Erkunden, dann die Fragen aus dem früheren Steckbrief-Quiz – alles per Funk
+    const qs = allQuestions(); let i = 0, right = 0, rightOwn = 0;
     const show = () => {
       const q = qs[i];
       UI.openModal(`
@@ -716,7 +916,7 @@ window.Surface = (function () {
           <div id="sqAfter"></div>
         </div>`);
       document.querySelectorAll("#modalContent .answer").forEach((b) => b.onclick = () => {
-        const ok = +b.dataset.k === q.c; if (ok) { right++; Sound.correct(); } else Sound.wrong();
+        const ok = +b.dataset.k === q.c; if (ok) { right++; if (q.own) rightOwn++; Sound.correct(); } else Sound.wrong();
         document.querySelectorAll("#modalContent .answer").forEach((x) => { x.disabled = true; if (+x.dataset.k === q.c) x.classList.add("right"); });
         if (!ok) b.classList.add("wrong");
         $("sqAfter").innerHTML = `<div class="why">${ok ? "✅ Richtig! " : "❌ Nicht ganz. "}${q.why}</div><div class="row-gap"><button class="btn primary" id="sqNext">${i < qs.length - 1 ? "Nächste Frage ▶" : "Ergebnis 🏆"}</button></div>`;
@@ -725,9 +925,10 @@ window.Surface = (function () {
     };
     const finish = () => {
       quizDone = true;
-      G.onSurfaceQuiz(bodyId, right);
+      G.onSurfaceQuiz(bodyId, rightOwn);
+      G.onQuizFinished(bodyId, right - rightOwn);
       UI.openModal(`<div class="discovery center">
-        <div class="stars-row">${[1, 2, 3].map((k) => `<span class="${k <= right ? "" : "off"}">⭐</span>`).join("")}</div>
+        <div class="stars-row">${qs.map((_, k) => `<span class="${k < right ? "" : "off"}">⭐</span>`).join("")}</div>
         <h2>${right} von ${qs.length} richtig</h2><p class="intro">Die Bodenstation ist beeindruckt!</p>
         <div class="row-gap"><button class="btn primary" id="sqClose">👍 Super</button></div></div>`);
       if (right === qs.length) { Sound.fanfare(); UI.confetti(); }
@@ -737,7 +938,7 @@ window.Surface = (function () {
   }
 
   // ---------- Eingabe ----------
-  let inputReady = false;
+  let inputReady = false, resetJoy = () => {};
   function setupInput() {
     if (inputReady) return; inputReady = true;
     window.addEventListener("keydown", (e) => {
@@ -763,6 +964,8 @@ window.Surface = (function () {
     pad.addEventListener("pointermove", (e) => { if (e.pointerId === id) move(e); });
     const end = (e) => { if (e.pointerId !== id) return; id = null; joy.x = joy.y = 0; knob.style.transform = ""; };
     pad.addEventListener("pointerup", end); pad.addEventListener("pointercancel", end);
+    // Wird der Joystick ausgeblendet, während ein Finger darauf liegt, kommt kein „losgelassen“ mehr an → von Hand zurücksetzen
+    resetJoy = () => { id = null; joy.x = joy.y = 0; knob.style.transform = ""; };
     $("sJump").addEventListener("pointerdown", (e) => { e.preventDefault(); jumpPressed = true; });
     $("surfAction").addEventListener("click", () => { actionPressed = true; });
     $("btnDisc").addEventListener("click", showFound);
@@ -775,7 +978,7 @@ window.Surface = (function () {
       if (view.special) {
         // Fernrohr schwenken: der Himmel wandert mit dem Finger mit
         const k = 0.52 / innerHeight;
-        view.special.yaw += (e.clientX - drag.x) * k; view.special.pitch += (e.clientY - drag.y) * k;
+        if (view.special.phase === "aim") { view.special.yaw += (e.clientX - drag.x) * k; view.special.pitch += (e.clientY - drag.y) * k; }
       } else {
         view.yaw -= (e.clientX - drag.x) * 0.006;
         view.height = Math.max(0.8, Math.min(9, view.height + (e.clientY - drag.y) * 0.02));
@@ -807,7 +1010,7 @@ window.Surface = (function () {
     S.resize();
     // Astronaut steht neben der Rakete, Blick zu den Stationen
     const [sx, sz] = world.L.spawn;
-    ast.pos.set(sx, world.height(sx, sz), sz); ast.vy = 0; ast.onGround = true; ast.heading = 0.15; ast.speed = 0; ast.walked = 0;
+    ast.pos.set(sx, world.height(sx, sz), sz); ast.vy = 0; ast.onGround = true; ast.heading = 0.3; ast.speed = 0; ast.walked = 0;
     view.yaw = ast.heading; view.height = 3.2; view.special = null; view.dragged = 0;
     view.look.set(sx, ast.pos.y + 1.3, sz + 3);
     world.camera.position.set(sx - Math.sin(view.yaw) * 7, ast.pos.y + 3.2, sz - Math.cos(view.yaw) * 7);
@@ -819,7 +1022,10 @@ window.Surface = (function () {
     world.hatch.userData.door.material.emissiveIntensity = 0.9;
     world.rocket.position.y = world.rocketY; world.hatch.position.y = world.hatchY;
     world.rocket.userData.flame.visible = false;
-    world.telescope.visible = world.stations.himmel.marker.visible = true;
+    world.telescope.visible = world.stations.himmel.marker.visible = world.stations.waage.marker.visible = true;
+    scaleShown = "";
+    world.stations.spiegel.marker.visible = world.stations.antenne.marker.visible = true;
+    world.beam.visible = world.pulse.visible = false; setSun(0);
     world.cmpMoon.visible = false; applySky(0);
     $("scope").classList.add("hidden"); $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
     world.camera.fov = 60; world.camera.updateProjectionMatrix();
@@ -1004,6 +1210,7 @@ window.Surface = (function () {
       const sc = cfg.stations[key], d = Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z);
       if (key === "apollo" && Math.hypot(ast.pos.x - world.L.apollo[0], ast.pos.z - world.L.apollo[1]) < 9 && !busy) discover("apollo");
       // Stationen ohne eigene Aktion: nach der Entdeckung kann man sie sich dort nochmal ansehen
+      if (sc.auto && d < sc.auto && !busy && !view.special && !experiment) discover(key); // Fundstück: hingehen genügt
       const text = sc.action || (sc.again && foundMap()[key] ? sc.again : "");
       if (text && d < (sc.reach || 3.2)) { near = key; nearText = text; }
     }
@@ -1017,12 +1224,13 @@ window.Surface = (function () {
     actionPressed = false;
 
     updateExperiment(dt);
+    updateScaleDisplay();
     updateDust(dt);
     radioTimer -= dt; if (radioTimer <= 0) $("radio").classList.add("hidden");
 
     // Licht folgt dem Astronauten (scharfe Schatten in der Nähe)
     world.sun.target.position.copy(ast.pos);
-    world.sun.position.copy(ast.pos).addScaledVector(SUN_DIR, 120);
+    world.sun.position.copy(ast.pos).addScaledVector(sunNow, 120);
     world.earth.rotation.y += dt * 0.02;
 
     updateCamera(dt);
@@ -1050,7 +1258,7 @@ window.Surface = (function () {
       c.lookAt(view.look);
       return;
     }
-    if (view.special) { updateScope(dt); return; }
+    if (view.special) { view.special.update(dt); return; }
     const dist = view.dist || 7.5;
     const want = tmp.set(ast.pos.x - Math.sin(view.yaw) * dist, ast.pos.y + view.height, ast.pos.z - Math.cos(view.yaw) * dist);
     want.y = Math.max(want.y, world.height(want.x, want.z) + 0.8);
@@ -1064,8 +1272,12 @@ window.Surface = (function () {
   function startAction(key) {
     Sound.click();
     if (key === "rakete") { startBoarding(); return; }
+    if (key === "wand") { showFound(); return; }
     if (!cfg.stations[key].action) { discover(key, null, true); return; }
     if (key === "himmel") startScope();
+    if (key === "waage") startWeigh();
+    if (key === "spiegel") startLaser();
+    if (key === "antenne") startLapse();
     if (key === "fallversuch") {
       // Der Astronaut hält Hammer und Feder vor sich (wie Dave Scott 1971) und lässt beide gleichzeitig los
       const tb = world.table.position;
@@ -1108,10 +1320,10 @@ window.Surface = (function () {
   function startScope() {
     const e = world.earthDir, yawE = Math.atan2(e.x, e.z), pitchE = Math.asin(e.y);
     // Das Fernrohr zeigt erst links an der Erde vorbei (rechts stünde der Felsen im Bild) – das Kind muss sie selbst finden
-    view.special = { phase: "aim", t: 0, yawE, pitchE, yaw: yawE + 0.5, pitch: pitchE - 0.2, lock: 0, air: 0, airOn: false, tried: 0, ix: 0, iy: 0, hint: "" };
+    view.special = { update: updateScope, phase: "aim", t: 0, yawE, pitchE, yaw: yawE + 0.5, pitch: pitchE - 0.2, lock: 0, air: 0, airOn: false, tried: 0, ix: 0, iy: 0, hint: "" };
     radioTimer = 0; $("radio").classList.add("hidden");
     world.telescope.visible = world.astronaut.visible = world.stations.himmel.marker.visible = false;
-    $("surfaceHud").classList.add("scoping");
+    $("surfaceHud").classList.add("scoping"); resetJoy(); ast.speed = 0;
     scopeSay(document.documentElement.classList.contains("touch-ui") ? cfg.scope.aimTouch : cfg.scope.aim);
   }
   function scopeCompare() {
@@ -1186,6 +1398,145 @@ window.Surface = (function () {
     const masked = sp.phase !== "air" && sp.t > 0.5;
     $("scope").classList.toggle("hidden", !masked);
     $("scope").classList.toggle("aim", sp.phase === "aim");
+  }
+
+  // ---------- Waage: eigenes Erd-Gewicht einstellen und sehen, was die Waage auf dem Mond anzeigt ----------
+  function startWeigh() {
+    const st = world.stations.waage;
+    view.special = { update: updateWeigh, kg: 30 };
+    ast.pos.set(st.x, world.height(st.x, st.z), st.z); ast.speed = ast.vy = 0; resetJoy();
+    ast.onGround = true; ast.jumping = ast.hopping = false; // mitten im Hüpfer auf „Waage“ gedrückt → sauber hinstellen
+    ast.heading = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
+    radioTimer = 0; $("radio").classList.add("hidden");
+    st.marker.visible = false;
+    $("surfaceHud").classList.add("scoping");
+    Sound.land();
+    showWeigh();
+  }
+  function moonKg(kg) { return (kg * cfg.gravity / 9.81).toFixed(1).replace(".", ","); }
+  // Die Anzeige reagiert wie eine echte Waage: Sie zeigt nur etwas an, solange der Astronaut auf der Platte steht
+  let scaleKg = 30, scaleShown = "";
+  function updateScaleDisplay() {
+    const st = world.stations.waage;
+    const onPlate = ast.onGround && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) < 0.6;
+    const text = `${onPlate ? moonKg(scaleKg) : "0,0"} kg`;
+    if (text !== scaleShown) { scaleShown = text; world.scale.userData.show(text); }
+  }
+  function showWeigh() {
+    const sp = view.special, T = cfg.weigh, mond = moonKg(sp.kg);
+    scaleKg = sp.kg;
+    const step = (d) => () => { sp.kg = Math.max(20, Math.min(60, sp.kg + d)); showWeigh(); };
+    scopeSay(fmtVars(T.text, { erde: sp.kg, mond }), [[T.less, step(-5)], [T.more, step(5)], [T.done, endWeigh, true]]);
+  }
+  function endWeigh() {
+    const sp = view.special;
+    view.special = null;
+    world.stations.waage.marker.visible = true;
+    $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
+    discover("waage", { erde: sp.kg, mond: moonKg(sp.kg) }, true);
+  }
+  function updateWeigh(dt) {
+    const c = world.camera, st = world.stations.waage, y = world.height(st.x, st.z);
+    c.position.lerp(tmp.set(st.x + WEIGH_DIR.x * 5, y + 1.9, st.z + WEIGH_DIR.z * 5), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(st.x, y + 1.6, st.z), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+  }
+
+  // ---------- Exponate an der Mondstation ----------
+  // Gemeinsamer Rahmen: Steuerung aus, HUD weg, Text + Knöpfe unten (wie beim Fernrohr)
+  function enterExhibit(key, state) {
+    view.special = state; state.key = key;
+    ast.speed = 0; resetJoy();
+    radioTimer = 0; $("radio").classList.add("hidden");
+    world.stations[key].marker.visible = false;
+    $("surfaceHud").classList.add("scoping");
+  }
+  function leaveExhibit() {
+    const key = view.special.key;
+    view.special = null;
+    world.stations[key].marker.visible = true;
+    $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
+    discover(key, null, true);
+  }
+  const sec = (t) => t.toFixed(1).replace(".", ",");
+
+  // Laser-Spiegel: Ein Lichtblitz kommt von der Erde, trifft den Spiegel und fliegt zurück – die Stoppuhr läuft mit (echte 2,6 s)
+  const LIGHT_TIME = 1.28; // Sekunden für eine Strecke Erde–Mond
+  function startLaser() { enterExhibit("spiegel", { update: updateLaser }); world.astronaut.visible = false; runLaser(); } // freier Blick auf den Spiegel
+  function runLaser() {
+    const sp = view.special; sp.t = -2.2; sp.stage = "";
+    world.beam.visible = world.pulse.visible = false;
+    scopeSay(cfg.laser.ready);
+  }
+  function updateLaser(dt) {
+    const c = world.camera, sp = view.special, T = cfg.laser, e = world.earthDir, M = world.laserFrom;
+    // Kamera hinter dem Spiegel: Spiegel unten im Bild, die Erde darüber
+    const h = Math.hypot(e.x, e.z);
+    c.position.lerp(tmp.set(M.x - (e.x / h) * 6.5, M.y + 1.7, M.z - (e.z / h) * 6.5), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.copy(M).addScaledVector(e, 14), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (sp.stage === "end") return;
+    sp.t += dt;
+    if (sp.t < 0) return;
+    const t = Math.min(sp.t, LIGHT_TIME * 2);
+    const far = t < LIGHT_TIME ? 880 * (1 - t / LIGHT_TIME) : 880 * (t / LIGHT_TIME - 1); // Abstand des Lichtblitzes vom Spiegel
+    world.beam.visible = world.pulse.visible = true;
+    world.pulse.position.copy(M).addScaledVector(e, far);
+    world.pulse.scale.setScalar(0.7 + far * 0.03);
+    let stage = t < LIGHT_TIME ? "hin" : "zurueck";
+    if (sp.t >= LIGHT_TIME * 2) stage = "end";
+    if (stage !== sp.stage) {
+      sp.stage = stage;
+      if (stage === "zurueck") { Sound.correct(); grains(M, 6, 0.4); }
+      if (stage === "end") { Sound.land(); world.pulse.visible = false; scopeSay(T.end, [[T.again, runLaser], [T.done, endLaser, true]]); return; }
+    }
+    const text = `${stage === "hin" ? T.hin : T.zurueck} ⏱️ ${sec(t)} s`;
+    if ($("scopeText").textContent !== text) $("scopeText").textContent = text;
+  }
+  function endLaser() { world.beam.visible = world.pulse.visible = false; world.astronaut.visible = true; leaveExhibit(); }
+
+  // Antenne: Zeit vorspulen – die Sonne wandert in einem Mond-Tag einmal über den Himmel, die Erde bleibt stehen
+  const sunNow = SUN_DIR.clone();
+  const SUN_AXIS = new V().crossVectors(SUN_DIR, new V(0, 1, 0)).normalize(); // Drehung um diese Achse: die Sonne steigt zuerst höher
+  function setSun(angle) {
+    sunNow.copy(SUN_DIR).applyAxisAngle(SUN_AXIS, angle);
+    world.sunGlow.position.copy(sunNow).multiplyScalar(1200);
+    // Unter dem Horizont: Nacht auf dem Mond. Die Erde bleibt hell – sie wird ja weiter von der Sonne beschienen.
+    const day = smooth(-0.06, 0.08, sunNow.y);
+    world.sun.intensity = 1.9 * day;
+    world.sunGlow.visible = sunNow.y > -0.08;
+    const em = world.earth.material;
+    if (!em.emissiveMap) { em.emissiveMap = em.map; em.emissive = new THREE.Color(0xffffff); em.needsUpdate = true; }
+    em.emissiveIntensity = 0.5 * (1 - day);
+  }
+  const LAPSE_TIME = 12, MOON_DAYS = 27;
+  function startLapse() { enterExhibit("antenne", { update: updateLapse }); runLapse(); }
+  function runLapse() {
+    const sp = view.special; sp.t = -1.5; sp.day = 0; sp.running = true;
+    scopeSay(cfg.lapse.ready);
+  }
+  function updateLapse(dt) {
+    const c = world.camera, sp = view.special, T = cfg.lapse, e = world.earthDir, st = world.stations.antenne;
+    // Kamera hinter der Antenne: Antenne, Horizont und Erde im Bild
+    const h = Math.hypot(e.x, e.z), y = world.height(st.x, st.z);
+    c.position.lerp(tmp.set(st.x - (e.x / h) * 8, y + 2.6, st.z - (e.z / h) * 8), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(st.x + (e.x / h) * 30, y + 9, st.z + (e.z / h) * 30), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (!sp.running) return;
+    sp.t += dt;
+    if (sp.t < 0) return;
+    const f = Math.min(1, sp.t / LAPSE_TIME);
+    setSun(f * Math.PI * 2);
+    if (f >= 1) {
+      sp.running = false; setSun(0); Sound.correct();
+      scopeSay(T.end, [[T.again, runLapse], [T.done, leaveExhibit, true]]);
+      return;
+    }
+    const day = 1 + Math.floor(f * MOON_DAYS);
+    if (day !== sp.day) {
+      sp.day = day;
+      $("scopeText").textContent = fmtVars(sunNow.y > 0 ? T.day : T.night, { tag: day, tage: MOON_DAYS });
+    }
   }
 
   function updateExperiment(dt) {
@@ -1294,8 +1645,12 @@ window.Surface = (function () {
       const el = labelEls[key]; if (!el) continue;
       tmp.set(st.x, st.marker.position.y + 3.2, st.z).project(c);
       if (tmp.z > 1 || Math.abs(tmp.x) > 1.1 || Math.abs(tmp.y) > 1.1 || view.special || boarding) { el.style.display = "none"; continue; }
-      const home = !!cfg.stations[key].home, done = !!foundMap()[key];
-      const text = `${home ? "🚀" : done ? "✓" : "🔍"} ${cfg.stations[key].label}`;
+      const sc = cfg.stations[key], home = !!sc.home, done = !!foundMap()[key];
+      // Fundstücke verraten sich erst aus der Nähe – und ihren Namen erst, wenn man sie entdeckt hat
+      const secret = sc.small && !done;
+      if (sc.info) { el.style.display = "none"; continue; }
+      if (secret && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) > 40) { el.style.display = "none"; continue; }
+      const text = secret ? "✨ Fundstück" : `${home ? "🚀" : done ? "✓" : "🔍"} ${sc.label}`;
       if (el.textContent !== text) el.textContent = text;
       el.classList.toggle("done", done);
       el.classList.toggle("home", home);

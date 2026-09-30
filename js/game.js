@@ -244,7 +244,9 @@
     cam.exploreAngle = Math.atan2(cp.z - P.z, cp.x - P.x);
     Sound.engine(0);
     W.flame.visible = false;
-    UI.openPanel(id);
+    // Wo man aussteigen kann, gibt es keine Infotafel: Steckbrief und Quiz erlebt man draußen selbst
+    if (Surface.supports(id)) Game.enterSurface(id);
+    else UI.openPanel(id);
     markVisited(id);
   }
 
