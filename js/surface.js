@@ -871,7 +871,8 @@ window.Surface = (function () {
 
   function updateCounter() {
     $("discCount").textContent = `${foundCount()}/${cfg.discoveries.length}`;
-    world.station.userData.refresh(foundMap()); // Tafeln an der Mondstation
+    if (probe) { refreshGates(); return; }
+    world.station.userData.refresh(foundMap()); // Tafeln an der Station
     for (const [key, st] of Object.entries(world.stations)) {
       const home = !!cfg.stations[key].home, done = !!foundMap()[key];
       const color = home ? 0xfbbf24 : done ? 0x4ade80 : cfg.stations[key].small ? 0xfcd34d : 0x7dd3fc;
@@ -926,7 +927,7 @@ window.Surface = (function () {
         <h2>Meine Entdeckungen</h2>
         <div class="answers">${cfg.discoveries.map((d) => f[d.key]
           ? `<button class="answer" data-key="${d.key}">✓ ${d.icon} ${d.title}</button>`
-          : `<button class="answer" disabled style="opacity:.6">○ ❓ Tipp: ${d.hint || (cfg.stations[d.key] || {}).hint || "Noch nicht entdeckt"}</button>`).join("")}</div>
+          : `<button class="answer" disabled style="opacity:.6">○ ❓ ${d.hint || ((cfg.stations || {})[d.key] || {}).hint ? "Tipp: " + (d.hint || cfg.stations[d.key].hint) : "Noch nicht entdeckt"}</button>`).join("")}</div>
         <div class="row-gap">${all ? `<button class="btn ghost" id="foundQuiz">📻 Funk-Fragen nochmal</button>` : ""}<button class="btn primary" id="foundOk">Weiter erkunden ▶</button></div>
       </div>`);
     document.querySelectorAll("#modalContent .answer[data-key]").forEach((b) => b.onclick = () => discover(b.dataset.key, null, true));
@@ -1001,6 +1002,7 @@ window.Surface = (function () {
     $("sJump").addEventListener("pointerdown", (e) => { e.preventDefault(); jumpPressed = true; });
     $("surfAction").addEventListener("click", () => { actionPressed = true; });
     $("btnDisc").addEventListener("click", showFound);
+    $("btnProbeBack").addEventListener("click", () => { if (probe && !UI.modalOpen()) { Sound.click(); exit(); } });
 
     // Kamera per Wischen/Ziehen drehen und neigen
     const canvas = $("scene"); let drag = null;
@@ -1025,7 +1027,7 @@ window.Surface = (function () {
   S.init = function (game, worldRef, ui) { G = game; W = worldRef; UI = ui; };
 
   S.prepare = async function (id) {
-    if (worlds[id]) return;
+    if (worlds[id] || D.surfaces[id].probe) return; // Sonden-Welten sind schnell gebaut und brauchen keinen Astronauten
     astronautModel = await loadAstronautModel();
     bodyId = id; cfg = D.surfaces[id];
     worlds[id] = SITES[id].build();
@@ -1033,6 +1035,8 @@ window.Surface = (function () {
 
   S.enter = function (id, exitCb) {
     bodyId = id; cfg = D.surfaces[id]; onExit = exitCb; site = SITES[id];
+    if (cfg.probe) { enterProbe(); return; }
+    probe = null; $("surfaceHud").classList.remove("probing"); $("suitIcon").textContent = "🌡️";
     if (!worlds[id]) worlds[id] = site.build();
     world = worlds[id];
     S.scene = world.scene; S.camera = world.camera;
@@ -1073,7 +1077,7 @@ window.Surface = (function () {
 
   function exit() {
     if (!S.active) return;
-    S.active = false;
+    S.active = false; probe = null;
     Sound.engine(0);
     $("surfaceHud").classList.add("hidden");
     $("surfLabels").innerHTML = "";
@@ -1101,6 +1105,7 @@ window.Surface = (function () {
   const tmp = new V(), tmp2 = new V(), ray = new THREE.Raycaster();
   S.update = function (dt, elapsed) {
     if (!S.active || !world) return;
+    if (probe) { updateProbe(dt, elapsed); return; }
     const H = world.height, g = cfg.moveGravity || cfg.gravity;
     const paused = UI.modalOpen();
 
@@ -2853,6 +2858,279 @@ window.Surface = (function () {
   }
 
   // =========================================================
+  //  Sonden: Wo man nicht landen kann (Gasriesen, Sonne), steuert das Kind eine Sonde durch leuchtende Mess-Tore.
+  //  Jedes Tor ist eine Entdeckung. Funk, Entdeckungskarten, Liste und Funk-Fragen sind dieselben wie beim Astronauten.
+  // =========================================================
+  let probe = null; // Zustand des laufenden Sondenflugs
+  const GATE_R = 4.6, GATE_GAP = 95, PROBE_SPEED = 15, LANE_X = 13, LANE_Y = 7;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const fmtInt = (n) => Math.round(n).toLocaleString("de-DE");
+
+  function makeSpaceProbe(shield) {
+    const g = new THREE.Group(); // Flugrichtung = +Z
+    const gold = new THREE.MeshStandardMaterial({ color: 0xd4a73a, metalness: 0.7, roughness: 0.35 });
+    const white = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.5, side: THREE.DoubleSide });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 1.1), gold); g.add(body);
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.8, 20, 8, 0, Math.PI * 2, 0, 0.8), white);
+    dish.rotation.x = Math.PI / 2; dish.position.z = -0.25; g.add(dish); // Schüssel zeigt nach hinten – zur Erde
+    for (const x of [-1.4, 1.4]) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.04, 0.8), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 }));
+      panel.position.x = x; g.add(panel);
+    }
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4, 6), white); mast.rotation.x = Math.PI / 2; mast.position.z = 1.1; g.add(mast);
+    if (shield) { // Hitzeschild: große helle Scheibe vor der Sonde
+      const sh = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.14, 24), new THREE.MeshStandardMaterial({ color: 0xf5f5f0, roughness: 0.8 }));
+      sh.rotation.x = Math.PI / 2; sh.position.z = 1.2; g.add(sh);
+    }
+    return g;
+  }
+  function iconSprite(icon) {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+    const x = cv.getContext("2d"); x.font = "96px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(icon, 64, 70);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthWrite: false, toneMapped: false, fog: false }));
+    s.scale.setScalar(3.2);
+    return s;
+  }
+  function makeGate(d) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, fog: false, toneMapped: false }); // kräftige Farbe: blau = offen, grün = entdeckt
+    g.add(new THREE.Mesh(new THREE.TorusGeometry(GATE_R, 0.22, 10, 48), mat));
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(GATE_R, 0.6, 8, 48), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }));
+    g.add(halo);
+    const mystery = iconSprite("❓"), icon = iconSprite(d.icon);
+    g.add(mystery, icon);
+    g.userData = { key: d.key, mat, halo: halo.material, mystery, icon, passed: false };
+    return g;
+  }
+  // Planet (mit Ringen und Neigung) aus der Weltraum-Ansicht nachbauen, in der gewünschten Größe
+  function planetModel(id, radius) {
+    const b = G.bodyById[id], src = W.bodies[id].mesh;
+    const m = id === "sonne" ? src.clone() : src.parent.clone();
+    m.scale.setScalar(radius / b.radius);
+    return m;
+  }
+
+  // Was jede Sonde sieht und erlebt. sky/fog: [am Anfang, am Ende] des Flugs · puff: Teilchen, die vorbeiziehen ·
+  // rocks: Hindernisse (null = keine) · wind(t, Fortschritt) = seitliche Kraft · instr(Fortschritt) = Anzeige unten links
+  const PROBES = {
+    jupiter: {
+      sky: [0x05060c, 0x3a2210], fog: [[400, 2600], [20, 150]], stars: true, shield: false,
+      planet: { r: 640, from: [0, -720, 620], to: [0, -660, 260] },
+      puff: { inner: "rgba(255,236,200,1)", outer: "rgba(214,160,100,0.85)", size: [5, 14], opacity: 0.5, from: 0.12 },
+      wind: (t, f) => (f > 0.25 ? 5 * Math.sin(t * 0.6) + 3 * Math.sin(t * 1.7 + 1) : 0),
+      instr: (f) => ["⬇️", `${Math.round((f * 150) / 5) * 5} km tief`],
+      update(w, p, f, dt) { // in der Tiefe: Wetterleuchten
+        w.flash = Math.max(0, (w.flash || 0) - dt * 3);
+        if (f > 0.7 && Math.random() < dt * 0.5) { w.flash = 1; }
+        w.ambient.intensity = 0.75 + w.flash * 1.6;
+        w.planet.visible = f < 0.4;
+      }
+    },
+    saturn: {
+      sky: [0x05060c, 0x05060c], fog: [[600, 4000], [600, 4000]], stars: true, shield: false,
+      planet: { r: 330, from: [-300, -153, 560], to: [-300, -153, 440] }, // so nah, dass die schräge Ring-Ebene genau durch die Flugbahn geht
+      puff: { inner: "rgba(255,255,255,1)", outer: "rgba(200,225,255,0.8)", size: [0.25, 0.8], opacity: 0.9, from: 0 },
+      rocks: { count: 18, size: [0.7, 2.0], color: 0xdfeefc, glow: false },
+      instr: (f) => ["🛰️", `${fmtInt(lerp(180000, 75000, f) / 1000) } Tsd. km bis Saturn`],
+      update() {}
+    },
+    uranus: {
+      sky: [0x04070d, 0x04070d], fog: [[600, 4000], [600, 4000]], stars: true, shield: false,
+      planet: { r: 300, from: [400, 30, 950], to: [330, 30, 640] },
+      puff: { inner: "rgba(210,250,255,1)", outer: "rgba(150,225,235,0.7)", size: [0.4, 1.4], opacity: 0.55, from: 0 },
+      wind: (t) => 2 * Math.sin(t * 0.5),
+      instr: (f) => ["🌡️", `−${Math.round(lerp(180, 224, f))} °C`],
+      update(w, p, f, dt) { w.planet.rotation.x += dt * 0.02; }
+    },
+    neptun: {
+      sky: [0x030614, 0x061233], fog: [[500, 3500], [90, 900]], stars: true, shield: false,
+      planet: { r: 300, from: [-380, -50, 900], to: [-300, -80, 560] },
+      puff: { inner: "rgba(235,245,255,1)", outer: "rgba(120,160,255,0.75)", size: [1.5, 6], opacity: 0.5, from: 0 },
+      wind: (t, f) => (9 * Math.sin(t * 0.5) + 5 * Math.sin(t * 1.3 + 1)) * (0.4 + 0.6 * f),
+      instr: (f) => ["💨", `Wind: ${fmtInt(Math.round(lerp(400, 2100, f) / 50) * 50)} km/h`],
+      update() {}
+    },
+    sonne: {
+      sky: [0x120600, 0x2b0d00], fog: [[900, 5000], [900, 5000]], stars: false, shield: true,
+      planet: { r: 760, from: [0, -60, 1700], to: [0, -60, 1080] },
+      puff: { inner: "rgba(255,240,180,1)", outer: "rgba(255,140,30,0.8)", size: [0.3, 1.0], opacity: 0.9, from: 0 },
+      rocks: { count: 12, size: [1.2, 2.4], glow: true },
+      instr: (f) => ["🌡️", `Hitzeschild: ${fmtInt(Math.round(lerp(300, 1400, f) / 50) * 50)} °C`],
+      update(w, p, f, dt) { w.planet.rotation.y += dt * 0.01; }
+    }
+  };
+
+  function buildProbeWorld() {
+    const C = PROBES[bodyId];
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(C.sky[0]);
+    scene.fog = new THREE.Fog(C.sky[0], C.fog[0][0], C.fog[0][1]);
+    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 6000);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.75);
+    const sun = new THREE.DirectionalLight(0xfff4e0, 1.3);
+    scene.add(ambient, sun, sun.target);
+
+    // „Ferne“: Sterne und Planet wandern mit der Sonde mit, damit sie unendlich weit weg wirken
+    const far = new THREE.Group(); scene.add(far);
+    if (C.stars) {
+      const n = W.fast ? 900 : 1800, sp = new Float32Array(n * 3), v = new V();
+      for (let i = 0; i < n; i++) { v.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(3000); sp.set([v.x, v.y, v.z], i * 3); }
+      const sg = new THREE.BufferGeometry(); sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
+      far.add(new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, color: 0xffffff, transparent: true, opacity: 0.85, fog: false })));
+    }
+    const planet = planetModel(bodyId, C.planet.r);
+    far.add(planet);
+    if (bodyId === "sonne") { // Strahlenkranz
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,220,150,0.9)", "rgba(255,120,30,0.35)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+      glow.scale.setScalar(C.planet.r * 4.4); planet.add(glow); glow.scale.divideScalar(planet.scale.x);
+    }
+
+    const craft = makeSpaceProbe(C.shield); scene.add(craft);
+    const gates = cfg.discoveries.map((d) => { const g = makeGate(d); scene.add(g); return g; });
+
+    // Teilchen, die vorbeiziehen (Wolkenfetzen, Eiskristalle, Funken)
+    const puffMat = new THREE.SpriteMaterial({ map: glowTexture(C.puff.inner, C.puff.outer), transparent: true, opacity: C.puff.opacity, depthWrite: false });
+    const puffs = [];
+    for (let i = 0; i < (W.fast ? 50 : 90); i++) { const s = new THREE.Sprite(puffMat); s.userData.z = -1e9; scene.add(s); puffs.push(s); }
+    // Hindernisse: Eisbrocken (Saturn) oder Glutbälle (Sonne)
+    const rocks = [];
+    if (C.rocks) for (let i = 0; i < C.rocks.count; i++) {
+      const m = C.rocks.glow
+        ? new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,250,200,1)", "rgba(255,110,20,0.9)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }))
+        : new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: C.rocks.color, roughness: 0.6, flatShading: true }));
+      m.userData = { z: -1e9, r: 1 }; scene.add(m); rocks.push(m);
+    }
+    return { scene, camera, ambient, sun, far, planet, craft, gates, puffs, rocks, stations: {} };
+  }
+
+  // Tore der Reihe nach vor die Sonde legen (seitlich versetzt, damit man lenken muss)
+  function placeGate(g, i, z, nearX = 0, nearY = 0) {
+    const u = g.userData;
+    u.z = z; u.passed = false;
+    g.position.set(nearX + (hash2(i + 1, z * 0.01) - 0.5) * 17, nearY + (hash2(i + 7, z * 0.013) - 0.5) * 9, z);
+    g.position.x = Math.max(-9, Math.min(9, g.position.x)); g.position.y = Math.max(-4.5, Math.min(4.5, g.position.y));
+    g.visible = true;
+  }
+  function refreshGates() {
+    for (const g of world.gates) {
+      const u = g.userData, done = !!foundMap()[u.key], c = done ? 0x4ade80 : 0x7dd3fc;
+      u.mat.color.set(c); u.halo.color.set(c);
+      u.icon.visible = done; u.mystery.visible = !done; // was hinter einem Tor steckt, sieht man erst nach der Entdeckung
+    }
+  }
+  function enterProbe() {
+    if (!worlds[bodyId]) worlds[bodyId] = buildProbeWorld();
+    world = worlds[bodyId];
+    S.scene = world.scene; S.camera = world.camera;
+    W.renderer.shadowMap.enabled = false;
+    setupInput(); S.resize(); resetJoy();
+    probe = { x: 0, y: 0, z: 0, vx: 0, vy: 0, t: 0, f: 0, shake: 0, bumpAt: -9, missAt: -9 };
+    world.gates.forEach((g, i) => placeGate(g, i, 150 + i * GATE_GAP));
+    for (const s of world.puffs) s.userData.z = -1e9;
+    for (const r of world.rocks) r.userData.z = -1e9;
+    world.camera.position.set(0, 2.4, -9.5);
+    view.special = null; experiment = null; boarding = null; jumpPressed = actionPressed = false;
+    quizDone = (G.state.surfaceQuiz && G.state.surfaceQuiz[bodyId] != null) || false;
+    updateCounter();
+    $("surfLabels").innerHTML = ""; $("surfAction").classList.add("hidden");
+    $("scope").classList.add("hidden"); $("scopeUi").classList.add("hidden");
+    const hud = $("surfaceHud"); hud.classList.remove("hidden", "scoping", "driving"); hud.classList.add("probing");
+    $("suit").classList.remove("cold");
+    $("suitState").textContent = cfg.course.note;
+    S.active = true;
+    Sound.engine(0.35);
+    const rest = cfg.discoveries.length - foundCount();
+    setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : foundCount() === 0 ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
+  }
+  function updateProbe(dt, elapsed) {
+    const p = probe, w = world, C = PROBES[bodyId], c = w.camera;
+    const mx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + joy.x;
+    const my = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0) - joy.y;
+    jumpPressed = actionPressed = false;
+    if (!UI.modalOpen()) {
+      p.t += dt;
+      const passed = w.gates.filter((g) => g.userData.passed).length;
+      p.f += (passed / w.gates.length - p.f) * Math.min(1, dt * 0.6); // Fortschritt des Flugs (0 … 1), weich nachgeführt
+      // Steuern: rechts auf dem Bildschirm ist −X (die Kamera schaut nach +Z). Dazu schiebt der Wind.
+      const wind = C.wind ? C.wind(p.t, p.f) : 0;
+      p.vx += (-mx * 13 + wind - p.vx) * Math.min(1, dt * 4);
+      p.vy += (my * 10 - p.vy) * Math.min(1, dt * 4);
+      p.x = Math.max(-LANE_X, Math.min(LANE_X, p.x + p.vx * dt));
+      p.y = Math.max(-LANE_Y, Math.min(LANE_Y, p.y + p.vy * dt));
+      p.z += PROBE_SPEED * dt;
+
+      // Mess-Tore: durchgeflogen → Entdeckung; verfehlt → das Tor kommt ein Stück weiter vorn noch einmal
+      w.gates.forEach((g, i) => {
+        const u = g.userData;
+        if (u.passed || p.z < u.z) return;
+        if (Math.hypot(p.x - g.position.x, p.y - g.position.y) < GATE_R + 0.5) {
+          u.passed = true; g.visible = false;
+          const d = cfg.discoveries[i];
+          if (foundMap()[u.key]) { Sound.correct(); UI.toast(`✓ ${d.icon} ${d.title}`, "gold"); }
+          else discover(u.key);
+        } else {
+          placeGate(g, i, p.z + 80, p.x * 0.5, p.y * 0.5);
+          if (elapsed - p.missAt > 5) { p.missAt = elapsed; UI.toast(cfg.course.miss); }
+        }
+      });
+
+      // Teilchen: was hinter der Sonde verschwindet, taucht vorn wieder auf
+      const showPuffs = p.f >= C.puff.from;
+      for (const s of w.puffs) {
+        const u = s.userData;
+        if (u.z < p.z - 14) {
+          u.z = p.z + 50 + Math.random() * 190;
+          s.position.set(p.x + (Math.random() - 0.5) * 70, p.y + (Math.random() - 0.5) * 40, u.z);
+          s.scale.setScalar(lerp(C.puff.size[0], C.puff.size[1], Math.random()));
+        }
+        s.position.x += wind * 1.6 * dt; // der Wind treibt sie quer durchs Bild
+        s.visible = showPuffs;
+      }
+      // Hindernisse: Anstoßen rüttelt die Sonde durch, mehr passiert nicht
+      for (const r of w.rocks) {
+        const u = r.userData;
+        if (u.z < p.z - 12) {
+          u.z = p.z + 90 + Math.random() * 160;
+          if (w.gates.some((g) => !g.userData.passed && Math.abs(g.userData.z - u.z) < 14)) u.z += 28; // nicht direkt vor ein Tor
+          u.r = lerp(C.rocks.size[0], C.rocks.size[1], Math.random());
+          r.position.set((Math.random() - 0.5) * 2 * LANE_X, (Math.random() - 0.5) * 2 * LANE_Y, u.z);
+          r.scale.setScalar(C.rocks.glow ? u.r * 2.6 : u.r);
+        }
+        if (!C.rocks.glow) { r.rotation.x += dt * 0.5; r.rotation.y += dt * 0.3; }
+        if (Math.abs(u.z - p.z) < 1.6 && Math.hypot(r.position.x - p.x, r.position.y - p.y) < u.r + 1.1) {
+          u.z = -1e9; r.position.z = p.z - 50;
+          p.shake = 0.6; p.vx += (p.x - r.position.x) * 6; p.vy += (p.y - r.position.y) * 6;
+          Sound.land();
+          if (elapsed - p.bumpAt > 4) { p.bumpAt = elapsed; UI.toast(cfg.course.bump); }
+        }
+      }
+
+      // Umgebung: Himmel und Dunst je nach Fortschritt, der Planet rückt näher
+      w.scene.background.setHex(C.sky[0]).lerp(tmpColor.setHex(C.sky[1]), p.f);
+      w.scene.fog.color.copy(w.scene.background);
+      w.scene.fog.near = lerp(C.fog[0][0], C.fog[1][0], p.f); w.scene.fog.far = lerp(C.fog[0][1], C.fog[1][1], p.f);
+      const a = C.planet.from, b = C.planet.to;
+      w.planet.position.set(lerp(a[0], b[0], p.f), lerp(a[1], b[1], p.f), lerp(a[2], b[2], p.f));
+      C.update(w, p, p.f, dt);
+      p.shake = Math.max(0, p.shake - dt * 1.5);
+    }
+
+    w.craft.position.set(p.x, p.y, p.z);
+    w.craft.rotation.set(-p.vy * 0.03, 0, p.vx * 0.035);
+    w.far.position.set(p.x * 0.75, p.y * 0.75, p.z);
+    const sh = p.shake * 0.5;
+    // Kamera etwas oberhalb: die Sonde sitzt im unteren Bilddrittel und verdeckt das nächste Tor nicht
+    c.position.set(p.x * 0.75 + (Math.random() - 0.5) * sh, p.y * 0.75 + 3.4 + (Math.random() - 0.5) * sh, p.z - 10);
+    c.lookAt(p.x * 0.9, p.y * 0.9 + 1.6, p.z + 25);
+    w.sun.position.set(p.x - 30, p.y + 60, p.z - 40); w.sun.target.position.set(p.x, p.y, p.z);
+
+    const [icon, value] = C.instr(p.f);
+    if ($("suitTemp").textContent !== value) { $("suitIcon").textContent = icon; $("suitTemp").textContent = value; }
+    radioTimer -= dt; if (radioTimer <= 0) $("radio").classList.add("hidden");
+  }
+  const tmpColor = new THREE.Color();
+
+  // =========================================================
   //  Orte: was jeder Himmelskörper zusätzlich zum gemeinsamen Ablauf mitbringt
   //  build = Welt aufbauen · reset = beim Betreten zurückstellen · update = pro Bild · actions = Knopf an einer Station
   // =========================================================
@@ -2941,6 +3219,6 @@ window.Surface = (function () {
     }
   };
 
-  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, discover, startAction, showFound, POSE, setBone, HATCH };
+  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, discover, startAction, showFound, POSE, setBone, HATCH };
   return S;
 })();

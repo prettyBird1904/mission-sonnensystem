@@ -129,7 +129,7 @@
   };
   function fade(on) { document.getElementById("fade").classList.toggle("on", on); }
   Game.enterSurface = function (id) {
-    if (Game.mode !== "explore" || !seq || seq.kind !== "land" || !Surface.supports(id)) return;
+    if (Game.mode !== "explore" || !seq || !Surface.supports(id)) return; // gelandet – oder in der Umlaufbahn, dann fliegt eine Sonde los
     Sound.click();
     fade(true);
     const ready = Surface.prepare(id);
@@ -225,8 +225,8 @@
       seq.w = id === "sonne" ? 0.18 : 0.32;
       seq.dur = 4.0;
       UI.toast(id === "sonne"
-        ? "🔥 Auf der Sonne kann man nicht landen – viel zu heiß! Wir fliegen eine Runde um sie herum."
-        : `🪐 ${b.name} hat keinen festen Boden – dort kann man nicht landen! Wir fliegen in eine Umlaufbahn.`);
+        ? "🔥 Auf der Sonne kann man nicht landen – viel zu heiß! Wir schicken eine Sonde mit Hitzeschild los."
+        : `🪐 ${b.name} hat keinen festen Boden – dort kann man nicht landen! Wir schicken eine Sonde los.`);
     }
     Game.mode = "landing";
     Game.exploring = id;

@@ -832,6 +832,183 @@ window.SPACE_DATA = {
         { q: "Was gibt es nur auf der Erde?", a: ["Krater", "Flüssiges Wasser und Leben", "Berge"], c: 1, why: "Seen, Meere und Lebewesen kennen wir nur von der Erde." },
         { q: "Wie wäre der Himmel ohne Luft?", a: ["Blau wie immer", "Schwarz, sogar am Tag", "Grün"], c: 1, why: "Erst die Luft verteilt das Sonnenlicht und macht den Himmel blau." }
       ]
+    },
+
+    /* ---------- Sonden (probe: true): Hier kann man nicht landen. Das Kind steuert eine Sonde durch Mess-Tore;
+       jedes Tor ist eine Entdeckung (in dieser Reihenfolge). course = Texte für den Flug. ---------- */
+    jupiter: {
+      probe: true,
+      course: { note: "Abstieg in die Wolken", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      discoveries: [
+        { key: "groesse", icon: "🟠", title: "Der größte Planet", photo: "jupiter.jpg",
+          text: "Jupiter ist der größte Planet im Sonnensystem: Er ist 11-mal so breit wie die Erde, und in ihn würden mehr als 1.300 Erden passen! Von der Sonne ist er 778 Millionen Kilometer entfernt." },
+        { key: "fleck", icon: "🌀", title: "Der Große Rote Fleck", photo: "jupiter-1.jpg",
+          text: "Der Große Rote Fleck ist ein riesiger Wirbelsturm – größer als die ganze Erde! Er tobt schon seit fast 200 Jahren, ohne aufzuhören. Das Foto hat die Raumsonde Juno aus der Nähe gemacht." },
+        { key: "streifen", icon: "🎨", title: "Streifen aus Wolken",
+          text: "Die hellen und dunklen Streifen sind Bänder aus Wolken. Sie ziehen in entgegengesetzte Richtungen um den Planeten – mit Winden von mehr als 500 km/h. Merkst du, wie der Wind an deiner Sonde zerrt?" },
+        { key: "tag", icon: "⏱️", title: "Der schnellste Dreher",
+          text: "Jupiter dreht sich von allen Planeten am schnellsten: Ein Tag dauert dort nur etwa 10 Stunden. Für eine Runde um die Sonne braucht er dagegen fast 12 Erdjahre." },
+        { key: "gas", icon: "☁️", title: "Kein Boden in Sicht",
+          text: "Deine Sonde sinkt tiefer und tiefer – und findet keinen Boden! Jupiter ist ein Gasriese. Er besteht vor allem aus den Gasen Wasserstoff und Helium. Nach unten wird das Gas nur immer dichter und heißer." },
+        { key: "monde", icon: "🌕", title: "Über 90 Monde",
+          text: "Jupiter hat über 90 Monde! Die vier größten hat Galileo Galilei schon im Jahr 1610 mit einem der ersten Fernrohre entdeckt. Der größte heißt Ganymed – er ist sogar größer als der Planet Merkur." },
+        { key: "blitze", icon: "⚡", title: "Riesige Gewitter",
+          text: "Hast du das Wetterleuchten gesehen? In Jupiters Wolken toben Gewitter mit Blitzen, die viel stärker sind als die Blitze auf der Erde." },
+        { key: "druck", icon: "🛰️", title: "Funkstille",
+          text: "Tief in den Wolken drückt das Gas immer stärker. 1995 tauchte wirklich eine Sonde in den Jupiter ein: Sie gehörte zur Raumsonde Galileo und funkte 58 Minuten lang Messwerte. Dann wurde sie vom Druck zerquetscht. Deine Sonde steigt jetzt lieber wieder auf!" }
+      ],
+      radio: {
+        start: "Hier ist die Bodenstation! {name}, auf dem Jupiter kann man nicht landen: Er hat keinen festen Boden. Darum steuerst du jetzt eine Sonde. Flieg durch die leuchtenden Mess-Tore – hinter jedem steckt eine Entdeckung. Es gibt {anzahl}!",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Deine Sonde ist wieder beim Jupiter, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        quizDone: "Mission erfüllt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen weiter."
+      },
+      quiz: [
+        { q: "Was findet deine Sonde, als sie in den Jupiter eintaucht?", a: ["Einen festen Boden aus Stein", "Immer dichteres Gas, aber keinen Boden", "Ein Meer aus Wasser"], c: 1, why: "Jupiter ist ein Gasriese – es wird nur immer dichter und heißer." },
+        { q: "Was sind die Streifen auf dem Jupiter?", a: ["Bänder aus Wolken", "Flüsse", "Straßen"], c: 0, why: "Die Wolkenbänder ziehen mit starken Winden um den Planeten." },
+        { q: "Wie lange dauert ein Tag auf dem Jupiter?", a: ["Etwa 10 Stunden", "24 Stunden", "100 Stunden"], c: 0, why: "Jupiter dreht sich von allen Planeten am schnellsten." }
+      ]
+    },
+
+    saturn: {
+      probe: true,
+      course: { note: "Flug durch die Ringe", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
+      discoveries: [
+        { key: "ringe", icon: "🧊", title: "Ringe aus Eis", photo: "saturn-1.jpg",
+          text: "Aus der Nähe siehst du es: Die Ringe sind gar nicht fest! Sie bestehen aus unzähligen Brocken aus Eis und Gestein. Manche sind so klein wie Sandkörner, manche so groß wie ein Haus." },
+        { key: "duenn", icon: "📏", title: "Hauchdünn",
+          text: "Die Ringe sind fast 300.000 Kilometer breit – aber an vielen Stellen nur etwa so dick, wie ein Haus hoch ist! Wären sie ein Blatt Papier, dann wäre das Blatt so groß wie eine ganze Stadt." },
+        { key: "luecke", icon: "🕳️", title: "Die große Lücke",
+          text: "Zwischen den Ringen gibt es dunkle Lücken. Die größte ist fast 5.000 Kilometer breit – so breit wie ein Ozean. Dort ziehen Monde mit ihrer Anziehungskraft die Brocken weg." },
+        { key: "leicht", icon: "🛁", title: "Leichter als Wasser",
+          text: "Saturn ist riesig, aber sehr leicht gebaut: Er ist leichter als die gleiche Menge Wasser. In einer Badewanne, die groß genug wäre, würde er schwimmen!" },
+        { key: "gas", icon: "☁️", title: "Noch ein Gasriese",
+          text: "Saturn ist der zweitgrößte Planet – 9-mal so breit wie die Erde. Wie Jupiter ist er ein Gasriese ohne festen Boden. Ein Tag dauert dort nur etwa 10½ Stunden, ein Jahr aber 29 Erdjahre." },
+        { key: "titan", icon: "🌫️", title: "Titan", photo: "saturn-2.jpg",
+          text: "Saturn hat mehr Monde als jeder andere Planet: über 200! Der größte heißt Titan. Er hat eine dicke Lufthülle und Seen – aber nicht aus Wasser, sondern aus flüssigem Gas. 2005 ist dort sogar eine Sonde gelandet: Das Foto zeigt den Boden von Titan." },
+        { key: "sechseck", icon: "⬡", title: "Der sechseckige Sturm",
+          text: "Am Nordpol des Saturn gibt es einen Sturm in der Form eines Sechsecks! Jede seiner sechs Seiten ist länger, als die Erde breit ist. Niemand weiß ganz genau, warum er diese Form hat." },
+        { key: "cassini", icon: "🛰️", title: "Die Sonde Cassini", photo: "saturn.jpg",
+          text: "Die Raumsonde Cassini hat den Saturn 13 Jahre lang umkreist, von 2004 bis 2017, und dieses Foto gemacht. Am Ende ließ man sie absichtlich in den Saturn stürzen – damit sie nicht aus Versehen auf einen seiner Monde fällt." }
+      ],
+      radio: {
+        start: "Hier ist die Bodenstation! {name}, auch der Saturn hat keinen festen Boden. Deine Sonde fliegt jetzt mitten durch die berühmten Ringe! Flieg durch die leuchtenden Mess-Tore – und weich den Eisbrocken aus. Es gibt {anzahl} Entdeckungen!",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Deine Sonde ist wieder beim Saturn, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        quizDone: "Mission erfüllt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen weiter."
+      },
+      quiz: [
+        { q: "Wie dick sind die Ringe des Saturn an vielen Stellen?", a: ["So dick wie die Erde", "Nur etwa so dick, wie ein Haus hoch ist", "Tausend Kilometer"], c: 1, why: "Die Ringe sind riesig breit, aber hauchdünn." },
+        { q: "Welche Form hat der Sturm am Nordpol des Saturn?", a: ["Ein Sechseck", "Ein Herz", "Einen Stern"], c: 0, why: "Jede Seite des Sechsecks ist länger, als die Erde breit ist." },
+        { q: "Wie endete die Reise der Sonde Cassini?", a: ["Sie landete wieder auf der Erde", "Man ließ sie in den Saturn stürzen", "Sie fliegt heute noch"], c: 1, why: "So konnte sie nicht aus Versehen auf einen Mond fallen." }
+      ]
+    },
+
+    uranus: {
+      probe: true,
+      course: { note: "Eiskalt hier draußen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      discoveries: [
+        { key: "gekippt", icon: "🙃", title: "Auf der Seite",
+          text: "Uranus ist ein Querkopf: Er liegt auf der Seite und rollt wie eine Kugel um die Sonne! Forscher glauben, dass ihn vor langer Zeit ein riesiger Himmelskörper gerammt und umgekippt hat." },
+        { key: "ringe", icon: "⭕", title: "Senkrechte Ringe",
+          text: "Auch Uranus hat Ringe: 13 dünne, dunkle Ringe. Weil der Planet auf der Seite liegt, stehen sie fast senkrecht – wie ein Reifen, der um ihn herum aufgestellt ist." },
+        { key: "eisriese", icon: "🧊", title: "Ein Eisriese",
+          text: "Uranus ist 4-mal so breit wie die Erde. Anders als Jupiter und Saturn besteht er vor allem aus eisigen Stoffen wie Wasser, Ammoniak und Methan. Darum nennt man ihn Eisriese. Einen festen Boden hat er trotzdem nicht." },
+        { key: "farbe", icon: "🎨", title: "Eisblau",
+          text: "Warum ist Uranus so schön blaugrün? In seiner Lufthülle gibt es ein Gas namens Methan. Es verschluckt das rote Licht der Sonne – übrig bleibt Blaugrün." },
+        { key: "kalt", icon: "🥶", title: "Der kälteste Planet",
+          text: "Auf Uranus kann es bis zu −224 °C kalt werden. Damit ist er der kälteste Planet – sogar kälter als Neptun, obwohl der noch weiter von der Sonne weg ist!" },
+        { key: "sommer", icon: "🌞", title: "42 Jahre Sommer",
+          text: "Ein Jahr dauert auf Uranus 84 Erdjahre. Weil er auf der Seite liegt, scheint die Sonne 42 Jahre lang auf den einen Pol – und der andere hat 42 Jahre lang Winter und Dunkelheit." },
+        { key: "herschel", icon: "🔭", title: "Mit dem Fernrohr entdeckt",
+          text: "Uranus wurde als erster Planet mit einem Fernrohr entdeckt – im Jahr 1781. Der Entdecker hieß Wilhelm Herschel. Er kam aus Hannover und war eigentlich Musiker!" },
+        { key: "voyager", icon: "🛰️", title: "Nur ein einziger Besuch", gallery: ["uranus.jpg", "uranus-1.jpg"],
+          text: "Nur eine einzige Raumsonde war je beim Uranus: Voyager 2 flog 1986 an ihm vorbei und machte diese Fotos. Uranus hat über 25 Monde. Sie sind nach Figuren aus Theaterstücken benannt, zum Beispiel Titania, Oberon und Miranda." }
+      ],
+      radio: {
+        start: "Hier ist die Bodenstation! {name}, der Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Steuere deine Sonde durch die leuchtenden Mess-Tore! Schau dir den Planeten genau an: Fällt dir an seinen Ringen etwas auf? Es gibt {anzahl} Entdeckungen!",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Deine Sonde ist wieder beim Uranus, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        quizDone: "Mission erfüllt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen weiter."
+      },
+      quiz: [
+        { q: "Warum nennt man Uranus einen Eisriesen?", a: ["Weil er vor allem aus eisigen Stoffen besteht", "Weil er aus Glas ist", "Weil dort Schnee liegt"], c: 0, why: "Uranus besteht vor allem aus Wasser, Ammoniak und Methan." },
+        { q: "Wie lange dauert ein Sommer am Pol des Uranus?", a: ["3 Monate", "42 Jahre", "Einen Tag"], c: 1, why: "Ein Uranus-Jahr dauert 84 Erdjahre – und er liegt auf der Seite." },
+        { q: "Wie stehen die Ringe des Uranus?", a: ["Fast senkrecht", "Flach wie beim Saturn", "Er hat keine Ringe"], c: 0, why: "Weil Uranus auf der Seite liegt, stehen auch seine Ringe fast senkrecht." }
+      ]
+    },
+
+    neptun: {
+      probe: true,
+      course: { note: "Der Wind schiebt dich – lenk dagegen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      discoveries: [
+        { key: "wind", icon: "💨", title: "Die stärksten Winde",
+          text: "Merkst du, wie deine Sonde zur Seite gedrückt wird? Auf Neptun wehen die stärksten Winde im ganzen Sonnensystem: über 2.000 km/h – schneller als ein Düsenflugzeug!" },
+        { key: "fleck", icon: "🌀", title: "Der dunkle Fleck",
+          text: "1989 entdeckte die Sonde Voyager 2 auf Neptun einen dunklen Wirbelsturm, so groß wie die Erde. Als man ein paar Jahre später wieder hinschaute, war er verschwunden! Auf Neptun entstehen und vergehen ständig neue Stürme." },
+        { key: "blau", icon: "💙", title: "Tiefblau",
+          text: "Neptun leuchtet blau. Wie bei Uranus liegt das am Gas Methan in seiner Lufthülle: Es verschluckt das rote Licht. Auch Neptun ist ein Eisriese ohne festen Boden – etwa 4-mal so breit wie die Erde." },
+        { key: "weit", icon: "📏", title: "Der äußerste Planet",
+          text: "Neptun ist der achte und letzte Planet: 4,5 Milliarden Kilometer von der Sonne entfernt – 30-mal so weit wie die Erde. Das Sonnenlicht braucht etwa 4 Stunden bis hierher. Darum ist es −200 °C kalt." },
+        { key: "jahr", icon: "🗓️", title: "165 Jahre für eine Runde",
+          text: "Für eine Runde um die Sonne braucht Neptun 165 Erdjahre. Seit er 1846 entdeckt wurde, hat er erst ein einziges Mal die Sonne umrundet – im Jahr 2011 war die Runde voll." },
+        { key: "rechnen", icon: "🧮", title: "Mit Mathematik gefunden",
+          text: "Neptun wurde zuerst berechnet und dann erst gesehen! Forschern fiel auf, dass Uranus ein bisschen anders lief als erwartet. Sie rechneten aus, wo ein unbekannter Planet an ihm ziehen musste – und 1846 fand man Neptun in einer Sternwarte in Berlin genau dort." },
+        { key: "triton", icon: "❄️", title: "Der Mond Triton", photo: "neptun-1.jpg",
+          text: "Neptun hat über 15 Monde. Der größte heißt Triton. Er ist eiskalt, hat Geysire aus Eis und umkreist Neptun verkehrt herum – andersherum, als Neptun sich dreht." },
+        { key: "voyager", icon: "🛰️", title: "12 Jahre unterwegs", photo: "neptun.jpg",
+          text: "Nur eine einzige Raumsonde hat Neptun je besucht: Voyager 2. Sie startete 1977 und kam erst 1989 an – nach 12 Jahren Flug! Dabei ist dieses Foto entstanden." }
+      ],
+      radio: {
+        start: "Hier ist die Bodenstation! {name}, du bist am äußersten Planeten angekommen. Auch Neptun hat keinen festen Boden. Steuere deine Sonde durch die leuchtenden Mess-Tore – aber Achtung: Der Sturm drückt dich zur Seite! Es gibt {anzahl} Entdeckungen.",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Deine Sonde ist wieder beim Neptun, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        quizDone: "Mission erfüllt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen weiter."
+      },
+      quiz: [
+        { q: "Wie wurde Neptun entdeckt?", a: ["Zuerst berechnet, dann am Himmel gefunden", "Durch Zufall beim Spazierengehen", "Von einer Raumsonde"], c: 0, why: "Man rechnete aus, wo ein unbekannter Planet an Uranus ziehen musste." },
+        { q: "Wie lange braucht das Sonnenlicht bis zum Neptun?", a: ["8 Minuten", "Etwa 4 Stunden", "Ein Jahr"], c: 1, why: "Neptun ist 30-mal so weit von der Sonne entfernt wie die Erde." },
+        { q: "Warum wurde deine Sonde zur Seite gedrückt?", a: ["Wegen der stärksten Winde im Sonnensystem", "Weil sie kaputt war", "Wegen eines Magneten"], c: 0, why: "Auf Neptun wehen Winde mit über 2.000 km/h." }
+      ]
+    },
+
+    sonne: {
+      probe: true,
+      course: { note: "Anflug auf die Sonne", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
+      discoveries: [
+        { key: "stern", icon: "⭐", title: "Ein Stern",
+          text: "Die Sonne ist ein Stern – eine riesige, glühende Kugel aus heißem Gas. Sie ist der einzige Stern in unserem Sonnensystem. Alle anderen Sterne am Himmel sind auch Sonnen, nur unvorstellbar weit weg." },
+        { key: "gross", icon: "🌞", title: "Unvorstellbar groß",
+          text: "In die Sonne würden ungefähr 1,3 Millionen Erden hineinpassen! Nebeneinander gelegt bräuchte man 109 Erden, um einmal quer über die Sonne zu kommen." },
+        { key: "licht", icon: "💡", title: "8 Minuten",
+          text: "Das Licht der Sonne braucht ungefähr 8 Minuten bis zur Erde. Wenn du die Sonne siehst, siehst du also, wie sie vor 8 Minuten war! Ohne ihr Licht und ihre Wärme gäbe es kein Leben auf der Erde." },
+        { key: "heiss", icon: "🌡️", title: "5.500 Grad",
+          text: "An ihrer Oberfläche ist die Sonne etwa 5.500 °C heiß. In ihrem Inneren sind es sogar 15 Millionen Grad! Dort entsteht die Energie, die sie zum Leuchten bringt." },
+        { key: "flecken", icon: "⚫", title: "Sonnenflecken", photo: "sonne.jpg",
+          text: "Die dunklen Punkte heißen Sonnenflecken. Dort ist die Sonne etwas kühler als ringsum – darum sehen sie dunkel aus. Heiß sind sie trotzdem. Viele sind größer als die ganze Erde!" },
+        { key: "ausbruch", icon: "🔥", title: "Sonnenausbruch", photo: "sonne-2.jpg",
+          text: "Manchmal schleudert die Sonne glühend heißes Gas weit hinaus ins All. Trifft so eine Wolke auf die Erde, entstehen am Himmel bunte Polarlichter." },
+        { key: "waben", icon: "🍯", title: "Brodelnde Oberfläche", photo: "sonne-1.jpg",
+          text: "Aus der Nähe sieht die Sonne aus wie kochender Brei: Überall steigen Blasen aus heißem Gas auf und sinken wieder ab. Jede einzelne „Wabe“ auf dem Foto ist größer als Deutschland." },
+        { key: "parker", icon: "🛰️", title: "Die Sonnen-Sonde",
+          text: "Eine echte Sonde fliegt wirklich so nah an die Sonne: die Parker Solar Probe. Sie ist das schnellste Raumfahrzeug, das Menschen je gebaut haben, und hat einen dicken Hitzeschild – genau wie deine. Und du? Schau niemals direkt in die Sonne, das schadet deinen Augen!" }
+      ],
+      radio: {
+        start: "Hier ist die Bodenstation! {name}, auf der Sonne kann niemand landen – sie ist eine Kugel aus glühendem Gas. Deine Sonde hat einen Hitzeschild. Flieg durch die leuchtenden Mess-Tore und weich den Glutbällen aus! Es gibt {anzahl} Entdeckungen.",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Deine Sonde ist wieder bei der Sonne, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        quizDone: "Mission erfüllt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen weiter."
+      },
+      quiz: [
+        { q: "Was sind Sonnenflecken?", a: ["Etwas kühlere Stellen auf der Sonne", "Löcher in der Sonne", "Schatten von Planeten"], c: 0, why: "Weil sie kühler sind als ihre Umgebung, sehen sie dunkel aus." },
+        { q: "Was schützt deine Sonde vor der Hitze?", a: ["Ein Hitzeschild", "Eine Klimaanlage", "Nichts"], c: 0, why: "Auch die echte Parker Solar Probe hat einen dicken Hitzeschild." },
+        { q: "Wie heiß ist die Sonne an ihrer Oberfläche?", a: ["100 °C", "Etwa 5.500 °C", "−200 °C"], c: 1, why: "Im Inneren sind es sogar 15 Millionen Grad." }
+      ]
     }
   },
 

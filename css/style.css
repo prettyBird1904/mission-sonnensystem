@@ -490,6 +490,13 @@ kbd {
 #scopeText { font-size: 17px; line-height: 1.4; }
 .scope-ui .row-gap { margin-top: 8px; }
 #surfaceHud.scoping > :not(#surfLabels) { display: none; }
+/* Sondenflug: Joystick ohne Sprung-Knopf, eigener Tasten-Hinweis, Knopf „Zurück zur Rakete“ */
+#btnProbeBack, .probe-keys { display: none; }
+#surfaceHud.probing #btnProbeBack { display: inline-flex; }
+#surfaceHud.probing .probe-keys { display: block; }
+#surfaceHud.probing .walk-keys, #surfaceHud.probing .touch-btns, #surfaceHud.probing .suit-note { display: none; }
+.touch-ui #surfaceHud.probing .probe-keys { display: none; }
+#surfaceHud.probing .joy::after { content: "STEUERN"; }
 /* Rover fernsteuern: nur der Joystick bleibt, der Text wandert nach oben (unten wäre er dem Joystick im Weg) */
 #surfaceHud.driving > :not(#surfLabels):not(.touch), #surfaceHud.driving .touch-btns { display: none; }
 #surfaceHud.driving ~ #scopeUi { bottom: auto; top: 2vh; }
