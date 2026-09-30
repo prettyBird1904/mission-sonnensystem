@@ -366,6 +366,7 @@ window.SPACE_DATA = {
     mars: {
       gravity: 3.71, // m/s² – echte Mars-Schwerkraft
       jump: 0.3,
+      nasa: ["habitat-1", "habitat-2", "ingenuity", "perseverance"], // echte NASA-Modelle (werden beim ersten Besuch geladen)
       // Mitbewohner des Forschungslagers: laufen ihre Wege ab und sprechen das Kind an, wenn es nahe kommt
       npcs: [
         { name: "Forscherin Mia", color: "#22c55e", path: [[-12, 50], [-12, 58], [-4, 46], [-16, 44]],

@@ -192,6 +192,49 @@ window.Surface = (function () {
     })().catch((e) => { console.warn("Modelle nicht geladen", e); return KIT; });
     return kitPromise;
   }
+  // ---------- Echte NASA-Modelle (NASA 3D Resources): Habitat, Rover Perseverance, Hubschrauber Ingenuity ----------
+  // Sie sind groß und Draco-komprimiert, darum werden sie erst beim ersten Besuch als Datei geladen (danach offline im Speicher).
+  const NASA = {};
+  const NASA_FILES = { "habitat-1": 11, "habitat-2": 11, ingenuity: 1.8, perseverance: 3.0 }; // Zielbreite in Metern
+  let nasaLoader = null;
+  async function loadNasa(names) {
+    const todo = names.filter((n) => !(n in NASA));
+    if (!todo.length) return;
+    if (!THREE.GLTFLoader) await loadScript("lib/GLTFLoader.js");
+    if (!THREE.DRACOLoader) await loadScript("lib/DRACOLoader.js");
+    if (!nasaLoader) {
+      const draco = new THREE.DRACOLoader(); draco.setDecoderPath("lib/draco/");
+      nasaLoader = new THREE.GLTFLoader(); nasaLoader.setDRACOLoader(draco);
+    }
+    await Promise.all(todo.map((name) => new Promise((res) => {
+      nasaLoader.load(`models/nasa/${name}.glb`, (g) => {
+        const root = g.scene;
+        root.traverse((o) => {
+          if (!o.isMesh) return;
+          o.castShadow = o.receiveShadow = true;
+          const m = o.material;
+          // Glas-Effekte der Vorlage brauchen einen teuren Extra-Durchgang – durch einfache Durchsichtigkeit ersetzen
+          if (m.transmission > 0) m.transmission = 0; // (sonst wäre z. B. die ganze Habitat-Hülle durchsichtig)
+          if (m.clearcoat) m.clearcoat = 0;
+          if (m.sheen) m.sheen = 0;
+          m.metalness = Math.min(m.metalness, 0.6);
+        });
+        NASA[name] = g.scene; res();
+      }, undefined, () => { NASA[name] = null; res(); }); // ohne Netz oder per Doppelklick geöffnet: dann eben ohne
+    })));
+  }
+  // Mehrere NASA-Teile, die zusammengehören (gleicher Nullpunkt), als ein Objekt: Mitte unten auf 0, gewünschte Breite in Metern
+  function nasaModel(parts, width) {
+    const g = new THREE.Group(), inner = new THREE.Group();
+    for (const p of parts) if (NASA[p]) inner.add(NASA[p].clone());
+    if (!inner.children.length) return null;
+    g.add(inner); inner.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(inner), size = box.getSize(new V()), c = box.getCenter(new V());
+    const k = width / Math.max(size.x, size.z);
+    inner.scale.setScalar(k); inner.position.set(-c.x * k, -box.min.y * k, -c.z * k);
+    return g;
+  }
+
   // Kopie eines Modells in der gewünschten Größe (Kenney: 1 Einheit ≈ 1 Rasterfeld). Fehlt es, gibt es eine leere Gruppe.
   function kit(name, scale = 4) {
     const src = KIT[name], g = src ? src.clone() : new THREE.Group();
@@ -604,6 +647,16 @@ window.Surface = (function () {
   // Mars-Forschungslager aus fertigen Modellen (Kenney Space Kit): Hallen, Glas-Gewächshaus, Verbindungsgänge,
   // Generator, Fässer, große Antennenschüssel – dazu Sonnenkollektoren und blinkende Lichter
   function buildMarsCamp(g, add, hull, dark, lit) {
+    // Am schönsten: das echte NASA-Habitat (Habitat Demonstration Unit), daneben Gewächshaus, Sonnenkollektoren und Funkmast
+    const hab = nasaModel(["habitat-2", "habitat-1"], 16);
+    if (hab) {
+      hab.position.set(-17, 0, 10); hab.rotation.y = MARS_HAB_ROT; g.add(hab); // links neben der Tafelwand, damit man es ganz sieht
+      marsGreenhouse(add, 14, 7);
+      marsPanels(add, dark, [[21, 4], [23.5, 8], [26, 12]]);
+      g.userData.blink.push(marsMast(add, hull, dark, 6, 16));
+      g.userData.nasa = true;
+      return;
+    }
     if (!KIT.hangar_largeA) return buildMarsCampSimple(g, add, hull, dark, lit);
     const put = (name, s, x, z, ry = 0, y = 0) => { const m = kit(name, s); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m; };
     // groß genug und weit genug hinten, dass das Lager über die Tafelwand hinausragt
@@ -627,6 +680,12 @@ window.Surface = (function () {
     const light = (color, x, y, z) => add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), new THREE.MeshBasicMaterial({ color, toneMapped: false })), x, y, z, false);
     g.userData.blink.push(light(0xff3b30, 20, 7.4, 24), light(0x4ade80, 0.5, 7.2, 17), light(0xfcd34d, -15, 6.8, 16));
   }
+  const MARS_HAB_ROT = 0; // Drehung des NASA-Habitats (Vorderseite mit Flagge zum Platz)
+  function marsNasaColliders([sx, sz]) {
+    const c = [[sx - 22, sz + 10, 5.5], [sx - 12, sz + 10, 5.5], [sx + 12, sz + 7, 2.4], [sx + 16, sz + 7, 2.4], [sx + 21, sz + 4, 0.5], [sx + 23.5, sz + 8, 0.5], [sx + 26, sz + 12, 0.5], [sx + 6, sz + 16, 0.4]];
+    for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
+    return c;
+  }
   // Hindernisse des Mars-Lagers (Weltkoordinaten)
   function marsCampColliders([sx, sz]) {
     const c = [[sx - 15, sz + 16, 7], [sx - 4, sz + 17, 5], [sx + 5, sz + 17, 5], [sx + 14, sz + 16, 5], [sx + 20, sz + 24, 2.2], [sx + 9, sz + 3.2, 1.6],
@@ -649,33 +708,45 @@ window.Surface = (function () {
     module(4.4, 7.6, 2.2, 2.6);
     add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 1.6), hull), 1.9, 0.9, 7.9);
     const door = add(new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.9), dark), -1.5, 0.95, 5.18, false); door.rotation.y = Math.PI; // Luftschleuse
-    // Gewächshaus: halbe Glasröhre, innen Beete mit Pflanzen und rosa leuchtende Pflanzenlampen
+    marsGreenhouse(add, -10.5, 6.5);
+    marsPanels(add, dark, [[9.5, 4.5], [11.5, 7], [13.5, 9.5]]);
+    g.userData.blink.push(marsMast(add, hull, dark, 7, 11));
+    const green = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0x4ade80, toneMapped: false })), -1.5, 4.9, 8.2, false);
+    g.userData.blink.push(green);
+  }
+  // Gewächshaus: halbe Glasröhre (8 m lang, entlang X), innen Beete mit Pflanzen und rosa leuchtende Pflanzenlampen
+  function marsGreenhouse(add, cx, cz) {
     const glass = new THREE.MeshStandardMaterial({ color: 0xcdeeff, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false });
-    const tunnel = add(new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 8, 24, 1, true, 0, Math.PI), glass), -10.5, 0, 6.5, false);
+    const tunnel = add(new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 8, 24, 1, true, 0, Math.PI), glass), cx, 0, cz, false);
     tunnel.rotation.z = Math.PI / 2;
+    const frame = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.4, roughness: 0.5 });
+    for (let i = -2; i <= 2; i++) { // Rippen des Glasdachs
+      const rib = add(new THREE.Mesh(new THREE.TorusGeometry(2.22, 0.05, 6, 24, Math.PI), frame), cx + i * 1.9, 0, cz, false); rib.rotation.y = Math.PI / 2;
+    }
     for (const e of [-1, 1]) {
-      const cap = add(new THREE.Mesh(new THREE.CircleGeometry(2.2, 20, 0, Math.PI), glass), -10.5 + e * 4, 0, 6.5, false);
+      const cap = add(new THREE.Mesh(new THREE.CircleGeometry(2.2, 20, 0, Math.PI), glass), cx + e * 4, 0, cz, false);
       cap.rotation.y = Math.PI / 2;
     }
     const soil = new THREE.MeshStandardMaterial({ color: 0x3b2718, roughness: 1 }), leaf = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.8, flatShading: true });
     const grow = new THREE.MeshBasicMaterial({ color: 0xf472b6, toneMapped: false });
     for (const dz of [-0.8, 0.8]) {
-      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.35, 0.7), soil), -10.5, 0.18, 6.5 + dz, false);
-      for (let i = 0; i < 10; i++) add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 0), leaf), -13.8 + i * 0.73, 0.55, 6.5 + dz, false);
-      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.05, 0.08), grow), -10.5, 1.75, 6.5 + dz, false);
+      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.35, 0.7), soil), cx, 0.18, cz + dz, false);
+      for (let i = 0; i < 10; i++) add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 0), leaf), cx - 3.3 + i * 0.73, 0.55, cz + dz, false);
+      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.05, 0.08), grow), cx, 1.75, cz + dz, false);
     }
-    // Sonnenkollektoren
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 });
-    for (const [x, z] of [[9.5, 4.5], [11.5, 7], [13.5, 9.5]]) {
+  }
+  function marsPanels(add, dark, spots) {
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.5, roughness: 0.3 });
+    for (const [x, z] of spots) {
       add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), dark), x, 0.7, z);
-      const p = add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 1.4), panelMat), x, 1.45, z); p.rotation.x = -0.7;
+      const p = add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.06, 1.5), panelMat), x, 1.45, z); p.rotation.x = -0.7;
     }
-    // Funkmast mit blinkendem Licht
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), dark), 7, 2.75, 11);
-    const dish = add(new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 6, 0, Math.PI * 2, 0, 0.9), hull), 7, 4.6, 10.6); dish.rotation.x = -1.1;
-    const red = add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff3b30, toneMapped: false })), 7, 5.6, 11, false);
-    const green = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0x4ade80, toneMapped: false })), -1.5, 4.9, 8.2, false);
-    g.userData.blink.push(red, green);
+  }
+  // Funkmast mit Schüssel und blinkendem rotem Licht (liefert das Licht zurück)
+  function marsMast(add, hull, dark, x, z) {
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), dark), x, 2.75, z);
+    const dish = add(new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 6, 0, Math.PI * 2, 0, 0.9), hull), x, 4.6, z - 0.4); dish.rotation.x = -1.1;
+    return add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff3b30, toneMapped: false })), x, 5.6, z, false);
   }
 
   function makeStation(discoveries, name, style = "") {
@@ -1201,6 +1272,9 @@ window.Surface = (function () {
     if (worlds[id] || D.surfaces[id].probe) return; // Sonden-Welten sind schnell gebaut und brauchen keinen Astronauten
     astronautModel = await loadAstronautModel();
     await loadKit();
+    const nasa = (D.surfaces[id].nasa || []).filter((n) => n !== "perseverance" || !W.fast); // der große Rover nur bei „✨ Schön“
+    if (nasa.some((n) => !(n in NASA))) UI.toast("🛰️ Lade die Station …");
+    await loadNasa(nasa);
     // Mitbewohner der Station (je ein eigenes Astronauten-Modell)
     npcModels = [];
     for (let i = 0; i < ((D.surfaces[id].npcs || []).length); i++) npcModels.push(await loadExtraAstronaut());
@@ -1978,7 +2052,7 @@ window.Surface = (function () {
     g.traverse((o) => { if (o.isSprite) o.scale.divideScalar(6); }); // Sprites nicht mitskalieren
     B.scene.add(g);
     const [px, pz] = pad, py = B.height(px, pz);
-    return { g, jets, t: 20, pad: new V(px, py + 0.55, pz), from: new V(px - 240, py + 150, pz + 260), to: new V(px + 260, py + 170, pz - 220) };
+    return { g, jets, t: 20, pad: new V(px, py + 0.1, pz), from: new V(px - 240, py + 150, pz + 260), to: new V(px + 260, py + 170, pz - 220) };
   }
   const SHUTTLE_CYCLE = 75;
   function updateShuttle(dt) {
@@ -2147,13 +2221,15 @@ window.Surface = (function () {
   // Gruppe unterschiedlich großer Felsen als Blickfang im Vordergrund
   function rockCluster(B, x, z, n, mat, seed) {
     const geo = rockCluster.geo || (rockCluster.geo = new THREE.DodecahedronGeometry(1, 0));
-    const kitRocks = ["rock_largeA", "rock_largeB", "rocks_smallA", "rocks_smallB", "meteor_half"];
-    if (KIT.rock_largeA) { // fertige, schön geformte Felsen (Kenney)
+    if (mat.userData.natural) { // natürlich geformte Felsen: verbeulte Kugeln in mehreren Varianten
+      const geos = rockCluster.natural || (rockCluster.natural = [0, 1, 2, 3, 4, 5].map(naturalRockGeo));
       for (let i = 0; i < n; i++) {
-        const a = hash2(i, seed) * Math.PI * 2, r = hash2(i, seed + 1) * 3.6;
-        const m = kit(kitRocks[Math.floor(hash2(i, seed + 7) * kitRocks.length)], 2.5 + Math.pow(hash2(i, seed + 2), 1.5) * 4.5);
-        m.rotation.y = hash2(i, seed + 5) * 6;
-        B.on(m, x + Math.cos(a) * r, z + Math.sin(a) * r, -0.1);
+        const a = hash2(i, seed) * Math.PI * 2, r = hash2(i, seed + 1) * 3.4, s = 0.35 + Math.pow(hash2(i, seed + 2), 2) * 1.9;
+        const m = new THREE.Mesh(geos[Math.floor(hash2(i, seed + 7) * geos.length)], mat);
+        m.scale.set(s * (0.9 + hash2(i, seed + 3) * 0.5), s * (0.55 + hash2(i, seed + 4) * 0.45), s);
+        m.rotation.set(0, hash2(i, seed + 5) * 6, 0);
+        m.castShadow = m.receiveShadow = true;
+        B.on(m, x + Math.cos(a) * r, z + Math.sin(a) * r, s * 0.1);
       }
       return;
     }
@@ -2165,6 +2241,23 @@ window.Surface = (function () {
       m.castShadow = m.receiveShadow = true;
       B.on(m, x + Math.cos(a) * r, z + Math.sin(a) * r, s * 0.25);
     }
+  }
+  // Natürlicher Fels: Kugel mit Beulen, Kanten und abgeflachter Unterseite; dunklere Flecken per Vertex-Farbe
+  function naturalRockGeo(seed) {
+    const geo = new THREE.IcosahedronGeometry(1, 3), p = geo.attributes.position, v = new V(), col = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const n = fbm2(v.x * 1.6 + seed * 3.1, v.z * 1.6 + v.y * 1.3 - seed) - 0.5;
+      const facet = Math.round((v.x + v.y * 0.7) * 2.2 + seed) * 0.04; // grobe Bruchkanten
+      v.multiplyScalar(1 + n * 0.55 + facet);
+      if (v.y < -0.35) v.y = -0.35 + (v.y + 0.35) * 0.25; // unten flach, damit er aufliegt
+      p.setXYZ(i, v.x, v.y, v.z);
+      const k = 0.78 + 0.3 * fbm2(v.x * 3 + seed, v.y * 3 + v.z * 2);
+      col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = k;
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    return geo;
   }
   // Weicher dunkler Fleck unter einem Objekt – dann steht es auf dem Boden, statt zu schweben
   function addBlob(B, x, z, r) {
@@ -2211,10 +2304,31 @@ window.Surface = (function () {
     return g;
   }
   // Rover: fertiges Modell (Kenney), sonst das selbstgebaute
-  function makeMarsRover() {
+  function makeMarsRover(nasa = true) {
+    const real = nasa && nasaModel(["perseverance"], 3.0); // der echte Rover Perseverance
+    if (real) { real.userData = { wheels: [], heading: 0, speed: 0 }; return real; }
     if (!KIT.rover) return makeRover();
     const g = new THREE.Group(); g.add(kit("rover", 7));
     g.userData = { wheels: [], heading: 0, speed: 0 };
+    return g;
+  }
+  // Hubschrauber: das echte Modell von Ingenuity (Rotoren drehen sich um die senkrechte Achse), sonst das selbstgebaute
+  function makeMarsHeli() {
+    const g = nasaModel(["ingenuity"], 2.6); // etwas größer als in echt (1,2 m Rotor), damit man ihn gut sieht
+    if (!g) return makeHeli();
+    const rotors = [];
+    g.traverse((o) => { if (/rotor/i.test(o.name)) rotors.push(o); });
+    const q = new THREE.Quaternion(), pw = new THREE.Quaternion();
+    g.userData = {
+      rotor: new THREE.Object3D(),
+      spin(dt) {
+        rotors.forEach((r, i) => {
+          r.parent.getWorldQuaternion(pw);
+          const axis = new V(0, 1, 0).applyQuaternion(pw.invert()).normalize(); // Welt-Senkrechte im Raum des Rotors
+          r.quaternion.premultiply(q.setFromAxisAngle(axis, dt * 40 * (i % 2 ? -1 : 1))); // gegenläufig wie beim echten Ingenuity
+        });
+      }
+    };
     return g;
   }
   // Landeplatz für den Hubschrauber: Scheibe mit großem „H“
@@ -2286,7 +2400,7 @@ window.Surface = (function () {
     const telescope = on(makeTelescope(PHOBOS_DIR), ...L.monde);
     const scale = on(makeScale(), ...L.waage);
     scale.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
-    const heli = on(makeHeli(), ...L.vulkan);
+    const heli = on(makeMarsHeli(), ...L.vulkan);
     on(makeHeliPad(), ...L.vulkan, 0.04);
     const console_ = on(KIT.desk_computerScreen ? makeKitConsole() : makeConsole(), ...L.rover); // Steuerpult für den Rover
     console_.rotation.y = Math.atan2(L.roverZiel[0] - L.rover[0], L.roverZiel[1] - L.rover[1]) + Math.PI;
@@ -2311,15 +2425,16 @@ window.Surface = (function () {
     const bands = bandTexture(["#8a4a33", "#9b5a3f", "#7a3f2b", "#a8694a", "#8f5038", "#b37757"], 3); // gedämpfte Rottöne, die im Dunst verschwimmen
     const buttes = [[-150, 120, 34, 42], [175, 95, 26, 30], [135, -165, 40, 36], [-185, -105, 30, 48], [60, 215, 44, 28], [-60, -205, 24, 26]];
     buttes.slice(0, rich ? 6 : 3).forEach(([x, z, r, h], i) => on(makeButte(r, h, bands, i * 7 + 1), x, z, h / 2 - 3));
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x86503a, roughness: 0.95, flatShading: true });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a4e36, roughness: 0.95, vertexColors: true });
+    rockMat.userData.natural = true;
     const clusters = [[18, 26, 6], [33, 24, 5], [9, -9, 5], [-14, 42, 6], [22, 62, 5], [-24, 60, 6], [-4, 30, 4], [-38, 10, 5], [28, -30, 6], [-18, -12, 4]];
     clusters.slice(0, rich ? 10 : 5).forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 13 + 2));
     const veils = rich ? makeDustVeils("rgba(210,150,100,1)", 9) : new THREE.Group(); scene.add(veils);
-    const patrol = on(makeMarsRover(), 48, 62);
+    const patrol = on(makeMarsRover(false), 48, 62);
     const patrolCol = [48, 62, 1.8];
     // Leben: zwei Mitbewohner und ein Raumtransporter mit eigenem Landeplatz
     const npcs = addNpcs(B);
-    on(kit("platform_large", 5), ...L.pad, 0);
+    const landing = makeHeliPad(); landing.scale.setScalar(2.4); on(landing, ...L.pad, 0.05); // Landeplatz des Transporters
     const shuttle = KIT.craft_cargoA ? makeShuttle(B, L.pad) : null;
     if (rich && KIT.craterLarge) for (const [x, z, s] of [[40, -12, 9], [-52, 36, 7], [62, 30, 8], [-20, -52, 10], [8, 90, 9]]) on(kit("craterLarge", s), x, z, -0.2);
     for (const [x, z, r] of [[...L.monde, 1.1], [...L.vulkan, 2.3], [...L.rover, 1.1], [...L.eis, 1.3], [...L.wegweiser, 0.6], [...L.rost, 1.3], [...L.abend, 1], [...L.waage, 1.2]]) addBlob(B, x, z, r);
@@ -2330,7 +2445,7 @@ window.Surface = (function () {
 
     const colliders = [[0, 0, 1.8], [...L.monde, 0.6], [...L.vulkan, 0.7], [...L.rover, 1], [...L.eis, 0.9], [...L.wegweiser, 0.3],
       [...L.rost, 1], [...L.abend, 0.6], [...L.roverZiel, 0.7], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25],
-      ...(KIT.hangar_largeA ? marsCampColliders(L.station) : stationColliders(L.station)), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
+      ...(station.userData.nasa ? marsNasaColliders(L.station) : KIT.hangar_largeA ? marsCampColliders(L.station) : stationColliders(L.station)), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
     for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
     return { ...B, L, station, scale, telescope, phobos, deimos, volcano, everest, zugspitze, heli, heliY: heli.position.y, rover, roverGoal, drill,
@@ -2404,7 +2519,7 @@ window.Surface = (function () {
     const sp = view.special, c = world.camera, h = world.heli, d = VOLCANO_DIR; sp.t += dt;
     const k = smooth(0.3, 5, sp.t);
     h.position.y = world.heliY + k * 60;
-    h.userData.rotor.rotation.y += dt * 42;
+    if (h.userData.spin) h.userData.spin(dt); else h.userData.rotor.rotation.y += dt * 42;
     c.position.lerp(tmp.set(h.position.x - d.x * 9, h.position.y + 2.4, h.position.z - d.z * 9), 1 - Math.exp(-dt * 4));
     // erst dem Hubschrauber nachschauen, oben dann zum Vulkan
     tmp2.set(h.position.x + d.x * 20, h.position.y + 1, h.position.z + d.z * 20).lerp(tmp.set(d.x * 1500, VOLCANO_H * 0.24, d.z * 1500), k);

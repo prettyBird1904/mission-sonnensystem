@@ -103,3 +103,5 @@ Lizenzen: **gemeinfrei** (Public Domain, v. a. NASA) · **CC0** · **CC BY 2.0 /
 ## 3D-Modelle
 
 - **Space Kit** von Kenney (www.kenney.nl) – Hallen, Gewächshaus, Gänge, Antennen, Generator, Fässer, Rover, Raumtransporter, Felsen und Krater auf dem Mars. Lizenz: CC0 (gemeinfrei), eingebettet in `models/spacekit.js`. Quelle: https://kenney.nl/assets/space-kit
+- **NASA 3D Resources** (NASA, gemeinfrei/Public Domain, keine Befürwortung durch die NASA): *Habitat Demonstration Unit* (Marsstation), *Perseverance* (Mars-Rover) und *Ingenuity* (Mars-Hubschrauber). Für das Spiel verkleinert (Draco-komprimiert) in `models/nasa/`. Quelle: https://nasa3d.arc.nasa.gov bzw. https://science.nasa.gov/3d-resources/
+- **Draco-Decoder** (Google, Apache-Lizenz 2.0) und `DRACOLoader.js` aus three.js (MIT-Lizenz) in `lib/`, zum Entpacken der NASA-Modelle.
