@@ -466,6 +466,188 @@ window.SPACE_DATA = {
         { q: "Was lag unter dem roten Staub, als du gebohrt hast?", a: ["Eis", "Gold", "Lava"], c: 0, why: "Unter dem Staub liegt gefrorenes Wasser – das hat auch die Sonde Phoenix gefunden." },
         { q: "Wie sehen die beiden Marsmonde aus?", a: ["Rund wie unser Mond", "Wie kleine Kartoffeln", "Wie Ringe"], c: 1, why: "Phobos und Deimos sind winzig und unregelmäßig geformt." }
       ]
+    },
+
+    merkur: {
+      gravity: 3.7, jump: 0.3,
+      temp: { sun: 430, shade: -180, sunText: "☀️ Sonne – heißer als ein Backofen!", shadeText: "❄️ Schatten – eiskalt!" },
+      discoveries: [
+        { key: "sprung", icon: "🦘", title: "Klein, aber schwer", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 30 Zentimeter", zeit: "0,8" },
+          text: "Du bist {hoehe} hoch gesprungen. Der Merkur zieht nur gut ein Drittel so stark an dir wie die Erde – genauso stark wie der Mars, obwohl der Merkur viel kleiner ist! Das liegt an seinem riesigen, schweren Kern aus Eisen." },
+        { key: "waage", icon: "⚖️", title: "Ein Drittel so schwer", fallback: { erde: "30", mond: "11,3" },
+          text: "Auf der Erde wiegst du {erde} Kilo – hier zeigt die Waage nur {mond} Kilo! Der Merkur ist der kleinste Planet. Trotzdem zieht er ziemlich stark an dir, denn in seinem Inneren steckt eine riesige Kugel aus Eisen." },
+        { key: "temperatur", icon: "🌡️", title: "Backofen und Eisschrank",
+          text: "Hast du das Thermometer gesehen? In der Sonne wird es auf dem Merkur 430 °C heiß – heiß genug, um Blei zu schmelzen! Im Schatten und in der Nacht sind es −180 °C. Der Merkur hat keine Lufthülle, die die Wärme festhält oder verteilt. Kein anderer Planet hat so große Unterschiede." },
+        { key: "sonne", icon: "☀️", title: "Die riesige Sonne",
+          text: "Vom Merkur aus sieht die Sonne fast dreimal so breit aus wie von der Erde! Kein Planet ist der Sonne näher. Die dunklen Punkte sind Sonnenflecken – manche sind größer als die Erde. Wichtig: Schau niemals ohne Spezialfilter in die Sonne, auch nicht zu Hause!" },
+        { key: "krater", icon: "☄️", title: "Einschlag!", photo: "merkur-1.jpg",
+          text: "Der Brocken ist eingeschlagen, ohne zu verglühen! Auf der Erde bremst die Luft solche Brocken: Sie leuchten als Sternschnuppen auf und verglühen meistens. Der Merkur hat keine Luft. Darum ist er voller Krater und sieht fast aus wie unser Mond. Auf dem Foto: der Munch-Krater, 58 Kilometer breit." },
+        { key: "jahr", icon: "🏁", title: "Der schnellste Planet",
+          text: "Der Merkur saust in nur 88 Erdtagen einmal um die Sonne. Während die Erde eine Runde schafft, dreht er mehr als vier! Wer 9 Erdjahre alt ist, wäre auf dem Merkur schon 37 Merkur-Jahre alt. Dafür dreht er sich selbst ganz langsam: Von einem Sonnenaufgang bis zum nächsten vergehen 176 Erdtage." },
+        { key: "groesse", icon: "📏", title: "Der kleinste Planet",
+          text: "Der Merkur ist der kleinste Planet: 4.879 Kilometer breit. Er ist nur ein bisschen größer als unser Mond. Die Erde ist fast dreimal so breit. Einen eigenen Mond hat der Merkur nicht." },
+        { key: "eis", icon: "🧊", title: "Eis im ewigen Schatten",
+          text: "Eis – auf dem Planeten, der der Sonne am nächsten ist! In tiefe Krater an den Polen scheint niemals die Sonne. Dort ist es immer eiskalt, und dort liegt gefrorenes Wasser." },
+        { key: "sonde", icon: "🛰️", title: "Besuch von der Erde", photo: "merkur.jpg",
+          text: "Das ist ein Modell der Raumsonde MESSENGER. Sie umkreiste den Merkur von 2011 bis 2015 und hat ihn komplett fotografiert. Eine Reise zum Merkur ist schwierig: Die Sonne zieht so stark, dass eine Sonde ständig bremsen muss. Die nächste Sonde heißt BepiColombo und ist schon unterwegs." },
+        { key: "wegweiser", icon: "🪧", title: "Ganz nah an der Sonne",
+          text: "Der Merkur ist der erste Planet. Bis zur Sonne sind es nur 58 Millionen Kilometer. Das Sonnenlicht braucht gut 3 Minuten bis hierher – bis zur Erde braucht es 8 Minuten." }
+      ],
+      stations: {
+        wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
+        waage:      { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        temperatur: { label: "Schatten am Felsen", hint: "Stell dich in den Schatten des großen Felsens", again: "🌡️ Nochmal ansehen", reach: 5 },
+        sonne:      { label: "Sonnen-Fernrohr", hint: "Schau durch das Sonnen-Fernrohr", action: "🔭 Durchschauen" },
+        krater:     { label: "Einschlag-Versuch", hint: "Probier den Einschlag-Versuch aus", action: "☄️ Einschlag-Versuch starten" },
+        jahr:       { label: "Planeten-Rennen", hint: "Geh zur Merkurstation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
+        groesse:    { label: "Größenvergleich", hint: "Geh zur Merkurstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
+        eis:        { label: "Eis im Krater", hint: "Such ein goldenes Licht im tiefen Krater hinter deiner Rakete", again: "🧊 Nochmal ansehen", small: true, auto: 2.8 },
+        sonde:      { label: "Raumsonde", hint: "Such ein goldenes Licht hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        wegweiser:  { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Merkur zeigt die Waage nur {mond} Kilo!",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      sunScope: {
+        aim: "Dieses Fernrohr hat einen dunklen Sonnenfilter. Such die Sonne! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten.",
+        aimTouch: "Dieses Fernrohr hat einen dunklen Sonnenfilter. Such die Sonne! Wische über den Himmel, um es zu schwenken.",
+        hint: "Tipp der Bodenstation: Die Sonne ist in dieser Richtung",
+        almost: "Fast! Halte das Fernrohr genau auf die Sonne.",
+        found: "Das ist die Sonne durch den Filter. Siehst du die dunklen Sonnenflecken? Manche sind größer als die Erde!",
+        compareBtn: "☀️ Und von der Erde aus?",
+        compare: "Die kleine Scheibe daneben: So sehen wir die Sonne von der Erde. Vom Merkur aus ist sie fast dreimal so breit!",
+        done: "Fertig ✓"
+      },
+      impact: {
+        ready: "Auf der Erde verglühen Brocken aus dem All meistens in der Luft – als Sternschnuppen. Und hier, ganz ohne Luft?",
+        go: "☄️ Brocken fallen lassen",
+        running: "Achtung, er kommt …",
+        end: "Eingeschlagen – ohne zu verglühen! So sind alle Krater auf dem Merkur entstanden.",
+        again: "☄️ Nochmal", done: "Fertig ✓"
+      },
+      orrery: {
+        ready: "Merkur (innen) und die Erde (außen) laufen um die Sonne. Wer ist schneller? Starte das Rennen!",
+        go: "🏁 Rennen starten",
+        run: "Erdtage: {erde} · Merkur hat schon {planet} Runden geschafft",
+        end: "Die Erde hat eine Runde geschafft – der Merkur schon mehr als vier! Ein Merkur-Jahr dauert nur 88 Erdtage.",
+        again: "🏁 Nochmal", done: "Fertig ✓"
+      },
+      guess: {
+        q: "Was ist größer: der Merkur oder unser Mond?", a: ["Der Merkur", "Unser Mond"], c: 0,
+        right: "Richtig!", wrong: "Nicht ganz.",
+        why: "Der Merkur ist ein bisschen größer als unser Mond – und trotzdem der kleinste Planet. Die Erde ist fast dreimal so breit.",
+        done: "Fertig ✓"
+      },
+      radio: {
+        start: "Hier ist die Bodenstation! Willkommen auf dem Merkur, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Merkurstation erscheint alles, was du entdeckt hast. Schau mal, wie riesig die Sonne ist!",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Willkommen zurück auf dem Merkur, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
+        quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
+      },
+      quiz: [
+        { q: "Warum verglühen Brocken aus dem All auf dem Merkur nicht?", a: ["Weil es dort keine Luft gibt", "Weil es dort zu kalt ist", "Weil sie zu klein sind"], c: 0, why: "Ohne Luft bremst und erhitzt nichts die Brocken – sie schlagen ein und hinterlassen Krater." },
+        { q: "Wo gibt es auf dem Merkur Eis?", a: ["Überall", "In Kratern, in die nie die Sonne scheint", "Nirgends"], c: 1, why: "In tiefen Kratern an den Polen ist es immer eiskalt – dort liegt gefrorenes Wasser." },
+        { q: "Wie sieht die Sonne vom Merkur aus?", a: ["Kleiner als bei uns", "Genauso groß wie bei uns", "Fast dreimal so breit"], c: 2, why: "Der Merkur ist der Sonne am nächsten – darum sieht sie dort riesig aus." }
+      ]
+    },
+
+    pluto: {
+      gravity: 0.62, // m/s² – echte Schwerkraft auf Pluto
+      moveGravity: 1.2, // fürs Laufen und Springen stärker, sonst schwebt man ewig
+      jump: 1.6,
+      temp: { sun: -228, shade: -233, sunText: "☀️ Sonne – sie wärmt kaum!", shadeText: "❄️ Schatten – eisig!" },
+      discoveries: [
+        { key: "sprung", icon: "🦘", title: "Riesensprung", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 160 Zentimeter", zeit: "über 3" },
+          text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden lang geschwebt – und das im schweren Raumanzug! Pluto ist winzig und zieht nur ganz schwach an dir: etwa ein Sechzehntel so stark wie die Erde." },
+        { key: "waage", icon: "⚖️", title: "Leicht wie eine Feder", fallback: { erde: "30", mond: "1,9" },
+          text: "Auf der Erde wiegst du {erde} Kilo – hier zeigt die Waage nur {mond} Kilo! So viel wie eine große Flasche Wasser. Pluto ist so klein, dass er kaum an dir zieht." },
+        { key: "charon", icon: "🌗", title: "Charon, der große Mond",
+          text: "Charon ist Plutos größter Mond – halb so breit wie Pluto selbst! Am Pluto-Himmel sieht er 7-mal so groß aus wie unser Mond bei uns. Pluto und Charon zeigen sich immer dieselbe Seite: Deshalb steht Charon immer an derselben Stelle am Himmel. Insgesamt hat Pluto 5 Monde. Und die Sonne ist von hier aus nur noch ein sehr heller Stern." },
+        { key: "herz", icon: "🤍", title: "Das Herz von Pluto", photo: "pluto.jpg",
+          text: "Von oben erkennst du es: ein riesiges Herz! Es ist eine glatte Ebene aus Eis, über 1.000 Kilometer breit. Die Raumsonde New Horizons hat es 2015 entdeckt – auf ihrem Foto siehst du es auch." },
+        { key: "funk", icon: "📡", title: "Unendlich weit weg",
+          text: "Dein Funkspruch braucht 5½ Stunden bis zur Erde – obwohl er mit Lichtgeschwindigkeit fliegt! Pluto ist 5,9 Milliarden Kilometer von der Sonne entfernt. Zum Vergleich: Vom Mond zur Erde braucht ein Funkspruch nur gut 1 Sekunde." },
+        { key: "jahr", icon: "🏁", title: "248 Jahre für eine Runde",
+          text: "Pluto braucht 248 Erdjahre für eine einzige Runde um die Sonne! Seit er 1930 entdeckt wurde, hat er noch nicht einmal eine halbe Runde geschafft. Auf Pluto könnte niemand Geburtstag feiern. Ein Tag dauert dort etwa 6 Erdtage." },
+        { key: "groesse", icon: "📏", title: "Ein Zwergplanet",
+          text: "Pluto ist kleiner als unser Mond: nur 2.377 Kilometer breit. Früher galt er als neunter Planet. Weil er so klein ist, nennt man ihn seit 2006 Zwergplanet." },
+        { key: "eis", icon: "⛸️", title: "Rutschpartie auf Stickstoff-Eis",
+          text: "Du rutschst! Das Herz ist eine glatte Fläche aus gefrorenem Stickstoff. Bei uns ist Stickstoff ein Gas in der Luft, die wir atmen. Hier ist es mit −230 °C so kalt, dass er zu Eis gefriert. Die Berge am Rand sind aus Wassereis – hart wie Stein." },
+        { key: "sonde", icon: "🛰️", title: "Besuch von der Erde", gallery: ["pluto.jpg", "pluto-1.jpg"],
+          text: "Das ist ein Modell der Raumsonde New Horizons. Sie war 9½ Jahre unterwegs und flog 2015 ganz nah an Pluto vorbei. Erst durch ihre Fotos wissen wir, wie Pluto aussieht – vorher war er nur ein unscharfer Punkt." },
+        { key: "wegweiser", icon: "🪧", title: "Am Rand des Sonnensystems",
+          text: "Pluto ist fast 40-mal so weit von der Sonne entfernt wie die Erde: 5,9 Milliarden Kilometer. Darum ist es hier eiskalt – etwa −230 °C. Selbst am Mittag ist es nur so hell wie bei uns in der Dämmerung." }
+      ],
+      stations: {
+        wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
+        waage:     { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        charon:    { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
+        herz:      { label: "Kameradrohne", hint: "Steig mit der Kameradrohne auf", action: "🚁 Mit der Drohne aufsteigen" },
+        funk:      { label: "Funk-Antenne", hint: "Schick einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
+        jahr:      { label: "Planeten-Rennen", hint: "Geh zur Plutostation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
+        groesse:   { label: "Größenvergleich", hint: "Geh zur Plutostation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
+        eis:       { label: "Eisfläche", hint: "Lauf geradeaus zur großen hellen Eisfläche", again: "⛸️ Nochmal ansehen", small: true, reach: 8 },
+        sonde:     { label: "Raumsonde", hint: "Such ein goldenes Licht hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        wegweiser: { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf Pluto zeigt die Waage nur {mond} Kilo!",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      charon: {
+        aim: "Pluto hat einen riesigen Mond: Charon. Such ihn! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten.",
+        aimTouch: "Pluto hat einen riesigen Mond: Charon. Such ihn! Wische über den Himmel, um das Fernrohr zu schwenken.",
+        hint: "Tipp der Bodenstation: Charon ist in dieser Richtung",
+        almost: "Fast! Halte das Fernrohr genau auf Charon.",
+        found: "Gefunden! Das ist Charon. Er ist halb so breit wie Pluto – so einen großen Mond hat sonst kein Planet.",
+        compareBtn: "🌕 Mit unserem Mond vergleichen",
+        compare: "Die kleine Kugel daneben: So sehen wir unseren Mond von der Erde. Charon wirkt am Pluto-Himmel 7-mal so groß!",
+        sunBtn: "☀️ Zur Sonne schwenken",
+        sun: "Dieser helle Stern ist unsere Sonne! Pluto ist so weit weg, dass sie nur noch wie ein sehr heller Stern aussieht.",
+        done: "Fertig ✓"
+      },
+      drone: {
+        rising: "Die Kameradrohne steigt auf … Schau dir die helle Fläche dort hinten an!",
+        top: "Siehst du es? Die helle Eisfläche hat die Form eines Herzens!",
+        done: "Landen ✓"
+      },
+      signal: {
+        ready: "Wir funken zur Erde: „Hallo von Pluto!“ Die Antenne zeigt zur Sonne, denn die Erde steht von hier aus ganz dicht daneben. Achtung …",
+        run: "Der Funkspruch rast mit Lichtgeschwindigkeit los … schon unterwegs seit",
+        end: "Angekommen – nach 5½ Stunden! Und die Antwort von der Erde braucht noch einmal so lange.",
+        again: "📡 Nochmal", done: "Fertig ✓"
+      },
+      orrery: {
+        ready: "Die Erde (innen) und Pluto (außen) laufen um die Sonne. Wer braucht länger für eine Runde? Starte das Rennen!",
+        go: "🏁 Rennen starten",
+        run: "Erdjahre: {erde} · Pluto hat sich kaum bewegt …",
+        end: "Die Erde ist 12-mal um die Sonne gelaufen – Pluto hat nur ein winziges Stück geschafft. Für eine ganze Runde braucht er 248 Erdjahre!",
+        again: "🏁 Nochmal", done: "Fertig ✓"
+      },
+      guess: {
+        q: "Was ist größer: Pluto oder unser Mond?", a: ["Pluto", "Unser Mond"], c: 1,
+        right: "Richtig!", wrong: "Nicht ganz.",
+        why: "Unser Mond ist größer! Pluto ist nur 2.377 Kilometer breit – darum nennt man ihn Zwergplanet.",
+        done: "Fertig ✓"
+      },
+      radio: {
+        start: "Hier ist die Bodenstation! Willkommen auf Pluto, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Plutostation erscheint alles, was du entdeckt hast. Probier zuerst mal zu springen – du wirst staunen!",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Willkommen zurück auf Pluto, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
+        quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
+      },
+      quiz: [
+        { q: "Warum rutschst du auf Plutos Herz?", a: ["Es ist glattes Eis aus gefrorenem Stickstoff", "Es ist nasser Schlamm", "Es ist poliertes Metall"], c: 0, why: "Bei −230 °C gefriert sogar Stickstoff – das Gas aus unserer Luft – zu glattem Eis." },
+        { q: "Wie lange braucht ein Funkspruch von Pluto bis zur Erde?", a: ["1 Sekunde", "8 Minuten", "5½ Stunden"], c: 2, why: "Pluto ist 5,9 Milliarden Kilometer entfernt – selbst Licht braucht dafür Stunden." },
+        { q: "Wie sieht die Sonne von Pluto aus?", a: ["Riesig", "Wie ein sehr heller Stern", "Man sieht sie gar nicht"], c: 1, why: "Pluto ist fast 40-mal so weit von der Sonne weg wie die Erde." }
+      ]
     }
   },
 

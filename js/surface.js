@@ -11,6 +11,7 @@ window.Surface = (function () {
   let G = null, W = null, UI = null;
   let world = null, cfg = null, bodyId = null, onExit = null, astronautModel = null;
   let site = null;            // Besonderheiten des aktuellen Ortes (siehe SITES ganz unten)
+  let sharedAstronaut = null;
   const isTouch = () => document.documentElement.classList.contains("touch-ui");
 
   S.supports = (id) => !!(D.surfaces && D.surfaces[id]);
@@ -713,8 +714,9 @@ window.Surface = (function () {
     const myPrints = [];
     for (let i = 0; i < 160; i++) { const m = new THREE.Mesh(fpGeo, fpMat); m.visible = false; scene.add(m); myPrints.push(m); }
 
-    const astronaut = astronautModel ? makeModelAstronaut(astronautModel, G.state.color) : makeAstronaut(G.state.color);
-    scene.add(astronaut);
+    // Es gibt nur EINEN Astronauten für alle Orte (das Modell lässt sich nicht kopieren) – S.enter stellt ihn in die jeweilige Szene
+    if (!sharedAstronaut) sharedAstronaut = astronautModel ? makeModelAstronaut(astronautModel, G.state.color) : makeAstronaut(G.state.color);
+    const astronaut = sharedAstronaut;
 
     // Staubkörner
     const dustMat = new THREE.SpriteMaterial({ map: glowTexture(P.dust[0], P.dust[1]), transparent: true, depthWrite: false });
@@ -1047,6 +1049,7 @@ window.Surface = (function () {
     temp = { shown: cfg.temp.sun, inShadow: false, shadowTime: 0, sunSeen: true, check: 0 };
     quizDone = (G.state.surfaceQuiz && G.state.surfaceQuiz[id] != null) || false;
     experiment = null; boarding = null; jumpPressed = actionPressed = false;
+    world.scene.add(world.astronaut); // holt den Astronauten aus dem zuletzt besuchten Ort hierher
     world.astronaut.visible = true; world.astronaut.scale.setScalar(1);
     world.hatch.userData.door.material.emissiveIntensity = 0.9;
     world.rocket.position.y = world.rocketY; world.hatch.position.y = world.hatchY;
@@ -1127,7 +1130,8 @@ window.Surface = (function () {
     }
     view.dragged = Math.max(0, (view.dragged || 0) - dt);
     // Wenig Halt auf dem Mondstaub: beschleunigen/bremsen nur am Boden – und gemächlich
-    if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * (targetSpeed > ast.speed ? 3.0 : 3.4));
+    const grip = site.grip ? site.grip() : 1; // auf glattem Eis rutscht man: langsam anfahren, kaum bremsen
+    if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * grip * (targetSpeed > ast.speed ? 3.0 : 3.4));
     const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
     ast.pos.x += hx * ast.speed * dt; ast.pos.z += hz * ast.speed * dt;
 
@@ -1653,13 +1657,13 @@ window.Surface = (function () {
   function puff(p, n) { grains(p, n * 2, 0.7); }
 
   // Mondstaub: Ohne Luft gibt es keine Staubwolken – die Körner fliegen in sauberen Bögen und fallen sofort zurück
-  function grains(p, n, power = 1, dirX = 0, dirZ = 0) {
+  function grains(p, n, power = 1, dirX = 0, dirZ = 0, size = 1) {
     for (let i = 0; i < n; i++) {
       const s = world.dust[world.dustIdx]; world.dustIdx = (world.dustIdx + 1) % world.dust.length;
       s.position.set(p.x + (Math.random() - 0.5) * 0.3, p.y + 0.05, p.z + (Math.random() - 0.5) * 0.3);
       s.userData.v.set((Math.random() - 0.5) * 0.8 * power + dirX * power, (0.4 + Math.random() * 0.9) * power, (Math.random() - 0.5) * 0.8 * power + dirZ * power);
       s.userData.life = 4; s.visible = true;
-      s.material.opacity = 0.85; s.scale.setScalar(0.035 + Math.random() * 0.035);
+      s.material.opacity = 0.85; s.scale.setScalar((0.035 + Math.random() * 0.035) * size);
     }
   }
   function updateDust(dt) {
@@ -1955,34 +1959,11 @@ window.Surface = (function () {
 
   // --- Fernrohr: die beiden Marsmonde finden ---
   function startMoons() {
-    const e = PHOBOS_DIR, yawE = Math.atan2(e.x, e.z), pitchE = Math.asin(e.y);
-    enterExhibit("monde", { update: updateMoons, phase: "aim", t: 0, yawE, pitchE, yaw: yawE + 0.5, pitch: pitchE - 0.22, lock: 0, ix: 0, iy: 0, hint: "" });
-    world.telescope.visible = world.astronaut.visible = false;
-    scopeSay(isTouch() ? cfg.moons.aimTouch : cfg.moons.aim);
-  }
-  function updateMoons(dt) {
-    const c = world.camera, sp = view.special, T = cfg.moons; sp.t += dt;
-    const tp = world.telescope.position;
-    c.position.lerp(tmp.set(tp.x, tp.y + 1.7, tp.z), 1 - Math.exp(-dt * 4));
-    let fov = 30;
-    if (sp.phase === "aim") {
-      if (aimStep(sp, dt, T)) {
-        sp.phase = "phobos"; Sound.correct();
-        scopeSay(T.phobos, [[T.deimosBtn, () => { sp.phase = "deimos"; scopeSay(T.deimos, [[T.done, endMoons, true]]); }, true]]);
-      }
-    } else if (sp.phase === "phobos") { fov = 4.5; view.look.lerp(world.phobos.position, 1 - Math.exp(-dt * 4)); }
-    else { fov = 2.2; view.look.lerp(world.deimos.position, 1 - Math.exp(-dt * 1.6)); } // langsamer Schwenk zum zweiten Mond
-    c.lookAt(view.look);
-    if (c.aspect < 1) fov /= c.aspect;
-    c.fov += (Math.min(90, fov) - c.fov) * Math.min(1, dt * 2.5); c.updateProjectionMatrix();
-    $("scope").classList.toggle("hidden", sp.t < 0.5);
-    $("scope").classList.toggle("aim", sp.phase === "aim");
-  }
-  function endMoons() {
-    world.telescope.visible = world.astronaut.visible = true;
-    $("scope").classList.add("hidden");
-    world.camera.fov = 60; world.camera.updateProjectionMatrix();
-    leaveExhibit();
+    const T = cfg.moons;
+    startTour("monde", T, [
+      { pos: world.phobos.position, fov: 4.5, text: T.phobos },
+      { pos: world.deimos.position, fov: 2.2, text: T.deimos, btn: T.deimosBtn, slow: true }
+    ]);
   }
 
   // --- Bohrer: dreimal bohren, dann kommt Eis zum Vorschein ---
@@ -2096,6 +2077,423 @@ window.Surface = (function () {
   }
 
   // =========================================================
+  //  Bausteine, die mehrere Orte benutzen
+  // =========================================================
+  const endHidden = () => { world.astronaut.visible = true; leaveExhibit(); }; // Exponat beenden, bei dem der Astronaut ausgeblendet war
+
+  // Waage und Station mit Tafelwand hat jeder Ort
+  function addCommon(B, L, name) {
+    const scale = B.on(makeScale(), ...L.waage);
+    scale.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
+    const station = B.on(makeStation(cfg.discoveries, name), ...L.station);
+    const colliders = [[0, 0, 1.8], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], ...stationColliders(L.station)];
+    return { scale, station, colliders };
+  }
+
+  // --- Fernrohr-Tour: das erste Ziel selbst suchen, weitere Ziele per Knopf ---
+  // steps = [{ pos, fov, text, btn, slow, enter }] · opts = { end, maxRight }
+  function startTour(key, T, steps, opts = {}) {
+    const e = tmp.copy(steps[0].pos).sub(world.telescope.position).normalize();
+    const yawE = Math.atan2(e.x, e.z), pitchE = Math.asin(e.y);
+    enterExhibit(key, { update: updateTour, T, steps, opts, i: -1, t: 0, phase: "aim", yawE, pitchE, yaw: yawE + 0.5, pitch: Math.max(0.05, pitchE - 0.22), lock: 0, hint: "" });
+    world.telescope.visible = world.astronaut.visible = false;
+    for (const st of Object.values(world.stations)) st.marker.visible = false; // keine Lichtsäule soll im Bild stehen
+    scopeSay(isTouch() ? T.aimTouch : T.aim);
+  }
+  function tourStep(i) {
+    const sp = view.special, s = sp.steps[i], next = sp.steps[i + 1];
+    sp.i = i; sp.phase = "show";
+    if (s.enter) s.enter();
+    scopeSay(s.text, next ? [[next.btn, () => tourStep(i + 1), true]] : [[sp.T.done, endTour, true]]);
+  }
+  function updateTour(dt) {
+    const c = world.camera, sp = view.special; sp.t += dt;
+    const tp = world.telescope.position;
+    c.position.lerp(tmp.set(tp.x, tp.y + 1.7, tp.z), 1 - Math.exp(-dt * 4));
+    let fov = 30;
+    if (sp.phase === "aim") { if (aimStep(sp, dt, sp.T, sp.opts.maxRight)) { Sound.correct(); tourStep(0); } }
+    else { const s = sp.steps[sp.i]; fov = s.fov; view.look.lerp(s.pos, 1 - Math.exp(-dt * (s.slow ? 1.6 : 4))); }
+    c.lookAt(view.look);
+    if (c.aspect < 1) fov /= c.aspect;
+    c.fov += (Math.min(90, fov) - c.fov) * Math.min(1, dt * 2.5); c.updateProjectionMatrix();
+    $("scope").classList.toggle("hidden", sp.t < 0.5);
+    $("scope").classList.toggle("aim", sp.phase === "aim");
+  }
+  function endTour() {
+    const end = view.special.opts.end;
+    world.telescope.visible = world.astronaut.visible = true;
+    for (const [key, st] of Object.entries(world.stations)) st.marker.visible = !cfg.stations[key].info;
+    $("scope").classList.add("hidden");
+    world.camera.fov = 60; world.camera.updateProjectionMatrix();
+    if (end) end();
+    leaveExhibit();
+  }
+
+  // --- Wettrennen um die Sonne: Tischmodell mit der Erde und dem Planeten, auf dem man gerade steht ---
+  function makeOrrery(planetId, rP, rE) {
+    const g = new THREE.Group();
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.7 });
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1, 12), dark); foot.position.y = 0.5; foot.castShadow = true; g.add(foot);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 0.06, 40), dark); disc.position.y = 1; disc.castShadow = true; g.add(disc);
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffc83d })); sun.position.y = 1.3; g.add(sun);
+    for (const r of [rP, rE]) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.012, r + 0.012, 64), new THREE.MeshBasicMaterial({ color: 0x9ca3af, side: THREE.DoubleSide }));
+      ring.rotation.x = -Math.PI / 2; ring.position.y = 1.035; g.add(ring);
+    }
+    const ball = (id, r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), new THREE.MeshStandardMaterial({ map: W.bodies[id].mesh.material.map, roughness: 0.9 })); g.add(m); return m; };
+    g.userData = { earth: ball("erde", 0.13), planet: ball(planetId, 0.1), rP, rE };
+    setOrrery(g, 0, 0);
+    return g;
+  }
+  function setOrrery(o, aE, aP) {
+    const u = o.userData;
+    u.earth.position.set(Math.cos(aE) * u.rE, 1.25, -Math.sin(aE) * u.rE);
+    u.planet.position.set(Math.cos(aP) * u.rP, 1.22, -Math.sin(aP) * u.rP);
+  }
+  const ORRERY_TIME = 12;
+  function startOrrery() {
+    enterExhibit("jahr", { update: updateOrrery, t: 0, run: false, last: "" });
+    world.astronaut.visible = false;
+    setOrrery(world.orrery, 0, 0);
+    scopeSay(cfg.orrery.ready, [[cfg.orrery.go, runOrrery, true]]);
+  }
+  function runOrrery() { const sp = view.special; sp.t = 0; sp.run = true; sp.last = ""; scopeSay(""); }
+  function updateOrrery(dt) {
+    const c = world.camera, sp = view.special, p = world.orrery.position, T = cfg.orrery, O = site.orrery;
+    c.position.lerp(tmp.set(p.x, p.y + 4.3, p.z - 3.6), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(p.x, p.y + 1.1, p.z), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (!sp.run) return;
+    sp.t += dt;
+    const f = Math.min(1, sp.t / ORRERY_TIME);
+    setOrrery(world.orrery, f * O.earthLaps * Math.PI * 2, f * O.planetLaps * Math.PI * 2);
+    if (f >= 1) {
+      sp.run = false; Sound.correct();
+      scopeSay(T.end, [[T.again, runOrrery], [T.done, endHidden, true]]);
+      return;
+    }
+    const text = fmtVars(T.run, O.vars(f));
+    if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
+  }
+
+  // --- Größenvergleich: Kugeln im selben Maßstab (Erde = 1 m Radius), dazu eine Schätzfrage ---
+  function makeSizeRack(ids) {
+    const g = new THREE.Group(), gap = 0.4;
+    const width = ids.reduce((s, id) => s + (G.bodyById[id].diameterKm / 12742) * 2 + gap, gap);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(width, 0.9, 0.9), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 }));
+    base.position.y = 0.45; base.castShadow = true; g.add(base);
+    let x = width / 2 - gap; // von vorn (−Z) gesehen: links → rechts
+    for (const id of ids) {
+      const b = G.bodyById[id], r = b.diameterKm / 12742;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 22), new THREE.MeshStandardMaterial({ map: W.bodies[id].mesh.material.map, roughness: 0.9 }));
+      m.position.set(x - r, 0.9 + r, 0); m.castShadow = true; g.add(m);
+      const cv = document.createElement("canvas"); cv.width = 256; cv.height = 72;
+      const cx = cv.getContext("2d");
+      cx.fillStyle = "#fde68a"; cx.font = "bold 46px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(b.name, 128, 38);
+      const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.24), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
+      label.position.set(x - r, 0.62, -0.46); label.rotation.y = Math.PI; g.add(label);
+      x -= r * 2 + gap;
+    }
+    g.userData = { width };
+    return g;
+  }
+  function startGuess() {
+    const T = cfg.guess;
+    enterExhibit("groesse", { update: updateGuess });
+    world.astronaut.visible = false;
+    const answer = (i) => () => {
+      const ok = i === T.c;
+      if (ok) Sound.correct(); else Sound.wrong();
+      scopeSay(`${ok ? T.right : T.wrong} ${T.why}`, [[T.done, endHidden, true]]);
+    };
+    scopeSay(T.q, T.a.map((t, i) => [t, answer(i)]));
+  }
+  function updateGuess(dt) {
+    const c = world.camera, p = world.rack.position, w = world.rack.userData.width;
+    c.position.lerp(tmp.set(p.x, p.y + 2.3, p.z - 3.2 - w * 0.8), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(p.x, p.y + 1.7, p.z), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+  }
+
+  // Einfache Raumsonde als Fundstück (Schüssel, Körper, zwei Sonnensegel)
+  function makeProbe() {
+    const g = new THREE.Group();
+    const gold = new THREE.MeshStandardMaterial({ color: 0xd4a73a, metalness: 0.7, roughness: 0.35 });
+    const white = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.5, side: THREE.DoubleSide });
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.12, 1, 8), new THREE.MeshStandardMaterial({ color: 0x4b5563 })); stand.position.y = 0.5; g.add(stand);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 0.6), gold); body.position.y = 1.2; body.castShadow = true; g.add(body);
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.55, 20, 8, 0, Math.PI * 2, 0, 0.8), white); dish.rotation.x = Math.PI; dish.position.y = 2.0; dish.castShadow = true; g.add(dish);
+    for (const x of [-0.85, 0.85]) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(1, 0.03, 0.5), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 }));
+      panel.position.set(x, 1.2, 0); panel.castShadow = true; g.add(panel);
+    }
+    return g;
+  }
+  // Glühend helle Scheibe (Sonne durchs Filter-Fernrohr gesehen)
+  function makeSunDisc(size) {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 256;
+    const x = cv.getContext("2d"), gr = x.createRadialGradient(128, 128, 0, 128, 128, 126);
+    gr.addColorStop(0, "#fff6c2"); gr.addColorStop(0.7, "#ffb62e"); gr.addColorStop(0.97, "#e8740c"); gr.addColorStop(1, "rgba(232,116,12,0)");
+    x.fillStyle = gr; x.beginPath(); x.arc(128, 128, 127, 0, 7); x.fill();
+    x.fillStyle = "rgba(90,40,0,0.75)";
+    for (const [sx, sy, r] of [[95, 110, 7], [108, 118, 4], [160, 150, 6], [150, 90, 3]]) { x.beginPath(); x.arc(sx, sy, r, 0, 7); x.fill(); }
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthWrite: false, toneMapped: false, fog: false }));
+    s.scale.setScalar(size); s.visible = false;
+    return s;
+  }
+
+  // =========================================================
+  //  Merkur
+  // =========================================================
+  const MERKUR_LAYOUT = {
+    spawn: [-6.9, 4], waage: [4, 27], sonne: [-14, 22], boulder: [22, 34], krater: [-30, 38], kraterZiel: [-44, 52],
+    wegweiser: [14, 4], sonde: [-22, -16], eis: [30, -36], // eis liegt mitten in einem tiefen Krater
+    station: [2, 58], jahr: [-4, 51], groesse: [8, 51]
+  };
+  function buildMerkur() {
+    const L = { ...MERKUR_LAYOUT };
+    L.shadowSpot = [L.boulder[0] + SHADOW_DIR.x * 12, L.boulder[1] + SHADOW_DIR.z * 12];
+    const craters = [[...L.eis, 13, 3.2], [70, 10, 16, 2.4], [-70, -30, 18, 2.8], [-85, 60, 14, 2], [60, 95, 12, 1.8], [-20, 105, 10, 1.4],
+      [100, -60, 20, 3], [-48, 10, 6, 0.9], [52, 44, 5, 0.8], [0, -80, 14, 2.2], [-100, 10, 9, 1.3], [40, -85, 8, 1.2]];
+    const flats = [[0, 0, 11], [...L.station, 16], [...L.waage, 3], [...L.sonne, 4], [...L.boulder, 7], [...L.shadowSpot, 8], [...L.krater, 4], [...L.kraterZiel, 6]];
+    const B = buildBase({
+      height: makeHeight(craters, flats, 80),
+      // keine Luft: schwarzer Himmel – und eine riesige, grelle Sonne (Merkur ist ihr am nächsten)
+      sky: 0x000000, stars: true, sunSize: 430,
+      ground: 0x8f877c, rock: 0x6a645c,
+      tint: (x, z) => { const m = 0.68 + 0.32 * fbm2(x * 0.012 + 5, z * 0.012); return [m, m * 0.97, m * 0.92]; },
+      keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.sonne, 4], [...L.shadowSpot, 7], [...L.krater, 4],
+        [...L.kraterZiel, 7], [...L.wegweiser, 3], [...L.sonde, 3], [...L.eis, 4]],
+      ambient: [0x9a8f80, 0.14], hemi: [0x80746a, 0x000000, 0.1], sun: [0xfff6e0, 2.4],
+      dust: ["rgba(150,142,130,1)", "rgba(130,122,112,0.9)"]
+    });
+    const { scene, height, on, rocket } = B;
+    const common = addCommon(B, L, "Merkurstation");
+
+    const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0x5f5a54, roughness: 1, flatShading: true }));
+    boulder.scale.set(7, 8.5, 6.5); boulder.rotation.set(0.2, 0.7, 0.1); boulder.castShadow = boulder.receiveShadow = true;
+    on(boulder, ...L.boulder, 5.5);
+
+    // Sonne im Filter-Fernrohr: groß, wie sie vom Merkur aussieht – und daneben klein, wie wir sie von der Erde kennen
+    const telescope = on(makeTelescope(SUN_DIR), ...L.sonne);
+    const sunAt = SUN_DIR.clone().multiplyScalar(1150), side = new V().crossVectors(SUN_DIR, new V(0, 1, 0)).normalize();
+    const sunBig = makeSunDisc(52), sunSmall = makeSunDisc(20);
+    sunBig.position.copy(sunAt); sunSmall.position.copy(sunAt).addScaledVector(side, -52);
+    scene.add(sunBig, sunSmall);
+
+    // Einschlag-Versuch: Brocken aus dem All und der Krater, den er hinterlässt
+    const meteor = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({ color: 0x4a4540, roughness: 1, flatShading: true }));
+    meteor.visible = false; scene.add(meteor);
+    const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+    const cx = cv.getContext("2d"), gr = cx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, "rgba(20,18,16,0.85)"); gr.addColorStop(0.55, "rgba(40,36,32,0.7)"); gr.addColorStop(0.75, "rgba(190,180,165,0.75)"); gr.addColorStop(1, "rgba(190,180,165,0)");
+    cx.fillStyle = gr; cx.fillRect(0, 0, 128, 128);
+    const decal = new THREE.Mesh(new THREE.CircleGeometry(3.4, 32), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    decal.rotation.x = -Math.PI / 2; decal.visible = false;
+    on(decal, ...L.kraterZiel, 0.05);
+    on(makeTable(), ...L.krater); // Versuchspult
+
+    on(makeSignpost("SONNE", "58 Mio. km"), ...L.wegweiser).rotation.y = Math.atan2(L.wegweiser[0], L.wegweiser[1]) + Math.PI;
+    on(makeProbe(), ...L.sonde).rotation.y = 0.6;
+    const ice = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({ color: 0xdff4ff, emissive: 0x7dd3fc, emissiveIntensity: 0.6, roughness: 0.2, flatShading: true }));
+    on(ice, ...L.eis, 0.3);
+    const orrery = on(makeOrrery("merkur", 0.75, 1.7), ...L.jahr);
+    const rack = on(makeSizeRack(["mond", "merkur", "erde"]), ...L.groesse);
+
+    const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
+      waage: L.waage, temperatur: L.shadowSpot, sonne: L.sonne, krater: L.krater, jahr: L.jahr, groesse: L.groesse,
+      eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
+    const colliders = [...common.colliders, [...L.boulder, 6.8], [...L.sonne, 0.6], [...L.krater, 1], [...L.wegweiser, 0.3], [...L.sonde, 1],
+      [...L.eis, 0.5], [...L.jahr, 1.2], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1]];
+
+    return { ...B, ...common, L, telescope, sunBig, sunSmall, sunAt, meteor, decal, orrery, rack, stations, colliders, shadowCasters: [boulder, rocket, common.station] };
+  }
+  function startSunScope() {
+    const T = cfg.sunScope, w = world;
+    startTour("sonne", T, [
+      { pos: w.sunAt, fov: 8, text: T.found, enter: () => { w.sunGlow.visible = false; w.sunBig.visible = true; } },
+      { pos: tmp2.copy(w.sunAt).lerp(w.sunSmall.position, 0.5).clone(), fov: 9, text: T.compare, btn: T.compareBtn, enter: () => { w.sunSmall.visible = true; } }
+    ], { end: () => { w.sunGlow.visible = true; w.sunBig.visible = w.sunSmall.visible = false; } });
+  }
+  // --- Einschlag: ein Brocken aus dem All fällt ungebremst herunter ---
+  function startMeteor() {
+    enterExhibit("krater", { update: updateMeteor, t: 0, run: false });
+    scopeSay(cfg.impact.ready, [[cfg.impact.go, runMeteor, true]]);
+  }
+  function runMeteor() {
+    const sp = view.special; sp.t = 0; sp.run = true; sp.hit = false;
+    world.meteor.visible = true; world.decal.visible = false;
+    scopeSay(cfg.impact.running);
+  }
+  function updateMeteor(dt) {
+    const c = world.camera, sp = view.special, [kx, kz] = world.L.krater, [gx, gz] = world.L.kraterZiel, gy = world.height(gx, gz);
+    c.position.lerp(tmp.set(kx + 5, world.height(kx, kz) + 3.2, kz - 7), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(gx, gy + 2.5, gz), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (!sp.run) return;
+    sp.t += dt;
+    const f = sp.t / 1.4;
+    if (f < 1) { world.meteor.position.set(gx - 45 * (1 - f), gy + 80 * (1 - f), gz + 30 * (1 - f)); world.meteor.rotation.x += dt * 6; }
+    else if (!sp.hit) {
+      sp.hit = true; world.meteor.visible = false; world.decal.visible = true;
+      Sound.land(); grains(tmp.set(gx, gy + 0.2, gz), 60, 3.2, 0, 0, 5);
+    }
+    if (sp.t > 3.4) {
+      sp.run = false; Sound.correct();
+      scopeSay(cfg.impact.end, [[cfg.impact.again, runMeteor], [cfg.impact.done, leaveExhibit, true]]);
+    }
+  }
+
+  // =========================================================
+  //  Pluto
+  // =========================================================
+  const PLUTO_LAYOUT = {
+    spawn: [-6.9, 4], waage: [-12, 20], charon: [12, 20], herz: [24, 38], funk: [16, 2], wegweiser: [-16, 8], sonde: [26, -22],
+    eis: [0, 82], heart: [0, 120], // das „Herz“: eine riesige glatte Eisfläche, beginnt ein Stück hinter den Stationen
+    station: [-44, 34], jahr: [-50, 27], groesse: [-38, 27]
+  };
+  const CHARON_DIR = new V(-0.55, 0.5, 0.65).normalize(), HEART_SIZE = 48;
+  // Herzform (von oben gesehen): (x² + y² − 1)³ − x²·y³ ≤ 0
+  function inHeart(x, z) {
+    const X = (x - PLUTO_LAYOUT.heart[0]) / HEART_SIZE, Y = (z - PLUTO_LAYOUT.heart[1]) / HEART_SIZE, a = X * X + Y * Y - 1;
+    return a * a * a - X * X * Y * Y * Y <= 0;
+  }
+  function makeDrone() {
+    const g = new THREE.Group();
+    const dark = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.5, metalness: 0.4 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.6), new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.5 }));
+    body.position.y = 0.55; body.castShadow = true; g.add(body);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), dark); eye.position.set(0, 0.38, 0.22); g.add(eye);
+    const flames = new THREE.Group();
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.45, 8), dark); leg.position.set(x * 0.38, 0.28, z * 0.38); g.add(leg);
+      const fl = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.5, 8), new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+      fl.rotation.x = Math.PI; fl.position.set(x * 0.38, -0.2, z * 0.38); flames.add(fl);
+    }
+    flames.visible = false; g.add(flames);
+    g.scale.setScalar(1.5);
+    g.userData = { flames };
+    return g;
+  }
+  function buildPluto() {
+    const L = { ...PLUTO_LAYOUT };
+    const craters = [[60, 20, 12, 1.6], [-75, -40, 16, 2], [50, -70, 14, 2], [-95, 75, 12, 1.6], [90, -20, 9, 1.2], [-30, -80, 10, 1.4]];
+    const flats = [[0, 0, 11], [...L.station, 16], [...L.waage, 3], [...L.charon, 4], [...L.herz, 4], [...L.funk, 4], [L.heart[0], L.heart[1] + 5, 62]];
+    const B = buildBase({
+      height: makeHeight(craters, flats, 120),
+      // fast keine Luft, schwarzer Himmel – die Sonne ist so weit weg, dass sie nur noch ein sehr heller Stern ist
+      sky: 0x000000, stars: true, sunSize: 34,
+      ground: 0xa89680, rock: 0x8a7a68,
+      tint: (x, z) => { if (inHeart(x, z)) return [1.9, 1.9, 1.85]; const m = 0.42 + 0.28 * fbm2(x * 0.012 + 2, z * 0.012); return [m, m * 0.88, m * 0.76]; },
+      keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.charon, 4], [...L.herz, 4], [...L.funk, 4],
+        [...L.wegweiser, 3], [...L.sonde, 3], [L.heart[0], L.heart[1] + 5, 66]],
+      ambient: [0x8fa0c0, 0.34], hemi: [0x6f86b8, 0x000000, 0.22], sun: [0xeef2ff, 0.95],
+      dust: ["rgba(235,240,250,1)", "rgba(200,210,230,0.9)"]
+    });
+    const { scene, height, on, rocket } = B;
+    const common = addCommon(B, L, "Plutostation");
+
+    // Charon: Plutos großer Mond, steht immer an derselben Stelle am Himmel; daneben (nur im Fernrohr) unser Mond zum Vergleich
+    const charon = new THREE.Mesh(new THREE.SphereGeometry(30, 40, 28), new THREE.MeshStandardMaterial({ map: W.bodies.mond.mesh.material.map, color: 0x9a948c, roughness: 1 }));
+    charon.position.copy(CHARON_DIR).multiplyScalar(900);
+    const side = new V().crossVectors(CHARON_DIR, new V(0, 1, 0)).normalize();
+    const cmpMoon = new THREE.Mesh(new THREE.SphereGeometry(4, 24, 16), new THREE.MeshStandardMaterial({ map: W.bodies.mond.mesh.material.map, color: 0xd8d8d8, roughness: 1 }));
+    cmpMoon.position.copy(charon.position).addScaledVector(side, 46); cmpMoon.visible = false;
+    scene.add(charon, cmpMoon);
+    const telescope = on(makeTelescope(CHARON_DIR), ...L.charon);
+
+    const drone = on(makeDrone(), ...L.herz);
+    // Funk-Antenne zeigt zur Sonne: Von hier aus steht die Erde ganz dicht neben ihr
+    on(makeAntenna(SUN_DIR), ...L.funk);
+    const signalFrom = new V(L.funk[0], height(...L.funk) + 1.7, L.funk[1]);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 880, 8, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
+    beam.position.copy(signalFrom).addScaledVector(SUN_DIR, 440);
+    beam.quaternion.setFromUnitVectors(new V(0, 1, 0), SUN_DIR);
+    const pulse = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(220,255,220,1)", "rgba(74,222,128,0.7)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    beam.visible = pulse.visible = false;
+    scene.add(beam, pulse);
+
+    on(makeSignpost("SONNE", "5,9 Mrd. km"), ...L.wegweiser).rotation.y = Math.atan2(L.wegweiser[0], L.wegweiser[1]) + Math.PI;
+    on(makeProbe(), ...L.sonde).rotation.y = -0.5;
+    const orrery = on(makeOrrery("pluto", 1.95, 0.6), ...L.jahr);
+    const rack = on(makeSizeRack(["pluto", "mond", "erde"]), ...L.groesse);
+
+    const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
+      waage: L.waage, charon: L.charon, herz: L.herz, funk: L.funk, jahr: L.jahr, groesse: L.groesse,
+      eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
+    const colliders = [...common.colliders, [...L.charon, 0.6], [...L.herz, 0.7], [...L.funk, 0.6], [...L.wegweiser, 0.3], [...L.sonde, 1],
+      [...L.jahr, 1.2], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1]];
+
+    return { ...B, ...common, L, telescope, charon, cmpMoon, drone, droneY: drone.position.y, signalFrom, beam, pulse, orrery, rack,
+      stations, colliders, shadowCasters: [rocket, common.station] };
+  }
+  function startCharon() {
+    const T = cfg.charon, w = world;
+    startTour("charon", T, [
+      { pos: w.charon.position, fov: 9, text: T.found },
+      { pos: tmp2.copy(w.charon.position).lerp(w.cmpMoon.position, 0.45).clone(), fov: 10, text: T.compare, btn: T.compareBtn, enter: () => { w.cmpMoon.visible = true; } },
+      { pos: w.sunGlow.position, fov: 16, text: T.sun, btn: T.sunBtn, slow: true }
+    ], { end: () => { w.cmpMoon.visible = false; } });
+  }
+  // --- Kameradrohne: aufsteigen und das Herz von oben sehen ---
+  function startDrone() {
+    enterExhibit("herz", { update: updateDrone, t: 0, top: false });
+    world.drone.userData.flames.visible = true;
+    scopeSay(cfg.drone.rising);
+  }
+  function updateDrone(dt) {
+    const sp = view.special, c = world.camera, d = world.drone, [hx, hz] = world.L.heart; sp.t += dt;
+    const k = smooth(0.3, 6, sp.t);
+    d.position.y = world.droneY + k * 150;
+    d.userData.flames.scale.y = 0.8 + Math.random() * 0.5;
+    const dx = hx - d.position.x, dz = hz - d.position.z, h = Math.hypot(dx, dz);
+    // erst von hinten zuschauen, oben dann durch die Kamera der Drohne blicken (die Drohne selbst wäre sonst im Bild)
+    const back = 5 * (1 - k);
+    c.position.lerp(tmp.set(d.position.x - (dx / h) * back, d.position.y + 2.5 - 3.5 * k, d.position.z - (dz / h) * back), 1 - Math.exp(-dt * 4));
+    d.visible = k < 0.7;
+    // erst der Drohne nachschauen, oben dann hinunter auf das Herz
+    tmp2.set(d.position.x + (dx / h) * 12, d.position.y, d.position.z + (dz / h) * 12).lerp(tmp.set(hx, 0, hz + 8), k);
+    view.look.lerp(tmp2, 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (k >= 1 && !sp.top) { sp.top = true; Sound.correct(); scopeSay(cfg.drone.top, [[cfg.drone.done, endDrone, true]]); }
+  }
+  function endDrone() {
+    world.drone.position.y = world.droneY; world.drone.userData.flames.visible = false; world.drone.visible = true;
+    leaveExhibit();
+  }
+  // --- Funkspruch zur Erde: Das Licht ist 5½ Stunden unterwegs (hier im Zeitraffer) ---
+  const SIGNAL_TIME = 7, SIGNAL_HOURS = 5.5;
+  function startSignal() { enterExhibit("funk", { update: updateSignal }); runSignal(); }
+  function runSignal() {
+    const sp = view.special; sp.t = -1.8; sp.end = false; sp.last = "";
+    world.beam.visible = world.pulse.visible = false;
+    scopeSay(cfg.signal.ready);
+  }
+  function updateSignal(dt) {
+    const c = world.camera, sp = view.special, T = cfg.signal, M = world.signalFrom, h = Math.hypot(SUN_DIR.x, SUN_DIR.z);
+    c.position.lerp(tmp.set(M.x - (SUN_DIR.x / h) * 7, M.y + 1, M.z - (SUN_DIR.z / h) * 7), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.copy(M).addScaledVector(SUN_DIR, 16), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (sp.end) return;
+    sp.t += dt;
+    if (sp.t < 0) return;
+    const f = Math.min(1, sp.t / SIGNAL_TIME), far = 880 * f;
+    world.beam.visible = world.pulse.visible = true;
+    world.pulse.position.copy(M).addScaledVector(SUN_DIR, far);
+    world.pulse.scale.setScalar(0.7 + far * 0.03);
+    if (f >= 1) {
+      sp.end = true; world.pulse.visible = false; Sound.correct();
+      scopeSay(T.end, [[T.again, runSignal], [T.done, endSignal, true]]);
+      return;
+    }
+    const min = Math.floor((f * SIGNAL_HOURS * 60) / 10) * 10, text = `${T.run} ⏱️ ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
+    if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
+  }
+  function endSignal() { world.beam.visible = world.pulse.visible = false; leaveExhibit(); }
+
+  // =========================================================
   //  Orte: was jeder Himmelskörper zusätzlich zum gemeinsamen Ablauf mitbringt
   //  build = Welt aufbauen · reset = beim Betreten zurückstellen · update = pro Bild · actions = Knopf an einer Station
   // =========================================================
@@ -2130,6 +2528,34 @@ window.Surface = (function () {
         world.phobos.rotation.y += dt * 0.05; world.deimos.rotation.y += dt * 0.03;
       },
       actions: { rover: startRover, vulkan: startHeli, monde: startMoons, eis: startEis, rost: startRost, abend: startAbend }
+    },
+    merkur: {
+      build: buildMerkur,
+      reset() {
+        world.telescope.visible = world.sunGlow.visible = true;
+        world.sunBig.visible = world.sunSmall.visible = world.meteor.visible = false;
+        setOrrery(world.orrery, 0, 0);
+      },
+      update() {},
+      // Wettrennen: Die Erde läuft eine Runde (365 Tage), Merkur in derselben Zeit gut vier
+      orrery: { earthLaps: 1, planetLaps: 365 / 88, vars: (f) => ({ erde: Math.floor(f * 365), planet: Math.floor((f * 365) / 88) }) },
+      actions: { sonne: startSunScope, krater: startMeteor, jahr: startOrrery, groesse: startGuess }
+    },
+    pluto: {
+      build: buildPluto,
+      reset() {
+        world.telescope.visible = true;
+        world.cmpMoon.visible = world.beam.visible = world.pulse.visible = world.drone.userData.flames.visible = false;
+        world.drone.position.y = world.droneY; world.drone.visible = true;
+        setOrrery(world.orrery, 0, 0);
+      },
+      update(dt, busy) {
+        if (!busy && !view.special && inHeart(ast.pos.x, ast.pos.z)) discover("eis"); // auf dem glatten Stickstoff-Eis
+      },
+      grip: () => (inHeart(ast.pos.x, ast.pos.z) ? 0.16 : 1),
+      // Wettrennen: Die Erde läuft 12 Runden, Pluto in derselben Zeit nur 12/248 einer Runde
+      orrery: { earthLaps: 12, planetLaps: 12 / 248, vars: (f) => ({ erde: Math.floor(f * 12) }) },
+      actions: { charon: startCharon, herz: startDrone, funk: startSignal, jahr: startOrrery, groesse: startGuess }
     }
   };
 
