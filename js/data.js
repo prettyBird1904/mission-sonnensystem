@@ -366,6 +366,23 @@ window.SPACE_DATA = {
     mars: {
       gravity: 3.71, // m/s² – echte Mars-Schwerkraft
       jump: 0.3,
+      // Mitbewohner des Forschungslagers: laufen ihre Wege ab und sprechen das Kind an, wenn es nahe kommt
+      npcs: [
+        { name: "Forscherin Mia", color: "#22c55e", path: [[-12, 50], [-12, 58], [-4, 46], [-16, 44]],
+          hello: "Hallo {name}! Ich bin Mia und erforsche den Mars. Schön, dass du uns besuchst!",
+          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
+          done: "Wow, du hast alles entdeckt! Du bist jetzt ein echter Mars-Profi!",
+          facts: ["In unserem Gewächshaus ziehen wir Salat. Draußen würde er sofort erfrieren.",
+            "Unsere Luft zum Atmen machen wir selbst – die Marsluft besteht fast nur aus Kohlendioxid.",
+            "Ein Mars-Tag ist nur 37 Minuten länger als bei euch. Da gewöhnt man sich schnell dran!"] },
+        { name: "Techniker Ben", color: "#3b82f6", path: [[14, 50], [19, 45], [12, 43]], work: true,
+          hello: "Hi {name}, ich bin Ben! Ich halte hier alles in Schuss: Strom, Luft und Wasser.",
+          hint: "Tipp von mir: Probier mal „{ziel}“ aus!",
+          done: "Alles entdeckt? Klasse! Vergiss nicht, zur Rakete zurückzulaufen.",
+          facts: ["Unseren Strom machen die Sonnenkollektoren. Nach einem Staubsturm muss ich sie putzen!",
+            "Der Transporter da drüben bringt uns Nachschub – Essen, Werkzeug und Post von der Erde.",
+            "Wasser holen wir aus dem Eis im Boden. Das schmelzen wir und reinigen es."] }
+      ],
       temp: { sun: -50, shade: -75, sunText: "☀️ Sonne – trotzdem eiskalt!", shadeText: "❄️ Schatten – noch kälter!" },
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Leichter als zu Hause", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 30 Zentimeter", zeit: "0,8" },

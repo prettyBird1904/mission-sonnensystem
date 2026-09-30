@@ -4,7 +4,7 @@ const VERSION = "sonnensystem-v11"; // gleich wie version in js/data.js
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "css/style.css", "fonts/fonts.css", "fonts/fredoka.woff2", "fonts/nunito.woff2",
-  "lib/three.min.js", "lib/GLTFLoader.js", "models/astronaut.js",
+  "lib/three.min.js", "lib/GLTFLoader.js", "models/astronaut.js", "models/spacekit.js",
   "js/data.js", "js/textures.js", "js/audio.js", "js/world.js", "js/ui.js", "js/surface.js", "js/game.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   // Echte Fotos (Galerie im Steckbrief)

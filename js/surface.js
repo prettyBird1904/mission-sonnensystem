@@ -152,6 +152,53 @@ window.Surface = (function () {
     return modelPromise;
   }
 
+  // Weitere Astronauten (Mitbewohner der Stationen): Das Modell wird dafür einfach noch einmal eingelesen
+  async function loadExtraAstronaut() {
+    if (!(await loadAstronautModel())) return null;
+    const bin = atob(window.ASTRONAUT_GLB), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return new Promise((res) => new THREE.GLTFLoader().parse(buf.buffer, "", res, () => res(null)));
+  }
+
+  // ---------- Fertige 3D-Modelle: „Space Kit“ von Kenney (CC0), eingebettet in models/spacekit.js ----------
+  let kitPromise = null;
+  const KIT = {};
+  function loadKit() {
+    if (kitPromise) return kitPromise;
+    kitPromise = (async () => {
+      if (!THREE.GLTFLoader) await loadScript("lib/GLTFLoader.js");
+      if (!window.SPACEKIT) await loadScript("models/spacekit.js");
+      const loader = new THREE.GLTFLoader();
+      await Promise.all(Object.entries(window.SPACEKIT).map(([name, b64]) => new Promise((res) => {
+        const bin = atob(b64), buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        loader.parse(buf.buffer, "", (g) => {
+          // Mitte unten auf den Nullpunkt legen, damit man die Modelle einfach auf den Boden stellen kann
+          const root = g.scene; root.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(root), c = box.getCenter(new V());
+          root.position.set(-c.x, -box.min.y, -c.z);
+          const holder = new THREE.Group(); holder.add(root);
+          holder.traverse((o) => {
+            if (!o.isMesh) return;
+            o.castShadow = o.receiveShadow = true;
+            // ohne Umgebungs-Spiegelung wirken metallische Flächen fast schwarz → matter machen
+            o.material.metalness = Math.min(o.material.metalness, 0.2); o.material.roughness = Math.max(o.material.roughness, 0.55);
+            if (/^(rock|meteor)/.test(name) && !o.material.userData.dimmed) { o.material.color.multiplyScalar(0.72); o.material.userData.dimmed = true; } // Felsen etwas dunkler, passend zum Boden
+          });
+          KIT[name] = holder; res();
+        }, () => res());
+      })));
+      return KIT;
+    })().catch((e) => { console.warn("Modelle nicht geladen", e); return KIT; });
+    return kitPromise;
+  }
+  // Kopie eines Modells in der gewünschten Größe (Kenney: 1 Einheit ≈ 1 Rasterfeld). Fehlt es, gibt es eine leere Gruppe.
+  function kit(name, scale = 4) {
+    const src = KIT[name], g = src ? src.clone() : new THREE.Group();
+    g.scale.setScalar(scale);
+    return g;
+  }
+
   const BONES = {
     hips: "Hips", spine: "Spine", spine2: "Spine2", head: "Head",
     armL: "LeftArm", armR: "RightArm", foreL: "LeftForeArm", foreR: "RightForeArm",
@@ -350,11 +397,16 @@ window.Surface = (function () {
       down = 0.85; fwd = 0.45; elbow = 0.6; lean -= 0.05;
     }
     if (st.hold) { down = 0.25; fwd = 1.35; elbow = 0.2; } // beide Arme waagerecht nach vorn
+    if (st.work) { lean -= 0.35; fwd = 0.9; down = 0.7; elbow = 0.9 + 0.25 * Math.sin(st.t * 3); } // vorgebeugt, arbeitet mit den Händen
     setBone(rig, "legL", legL, 0, 0); setBone(rig, "legR", legR, 0, 0);
     setBone(rig, "kneeL", kneeL, 0, 0); setBone(rig, "kneeR", kneeR, 0, 0);
     setArm(rig, "armL", fwd, downL == null ? down : downL); setArm(rig, "armR", -fwd, downR == null ? down : downR);
     setBone(rig, "foreL", 0, 0, elbow); setBone(rig, "foreR", 0, 0, -elbow);
     setBone(rig, "spine", lean, 0, 0);
+    if (st.wave) { // rechten Arm hoch und winken
+      setArm(rig, "armR", -0.35, -1.2);
+      setBone(rig, "foreR", 0, 0, -(0.45 + 0.45 * Math.sin(st.t * 9)));
+    }
   }
 
   function makeLander() {
@@ -549,7 +601,40 @@ window.Surface = (function () {
   }
   // Mars-Forschungslager hinter der Tafelwand (lokal: Vorderseite = −Z): zwei Wohnmodule, ein Gewächshaus-Tunnel
   // mit Pflanzen unter rosa Pflanzenlampen, Sonnenkollektoren und ein Funkmast mit blinkendem Licht
+  // Mars-Forschungslager aus fertigen Modellen (Kenney Space Kit): Hallen, Glas-Gewächshaus, Verbindungsgänge,
+  // Generator, Fässer, große Antennenschüssel – dazu Sonnenkollektoren und blinkende Lichter
   function buildMarsCamp(g, add, hull, dark, lit) {
+    if (!KIT.hangar_largeA) return buildMarsCampSimple(g, add, hull, dark, lit);
+    const put = (name, s, x, z, ry = 0, y = 0) => { const m = kit(name, s); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m; };
+    // groß genug und weit genug hinten, dass das Lager über die Tafelwand hinausragt
+    put("hangar_roundGlass", 4.6, -15, 16, Math.PI);         // Gewächshaus
+    put("hangar_largeA", 4.6, 0.5, 17, Math.PI / 2);         // große Halle (quer)
+    put("hangar_roundA", 4.6, 14, 16, Math.PI);              // runde Wohnhalle
+    put("corridor_window", 4.6, -8.2, 16.5, Math.PI / 2);    // Gänge dazwischen
+    put("corridor_window", 4.6, 8.8, 16.5, Math.PI / 2);
+    put("satelliteDish_large", 5.5, 20, 24, -0.6);
+    put("machine_generatorLarge", 3.2, 9, 3.2, Math.PI);
+    put("machine_wireless", 3.2, -9.5, 3.6, Math.PI);
+    put("barrels", 3.2, 13.5, 3, 0.4); put("barrel", 3.2, -13.5, 4.2); put("barrel", 3.2, -12.4, 3.2, 1);
+    put("pipe_straight", 3.2, -8.2, 6.4, Math.PI / 2); put("chimney_detailed", 4.6, 5, 25);
+    // Sonnenkollektoren rechts neben dem Lager
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.5, roughness: 0.3 });
+    for (const [x, z] of [[18.5, 3], [20.5, 6.5], [22.5, 10]]) {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), dark), x, 0.7, z);
+      const p = add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.06, 1.5), panelMat), x, 1.45, z); p.rotation.x = -0.7;
+    }
+    // blinkende Positionslichter auf dem Dach und an der Antenne
+    const light = (color, x, y, z) => add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), new THREE.MeshBasicMaterial({ color, toneMapped: false })), x, y, z, false);
+    g.userData.blink.push(light(0xff3b30, 20, 7.4, 24), light(0x4ade80, 0.5, 7.2, 17), light(0xfcd34d, -15, 6.8, 16));
+  }
+  // Hindernisse des Mars-Lagers (Weltkoordinaten)
+  function marsCampColliders([sx, sz]) {
+    const c = [[sx - 15, sz + 16, 7], [sx - 4, sz + 17, 5], [sx + 5, sz + 17, 5], [sx + 14, sz + 16, 5], [sx + 20, sz + 24, 2.2], [sx + 9, sz + 3.2, 1.6],
+      [sx - 9.5, sz + 3.6, 1.2], [sx + 13.5, sz + 3, 1.2], [sx - 13, sz + 3.7, 1], [sx + 18.5, sz + 3, 0.5], [sx + 20.5, sz + 6.5, 0.5], [sx + 22.5, sz + 10, 0.5]];
+    for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
+    return c;
+  }
+  function buildMarsCampSimple(g, add, hull, dark, lit) {
     const accent = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.5 });
     const module = (x, z, r, h) => {
       add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28), hull), x, h / 2, z).receiveShadow = true;
@@ -1115,9 +1200,14 @@ window.Surface = (function () {
   S.prepare = async function (id) {
     if (worlds[id] || D.surfaces[id].probe) return; // Sonden-Welten sind schnell gebaut und brauchen keinen Astronauten
     astronautModel = await loadAstronautModel();
+    await loadKit();
+    // Mitbewohner der Station (je ein eigenes Astronauten-Modell)
+    npcModels = [];
+    for (let i = 0; i < ((D.surfaces[id].npcs || []).length); i++) npcModels.push(await loadExtraAstronaut());
     bodyId = id; cfg = D.surfaces[id];
     worlds[id] = SITES[id].build();
   };
+  let npcModels = [];
 
   S.enter = function (id, exitCb) {
     bodyId = id; cfg = D.surfaces[id]; onExit = exitCb; site = SITES[id];
@@ -1185,6 +1275,10 @@ window.Surface = (function () {
     for (const key of Object.keys(world.stations)) {
       const el = document.createElement("div"); el.className = "label surf-label";
       host.appendChild(el); labelEls[key] = el;
+    }
+    for (const n of world.npcs || []) { // Sprechblasen der Mitbewohner
+      n.el = document.createElement("div"); n.el.className = "label npc-bubble"; n.el.style.display = "none";
+      host.appendChild(n.el);
     }
   }
 
@@ -1812,13 +1906,109 @@ window.Surface = (function () {
   }
 
   // =========================================================
+  //  Leben auf der Station: Mitbewohner (weitere Astronauten) und ein Raumtransporter, der landet und startet
+  // =========================================================
+  // cfg.npcs = [{ name, color, path: [[x, z], …], work, hello, hint, done, facts: […] }]
+  function addNpcs(B) {
+    return (cfg.npcs || []).map((c, i) => {
+      if (!npcModels[i]) return null;
+      const obj = makeModelAstronaut(npcModels[i], c.color);
+      const [x, z] = c.path[0];
+      obj.position.set(x, B.height(x, z), z);
+      B.scene.add(obj);
+      return { c, obj, rig: obj.userData.rig, i: 0, wait: 1 + i * 2, heading: 0, phase: 0, col: [x, z, 0.7], talk: 0, cool: 0, waveT: 0, said: 0, el: null };
+    }).filter(Boolean);
+  }
+  function npcSay(n) {
+    const c = n.c, open = cfg.discoveries.filter((d) => !foundMap()[d.key] && world.stations[d.key]);
+    let text;
+    if (!n.greeted) { text = c.hello; n.greeted = true; }
+    else if (!open.length) text = c.done;
+    else if (n.said % 2 === 0 || !c.facts) { // abwechselnd: Tipp zur nächsten Station und etwas Wissenswertes
+      const d = open.sort((a, b) => Math.hypot(world.stations[a.key].x - ast.pos.x, world.stations[a.key].z - ast.pos.z)
+        - Math.hypot(world.stations[b.key].x - ast.pos.x, world.stations[b.key].z - ast.pos.z))[0];
+      text = fmtVars(c.hint, { ziel: cfg.stations[d.key].label });
+    } else text = c.facts[(n.said >> 1) % c.facts.length];
+    n.said++;
+    n.el.innerHTML = `<b>${c.name}:</b> ${fmtVars(text)}`;
+    n.talk = 7; n.cool = 16; n.waveT = n.greeted && n.said > 1 ? 0 : 2.4;
+    Sound.click();
+  }
+  function updateNpcs(dt, elapsed, busy) {
+    const c = world.camera, w = innerWidth, h = innerHeight;
+    for (const n of world.npcs) {
+      const p = n.obj.position, dx = ast.pos.x - p.x, dz = ast.pos.z - p.z, dist = Math.hypot(dx, dz);
+      let moving = false;
+      n.talk -= dt; n.cool -= dt; n.waveT -= dt;
+      if (dist < 5.5 && !busy) { // stehen bleiben, zum Kind drehen und etwas sagen
+        n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5));
+        if (n.cool <= 0 && !UI.modalOpen()) npcSay(n);
+      } else if (n.wait > 0) n.wait -= dt;
+      else {
+        const [tx, tz] = n.c.path[(n.i + 1) % n.c.path.length], ex = tx - p.x, ez = tz - p.z, d = Math.hypot(ex, ez);
+        if (d < 0.3) { n.i = (n.i + 1) % n.c.path.length; n.wait = 3 + Math.random() * 5; }
+        else {
+          moving = true;
+          const step = Math.min(d, 1.1 * dt);
+          p.x += (ex / d) * step; p.z += (ez / d) * step;
+          n.heading = angleLerp(n.heading, Math.atan2(ex, ez), 1 - Math.exp(-dt * 6));
+        }
+      }
+      p.y = world.height(p.x, p.z);
+      n.obj.rotation.y = n.heading;
+      n.phase += dt * (moving ? 5 : 1.5);
+      poseRig(n.rig, { mode: moving ? "walk" : "stand", speed: moving ? 0.55 : 0, phase: n.phase, t: elapsed + n.c.path.length,
+        air: false, airP: 0, contact: 0, wave: n.waveT > 0, work: !moving && n.c.work && dist > 5.5 });
+      n.col[0] = p.x; n.col[1] = p.z;
+      // Sprechblase über dem Kopf
+      if (n.talk > 0 && !view.special) {
+        tmp.set(p.x, p.y + 2.35, p.z).project(c);
+        if (tmp.z < 1) { n.el.style.display = ""; n.el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h}px) translate(-50%, -100%)`; }
+        else n.el.style.display = "none";
+      } else n.el.style.display = "none";
+    }
+  }
+
+  // Raumtransporter: fliegt heran, landet auf seinem Landeplatz, wartet, startet wieder – und nach einer Pause von vorn
+  function makeShuttle(B, pad) {
+    const g = kit("craft_cargoA", 6);
+    const glowMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,240,200,1)", "rgba(255,140,40,0.8)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const jets = [];
+    for (const x of [-1.2, 1.2]) { const s = new THREE.Sprite(glowMat); s.position.set(x, 0.1, 0); s.scale.setScalar(2.2); g.add(s); jets.push(s); }
+    g.traverse((o) => { if (o.isSprite) o.scale.divideScalar(6); }); // Sprites nicht mitskalieren
+    B.scene.add(g);
+    const [px, pz] = pad, py = B.height(px, pz);
+    return { g, jets, t: 20, pad: new V(px, py + 0.55, pz), from: new V(px - 240, py + 150, pz + 260), to: new V(px + 260, py + 170, pz - 220) };
+  }
+  const SHUTTLE_CYCLE = 75;
+  function updateShuttle(dt) {
+    const s = world.shuttle; if (!s) return;
+    s.t = (s.t + dt) % SHUTTLE_CYCLE;
+    const t = s.t, g = s.g;
+    let flying = true;
+    if (t < 14) { // Anflug, zum Schluss langsam aufsetzen
+      const k = 1 - Math.pow(1 - t / 14, 2.2);
+      g.position.lerpVectors(s.from, s.pad, k);
+      g.rotation.y = Math.atan2(s.pad.x - s.from.x, s.pad.z - s.from.z);
+      if (t > 12.6 && t < 13.2 && Math.random() < dt * 20) grains(s.pad, 6, 1.6, 0, 0, 3);
+    } else if (t < 30) { g.position.copy(s.pad); flying = false; } // gelandet
+    else if (t < 42) { // Start: erst senkrecht hoch, dann davon
+      const k = (t - 30) / 12, up = Math.min(1, k * 3);
+      g.position.set(s.pad.x, s.pad.y + up * 18, s.pad.z).lerp(s.to, Math.max(0, (k - 0.25) / 0.75) ** 2);
+      g.rotation.y = Math.atan2(s.to.x - s.pad.x, s.to.z - s.pad.z);
+    }
+    g.visible = t < 42;
+    for (const j of s.jets) { j.visible = flying; j.material.opacity = 0.7 + Math.random() * 0.3; }
+  }
+
+  // =========================================================
   //  Mars
   // =========================================================
   const MARS_LAYOUT = {
     spawn: [-6.9, 4],
     waage: [-13, 22], monde: [12, 20], vulkan: [27, 30], rover: [-22, 12], roverStart: [-25, 17], roverZiel: [-42, 40],
     eis: [20, -22], wegweiser: [14, 4], teufel: [-28, -26],
-    station: [0, 56], abend: [-6, 49], rost: [6, 49]
+    station: [0, 56], abend: [-6, 49], rost: [6, 49], pad: [-34, 72] // Landeplatz des Raumtransporters
   };
   const MARS_SKY = new THREE.Color(0xd2a679), MARS_DUSK = new THREE.Color(0x46587a);
   const PHOBOS_DIR = new V(0.2, 0.6, 1).normalize(), DEIMOS_DIR = new V(-0.75, 0.5, 0.55).normalize();
@@ -1957,6 +2147,16 @@ window.Surface = (function () {
   // Gruppe unterschiedlich großer Felsen als Blickfang im Vordergrund
   function rockCluster(B, x, z, n, mat, seed) {
     const geo = rockCluster.geo || (rockCluster.geo = new THREE.DodecahedronGeometry(1, 0));
+    const kitRocks = ["rock_largeA", "rock_largeB", "rocks_smallA", "rocks_smallB", "meteor_half"];
+    if (KIT.rock_largeA) { // fertige, schön geformte Felsen (Kenney)
+      for (let i = 0; i < n; i++) {
+        const a = hash2(i, seed) * Math.PI * 2, r = hash2(i, seed + 1) * 3.6;
+        const m = kit(kitRocks[Math.floor(hash2(i, seed + 7) * kitRocks.length)], 2.5 + Math.pow(hash2(i, seed + 2), 1.5) * 4.5);
+        m.rotation.y = hash2(i, seed + 5) * 6;
+        B.on(m, x + Math.cos(a) * r, z + Math.sin(a) * r, -0.1);
+      }
+      return;
+    }
     for (let i = 0; i < n; i++) {
       const a = hash2(i, seed) * Math.PI * 2, r = hash2(i, seed + 1) * 3.2, s = 0.25 + Math.pow(hash2(i, seed + 2), 2) * 1.6;
       const m = new THREE.Mesh(geo, mat);
@@ -2001,6 +2201,22 @@ window.Surface = (function () {
     g.userData.blink = [lamp];
     return g;
   }
+  // Steuerpult aus dem Kenney-Kit: Bildschirm-Tisch mit Stuhl und einer blinkenden Lampe
+  function makeKitConsole() {
+    const g = new THREE.Group();
+    g.add(kit("desk_computerScreen", 3.2));
+    const chair = kit("desk_chair", 3.2); chair.position.z = 1.3; chair.rotation.y = Math.PI; g.add(chair);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x4ade80, toneMapped: false })); lamp.position.set(0.7, 2.1, 0); g.add(lamp);
+    g.userData.blink = [lamp];
+    return g;
+  }
+  // Rover: fertiges Modell (Kenney), sonst das selbstgebaute
+  function makeMarsRover() {
+    if (!KIT.rover) return makeRover();
+    const g = new THREE.Group(); g.add(kit("rover", 7));
+    g.userData = { wheels: [], heading: 0, speed: 0 };
+    return g;
+  }
   // Landeplatz für den Hubschrauber: Scheibe mit großem „H“
   function makeHeliPad() {
     const cv = document.createElement("canvas"); cv.width = cv.height = 128;
@@ -2026,7 +2242,7 @@ window.Surface = (function () {
     const L = { ...MARS_LAYOUT };
     const rich = !W.fast; // „⚡ Flüssig“: weniger Zierrat
     const craters = [[60, -40, 16, 2], [-75, 65, 14, 1.8], [90, 50, 10, 1.2], [-45, -75, 18, 2.4], [45, 100, 12, 1.6], [70, 5, 6, 0.8]];
-    const flats = [[0, 0, 11], [...L.station, 16], [...L.waage, 3], [...L.monde, 4], [...L.vulkan, 4], [...L.rover, 6], [...L.eis, 4]];
+    const flats = [[0, 0, 11], [...L.station, 20], [L.station[0], L.station[1] + 16, 22], [...L.waage, 3], [...L.monde, 4], [...L.vulkan, 4], [...L.rover, 6], [...L.eis, 4], [...L.pad, 7]];
     const dustColors = ["rgba(190,110,70,1)", "rgba(170,95,60,0.9)"];
     const B = buildBase({
       height: makeHeight(craters, flats, 40, marsDunes),
@@ -2072,9 +2288,9 @@ window.Surface = (function () {
     scale.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
     const heli = on(makeHeli(), ...L.vulkan);
     on(makeHeliPad(), ...L.vulkan, 0.04);
-    const console_ = on(makeConsole(), ...L.rover); // Steuerpult für den Rover
+    const console_ = on(KIT.desk_computerScreen ? makeKitConsole() : makeConsole(), ...L.rover); // Steuerpult für den Rover
     console_.rotation.y = Math.atan2(L.roverZiel[0] - L.rover[0], L.roverZiel[1] - L.rover[1]) + Math.PI;
-    const rover = on(makeRover(), ...L.roverStart);
+    const rover = on(makeMarsRover(), ...L.roverStart);
     const roverGoal = new THREE.Group();
     const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({ color: 0xe3cba5, roughness: 1, flatShading: true }));
     stone.scale.y = 0.6; stone.position.y = 0.3; stone.castShadow = true;
@@ -2099,8 +2315,13 @@ window.Surface = (function () {
     const clusters = [[18, 26, 6], [33, 24, 5], [9, -9, 5], [-14, 42, 6], [22, 62, 5], [-24, 60, 6], [-4, 30, 4], [-38, 10, 5], [28, -30, 6], [-18, -12, 4]];
     clusters.slice(0, rich ? 10 : 5).forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 13 + 2));
     const veils = rich ? makeDustVeils("rgba(210,150,100,1)", 9) : new THREE.Group(); scene.add(veils);
-    const patrol = on(makeRover(), 48, 62);
+    const patrol = on(makeMarsRover(), 48, 62);
     const patrolCol = [48, 62, 1.8];
+    // Leben: zwei Mitbewohner und ein Raumtransporter mit eigenem Landeplatz
+    const npcs = addNpcs(B);
+    on(kit("platform_large", 5), ...L.pad, 0);
+    const shuttle = KIT.craft_cargoA ? makeShuttle(B, L.pad) : null;
+    if (rich && KIT.craterLarge) for (const [x, z, s] of [[40, -12, 9], [-52, 36, 7], [62, 30, 8], [-20, -52, 10], [8, 90, 9]]) on(kit("craterLarge", s), x, z, -0.2);
     for (const [x, z, r] of [[...L.monde, 1.1], [...L.vulkan, 2.3], [...L.rover, 1.1], [...L.eis, 1.3], [...L.wegweiser, 0.6], [...L.rost, 1.3], [...L.abend, 1], [...L.waage, 1.2]]) addBlob(B, x, z, r);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
@@ -2109,11 +2330,11 @@ window.Surface = (function () {
 
     const colliders = [[0, 0, 1.8], [...L.monde, 0.6], [...L.vulkan, 0.7], [...L.rover, 1], [...L.eis, 0.9], [...L.wegweiser, 0.3],
       [...L.rost, 1], [...L.abend, 0.6], [...L.roverZiel, 0.7], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25],
-      ...stationColliders(L.station), patrolCol];
+      ...(KIT.hangar_largeA ? marsCampColliders(L.station) : stationColliders(L.station)), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
     for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
     return { ...B, L, station, scale, telescope, phobos, deimos, volcano, everest, zugspitze, heli, heliY: heli.position.y, rover, roverGoal, drill,
-      devil, magnetTable, skyDome, veils, patrol, patrolCol, blink: [...station.userData.blink, ...console_.userData.blink],
+      devil, magnetTable, skyDome, veils, patrol, patrolCol, npcs, shuttle, blink: [...station.userData.blink, ...console_.userData.blink],
       stations, colliders, shadowCasters: [rocket, station] };
   }
 
@@ -3413,6 +3634,8 @@ window.Surface = (function () {
       update(dt, busy, elapsed) {
         updateDevil(elapsed);
         updatePatrol(dt);
+        updateNpcs(dt, elapsed, busy);
+        updateShuttle(dt);
         world.blink.forEach((m, i) => { m.visible = ((elapsed * 0.9 + i * 0.37) % 1) < 0.45; });
         world.veils.rotation.y += dt * 0.004;
         Sound.wind(0.35 + 0.18 * Math.sin(elapsed * 0.37) + 0.12 * Math.sin(elapsed * 1.3 + 1)); // leises Heulen mit Böen
