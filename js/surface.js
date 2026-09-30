@@ -1384,12 +1384,12 @@ window.Surface = (function () {
   // 3D-Drucker, der gerade eine neue Kuppel aus Mondstaub druckt (lokal: Mitte der Kuppel = 0)
   function moonPrinter(g, M, x, z, r) {
     const p = new THREE.Group(); p.position.set(x, 0, z); g.add(p);
-    const done = 0.55; // so weit ist die Kuppel schon gedruckt (Winkel vom Boden aus)
+    const done = 0.95; // so weit ist die Kuppel schon gedruckt (Winkel vom Boden aus)
     const part = put(p, new THREE.Mesh(new THREE.SphereGeometry(r, 48, 12, 0, Math.PI * 2, Math.PI / 2 - done, done), new THREE.MeshStandardMaterial({ map: regolithShellTex(), roughness: 1, side: THREE.DoubleSide })), 0, 0, 0);
     part.scale.y = 0.78;
     const H = r * 0.78 + 1.6, S = r + 1.3;
-    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) put(p, new THREE.Mesh(new THREE.BoxGeometry(0.3, H, 0.3), M.orange), a * S, H / 2, b * S);
-    for (const b of [-1, 1]) put(p, new THREE.Mesh(new THREE.BoxGeometry(2 * S + 0.3, 0.3, 0.3), M.orange), 0, H, b * S);
+    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) put(p, new THREE.Mesh(new THREE.BoxGeometry(0.3, H, 0.3), M.teal), a * S, H / 2, b * S);
+    for (const b of [-1, 1]) put(p, new THREE.Mesh(new THREE.BoxGeometry(2 * S + 0.3, 0.3, 0.3), M.teal), 0, H, b * S);
     const bridge = new THREE.Group(); bridge.position.y = H; p.add(bridge);
     put(bridge, new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 2 * S + 0.3), M.metal), 0, 0.3, 0);
     const head = new THREE.Group(); bridge.add(head);
@@ -4998,11 +4998,154 @@ window.Surface = (function () {
     return m;
   }
 
+  // ---------- Jede Sonde ist einer echten Mission nachgebaut (Flugrichtung = +Z) ----------
+  function probeMats() {
+    const gold = new THREE.MeshStandardMaterial({ map: foilTex(), roughness: 0.3, metalness: 0.75 });
+    return {
+      gold, white: new THREE.MeshStandardMaterial({ color: srgb(0xeef0f3), roughness: 0.5, side: THREE.DoubleSide }),
+      dark: new THREE.MeshStandardMaterial({ color: srgb(0x23262e), roughness: 0.5, metalness: 0.5 }),
+      cell: new THREE.MeshStandardMaterial({ color: srgb(0x1e3a8a), metalness: 0.6, roughness: 0.25 }),
+      steel: new THREE.MeshStandardMaterial({ color: srgb(0xc7cdd6), roughness: 0.3, metalness: 0.8 })
+    };
+  }
+  const boom = (g, m, a, b, r = 0.03) => { const d = b.clone().sub(a), c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 6), m); c.position.copy(a).addScaledVector(d, 0.5); c.quaternion.setFromUnitVectors(new V(0, 1, 0), d.normalize()); g.add(c); return c; };
+  // Jupiter: Eintauchkapsel wie bei „Galileo“ (1995) – vorn der Hitzeschild, oben der Fallschirm
+  function craftGalileo() {
+    const P = probeMats(), g = new THREE.Group();
+    const shield = new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.8, 28), new THREE.MeshStandardMaterial({ color: srgb(0x6b3d1e), roughness: 0.8 })); shield.rotation.x = Math.PI / 2; shield.position.z = 0.55; g.add(shield);
+    const back = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.9, 28), P.white); back.rotation.x = -Math.PI / 2; back.position.z = -0.2; g.add(back);
+    const chuteTex = canvasTex(256, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? "#f97316" : "#f8fafc"; c.fillRect(i * 32, 0, 32, 64); } });
+    const chute = new THREE.Mesh(new THREE.SphereGeometry(2.2, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2.4), new THREE.MeshStandardMaterial({ map: chuteTex, side: THREE.DoubleSide, roughness: 0.8 }));
+    chute.position.set(0, 5.2, -2.2); chute.rotation.x = -0.5; g.add(chute);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; boom(g, P.steel, new V(0, 0.2, -0.4), new V(Math.sin(a) * 1.9, 5.2 - 0.6 + Math.cos(a) * 0.9, -2.2 + Math.cos(a) * 1.1), 0.01); }
+    g.userData.chute = chute;
+    return g;
+  }
+  // Saturn: „Cassini“ – hoher goldener Körper, große weiße Schüssel, langer Messarm, Landekapsel „Huygens“ an der Seite
+  function craftCassini() {
+    const P = probeMats(), g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 1.8, 16), P.gold); body.rotation.x = Math.PI / 2; g.add(body);
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(1.6, 28, 8, 0, Math.PI * 2, 0, 0.62), P.white); dish.rotation.x = -Math.PI / 2; dish.position.z = -0.1; g.add(dish);
+    const hu = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.25, 20), new THREE.MeshStandardMaterial({ color: srgb(0xb45309), roughness: 0.6 })); hu.rotation.z = Math.PI / 2; hu.position.set(0.8, 0, 0.3); g.add(hu);
+    boom(g, P.steel, new V(-0.4, 0.2, 0.2), new V(-3.4, 0.4, 0.8), 0.03);
+    for (const x of [-0.35, 0.35]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.9, 10), P.dark); r.position.set(x, -0.6, 0.6); r.rotation.x = 0.6; g.add(r); }
+    return g;
+  }
+  // Uranus: geplante NASA-Sonde „Uranus Orbiter and Probe“ – Körper mit großer Schüssel und drei Atom-Batterien
+  function craftUranusOrbiter() {
+    const P = probeMats(), g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.2, 8), P.gold); body.rotation.x = Math.PI / 2; g.add(body);
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(1.4, 28, 8, 0, Math.PI * 2, 0, 0.6), P.white); dish.rotation.x = -Math.PI / 2; dish.position.z = -0.5; g.add(dish);
+    const entry = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.5, 20), new THREE.MeshStandardMaterial({ color: srgb(0x0f766e), roughness: 0.6 })); entry.rotation.x = Math.PI / 2; entry.position.z = 0.9; g.add(entry);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + 0.5, r = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1, 10), P.dark); r.position.set(Math.sin(a) * 1.3, Math.cos(a) * 1.3, 0.1); r.rotation.x = Math.PI / 2; g.add(r); boom(g, P.steel, new V(0, 0, 0.1), r.position.clone(), 0.03); }
+    return g;
+  }
+  // Neptun: „Voyager 2“ (flog 1989 vorbei) – riesige Schüssel, zehneckiger Körper, Arme für Atom-Batterien, Kameras und Magnetfeld-Messung
+  function craftVoyager() {
+    const P = probeMats(), g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.5, 10), P.gold); body.rotation.x = Math.PI / 2; g.add(body);
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(2, 32, 8, 0, Math.PI * 2, 0, 0.6), P.white); dish.rotation.x = -Math.PI / 2; dish.position.z = -0.05; g.add(dish);
+    boom(g, P.steel, new V(0.6, 0, 0), new V(2.4, -0.4, 0.3), 0.04);
+    for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.5, 10), P.dark); r.position.set(1.6 + i * 0.4, -0.25 - i * 0.05, 0.2); r.rotation.z = Math.PI / 2; g.add(r); }
+    boom(g, P.steel, new V(-0.6, 0, 0), new V(-2.3, 0.3, 0.3), 0.04);
+    const cam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.35), P.dark); cam.position.set(-2.4, 0.35, 0.4); g.add(cam);
+    boom(g, P.steel, new V(0, 0.5, 0), new V(-1.2, 4.5, -1), 0.02);
+    return g;
+  }
+  // Sonne: „Parker Solar Probe“ – sechseckiger Hitzeschild (vorn weiß, hinten schwarz), kleiner Körper, schräge Solarflügel
+  function craftParker() {
+    const P = probeMats(), g = new THREE.Group();
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.16, 6), [new THREE.MeshStandardMaterial({ color: srgb(0x111111), roughness: 0.8 }), new THREE.MeshStandardMaterial({ color: srgb(0xf5f5f0), roughness: 0.7 }), new THREE.MeshStandardMaterial({ color: srgb(0x111111), roughness: 0.8 })]);
+    sh.rotation.x = Math.PI / 2; sh.position.z = 1.1; g.add(sh);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 1.2, 12), P.gold); body.rotation.x = Math.PI / 2; body.position.z = 0.2; g.add(body);
+    for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.5), P.cell); w.position.set(s * 0.9, 0, -0.3); w.rotation.set(0.9, 0, s * 0.3); g.add(w); }
+    boom(g, P.steel, new V(0, 0, -0.4), new V(0, 0, -2.2), 0.025);
+    return g;
+  }
+
+  // ---------- Was neben der Flugbahn passiert (je Ort anders) ----------
+  function cloudDeckTex(tint) {
+    const t = canvasTex(256, 256, (c) => {
+      c.fillStyle = "rgba(0,0,0,0)"; c.clearRect(0, 0, 256, 256);
+      for (let i = 0; i < 70; i++) { const x = hash2(i, 1) * 256, y = hash2(i, 2) * 256, r = 18 + hash2(i, 3) * 40, gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, tint); gr.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); }
+    });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 4);
+    return t;
+  }
+  // Jupiter: Wolkendecken über und unter der Kapsel, die dunkler werden, je tiefer man kommt – dazu Blitze
+  function sceneryJupiter(scene) {
+    const decks = [[-13, "rgba(255,248,235,0.9)"], [15, "rgba(255,236,210,0.8)"]].map(([y, tint]) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshBasicMaterial({ map: cloudDeckTex(tint), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      m.rotation.x = -Math.PI / 2; m.userData.y = y; scene.add(m); return m;
+    });
+    const boltMat = new THREE.LineBasicMaterial({ color: 0xfff7cc, transparent: true, opacity: 0, fog: false });
+    const pts = []; let x = 0, y = 12;
+    for (let i = 0; i < 9; i++) { const nx = x + (hash2(i, 7) - 0.5) * 5, ny = y - 3; pts.push(x, y, 0, nx, ny, 0); x = nx; y = ny; }
+    const bg = new THREE.BufferGeometry(); bg.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+    const bolt = new THREE.LineSegments(bg, boltMat); scene.add(bolt);
+    const tone = new THREE.Color(), top = new THREE.Color(0xfff6e8), deep = new THREE.Color(0x8a5a32);
+    return (dt, p, t, w) => {
+      decks.forEach((d) => { d.position.set(p.x, p.y + d.userData.y, p.z); d.material.map.offset.set(p.x / 225, -p.z / 225); d.material.color.copy(tone.copy(top).lerp(deep, p.f)); });
+      if (w.flash > 0.9 && boltMat.opacity < 0.1) bolt.position.set(p.x + (Math.random() - 0.5) * 60, p.y - 2, p.z + 60 + Math.random() * 60);
+      boltMat.opacity = Math.max(0, w.flash || 0);
+    };
+  }
+  // Saturn: der Mond Enceladus mit Eis-Fontänen am Südpol (Cassini ist 2015 mitten hindurchgeflogen)
+  function scenerySaturn(scene, far) {
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(26, 32, 20), new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 }));
+    moon.position.set(150, 40, 520); far.add(moon);
+    const plumeMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,255,0.9)", "rgba(190,220,255,0.35)"), transparent: true, depthWrite: false, fog: false });
+    const plumes = [];
+    for (let i = 0; i < 5; i++) { const s = new THREE.Sprite(plumeMat); s.scale.set(10, 38, 1); s.position.set(150 + (i - 2) * 6, 40 - 40 - i * 3, 520); far.add(s); plumes.push(s); }
+    return (dt, p, t) => { plumes.forEach((s, i) => { s.scale.y = 34 + Math.sin(t * 1.5 + i) * 6; }); };
+  }
+  // Uranus: der kleine Mond Miranda mit seiner riesigen Klippe (20 Kilometer hoch – die höchste bekannte Steilwand)
+  function sceneryUranus(scene, far) {
+    const tex = canvasTex(256, 128, (c) => {
+      c.fillStyle = "#9ca3af"; c.fillRect(0, 0, 256, 128);
+      c.strokeStyle = "rgba(60,60,70,0.6)"; c.lineWidth = 6;
+      for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(90 + i * 8, 20); c.lineTo(120 + i * 8, 64); c.lineTo(90 + i * 8, 108); c.stroke(); } // Winkel-Muster
+      c.fillStyle = "rgba(230,230,235,0.5)"; for (let i = 0; i < 30; i++) { c.beginPath(); c.arc(hash2(i, 1) * 256, hash2(i, 2) * 128, 2 + hash2(i, 3) * 5, 0, 7); c.fill(); }
+    });
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(22, 32, 20), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
+    moon.position.set(-170, 60, 560); far.add(moon);
+    return (dt) => { moon.rotation.y += dt * 0.05; };
+  }
+  // Neptun: helle Wolkenstreifen, die der Sturm quer vorbeijagt, und der Mond Triton mit dunklen Geysiren
+  function sceneryNeptun(scene, far) {
+    const mat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,255,0.95)", "rgba(200,220,255,0.3)"), transparent: true, depthWrite: false });
+    const streaks = [];
+    for (let i = 0; i < 16; i++) { const s = new THREE.Sprite(mat); s.userData.z = -1e9; scene.add(s); streaks.push(s); }
+    const triton = new THREE.Mesh(new THREE.SphereGeometry(20, 32, 20), new THREE.MeshStandardMaterial({ color: 0xe8d8d0, roughness: 0.8 }));
+    triton.position.set(190, 70, 600); far.add(triton);
+    const gMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(40,30,30,0.8)", "rgba(40,30,30,0)"), transparent: true, depthWrite: false, fog: false });
+    for (let i = 0; i < 3; i++) { const s = new THREE.Sprite(gMat); s.scale.set(3, 22, 1); s.position.set(182 + i * 7, 90, 590); far.add(s); }
+    return (dt, p, t, w, wind) => {
+      for (const s of streaks) {
+        if (s.userData.z < p.z - 14 || Math.abs(s.position.x - p.x) > 90) { s.userData.z = p.z + 30 + Math.random() * 160; s.position.set(p.x + (Math.random() > 0.5 ? -70 : 70), p.y + (Math.random() - 0.5) * 30, s.userData.z); s.scale.set(14 + Math.random() * 14, 1.2, 1); }
+        s.position.x += (wind * 6 + (wind >= 0 ? 12 : -12)) * dt;
+      }
+    };
+  }
+  // Sonne: glühende Bögen aus Gas (Protuberanzen), unter denen man hindurchfliegt
+  function scenerySonne(scene) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false });
+    const loops = [];
+    for (let i = 0; i < 5; i++) { const m = new THREE.Mesh(new THREE.TorusGeometry(26, 1.4, 8, 40, Math.PI), mat); m.userData.z = -1e9; scene.add(m); loops.push(m); }
+    return (dt, p, t) => {
+      for (const m of loops) {
+        if (m.userData.z < p.z - 20) { m.userData.z = p.z + 120 + Math.random() * 200; m.position.set((Math.random() - 0.5) * 20, -18, m.userData.z); m.rotation.y = (Math.random() - 0.5) * 0.8; }
+        m.scale.y = 1 + 0.08 * Math.sin(t * 2 + m.userData.z);
+      }
+      mat.opacity = 0.45 + 0.15 * Math.sin(t * 3);
+    };
+  }
+
   // Was jede Sonde sieht und erlebt. sky/fog: [am Anfang, am Ende] des Flugs · puff: Teilchen, die vorbeiziehen ·
   // rocks: Hindernisse (null = keine) · wind(t, Fortschritt) = seitliche Kraft · instr(Fortschritt) = Anzeige unten links
   const PROBES = {
     jupiter: {
-      sky: [0x05060c, 0x3a2210], fog: [[400, 2600], [20, 150]], stars: true, shield: false,
+      sky: [0x05060c, 0x3a2210], fog: [[400, 2600], [20, 150]], stars: true, shield: false, craft: craftGalileo, scenery: sceneryJupiter,
       planet: { r: 640, from: [0, -720, 620], to: [0, -660, 260] },
       puff: { inner: "rgba(255,236,200,1)", outer: "rgba(214,160,100,0.85)", size: [5, 14], opacity: 0.5, from: 0.12 },
       wind: (t, f) => (f > 0.25 ? 5 * Math.sin(t * 0.6) + 3 * Math.sin(t * 1.7 + 1) : 0),
@@ -5015,7 +5158,7 @@ window.Surface = (function () {
       }
     },
     saturn: {
-      sky: [0x05060c, 0x05060c], fog: [[600, 4000], [600, 4000]], stars: true, shield: false,
+      sky: [0x05060c, 0x05060c], fog: [[600, 4000], [600, 4000]], stars: true, shield: false, craft: craftCassini, scenery: scenerySaturn,
       planet: { r: 330, from: [-300, -153, 560], to: [-300, -153, 440] }, // so nah, dass die schräge Ring-Ebene genau durch die Flugbahn geht
       puff: { inner: "rgba(255,255,255,1)", outer: "rgba(200,225,255,0.8)", size: [0.25, 0.8], opacity: 0.9, from: 0 },
       rocks: { count: 18, size: [0.7, 2.0], color: 0xdfeefc, glow: false },
@@ -5023,7 +5166,7 @@ window.Surface = (function () {
       update() {}
     },
     uranus: {
-      sky: [0x04070d, 0x04070d], fog: [[600, 4000], [600, 4000]], stars: true, shield: false,
+      sky: [0x04070d, 0x04070d], fog: [[600, 4000], [600, 4000]], stars: true, shield: false, craft: craftUranusOrbiter, scenery: sceneryUranus,
       planet: { r: 300, from: [400, 30, 950], to: [330, 30, 640] },
       puff: { inner: "rgba(210,250,255,1)", outer: "rgba(150,225,235,0.7)", size: [0.4, 1.4], opacity: 0.55, from: 0 },
       wind: (t) => 2 * Math.sin(t * 0.5),
@@ -5031,7 +5174,7 @@ window.Surface = (function () {
       update(w, p, f, dt) { w.planet.rotation.x += dt * 0.02; }
     },
     neptun: {
-      sky: [0x030614, 0x061233], fog: [[500, 3500], [90, 900]], stars: true, shield: false,
+      sky: [0x030614, 0x061233], fog: [[500, 3500], [90, 900]], stars: true, shield: false, craft: craftVoyager, scenery: sceneryNeptun,
       planet: { r: 300, from: [-380, -50, 900], to: [-300, -80, 560] },
       puff: { inner: "rgba(235,245,255,1)", outer: "rgba(120,160,255,0.75)", size: [1.5, 6], opacity: 0.5, from: 0 },
       wind: (t, f) => (9 * Math.sin(t * 0.5) + 5 * Math.sin(t * 1.3 + 1)) * (0.4 + 0.6 * f),
@@ -5039,7 +5182,7 @@ window.Surface = (function () {
       update() {}
     },
     sonne: {
-      sky: [0x120600, 0x2b0d00], fog: [[900, 5000], [900, 5000]], stars: false, shield: true,
+      sky: [0x120600, 0x2b0d00], fog: [[900, 5000], [900, 5000]], stars: false, shield: true, craft: craftParker, scenery: scenerySonne,
       planet: { r: 760, from: [0, -60, 1700], to: [0, -60, 1080] },
       puff: { inner: "rgba(255,240,180,1)", outer: "rgba(255,140,30,0.8)", size: [0.3, 1.0], opacity: 0.9, from: 0 },
       rocks: { count: 12, size: [1.2, 2.4], glow: true },
@@ -5073,7 +5216,9 @@ window.Surface = (function () {
       glow.scale.setScalar(C.planet.r * 4.4); planet.add(glow); glow.scale.divideScalar(planet.scale.x);
     }
 
-    const craft = makeSpaceProbe(C.shield); scene.add(craft);
+    const craft = C.craft ? C.craft() : makeSpaceProbe(C.shield); scene.add(craft);
+    if (C.craft) craft.scale.setScalar(0.68); // kleiner, damit die große Schüssel das nächste Tor nicht verdeckt
+    const extra = C.scenery ? C.scenery(scene, far) : null;
     const gates = cfg.discoveries.map((d) => { const g = makeGate(d); scene.add(g); return g; });
 
     // Teilchen, die vorbeiziehen (Wolkenfetzen, Eiskristalle, Funken)
@@ -5088,7 +5233,7 @@ window.Surface = (function () {
         : new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: C.rocks.color, roughness: 0.6, flatShading: true }));
       m.userData = { z: -1e9, r: 1 }; scene.add(m); rocks.push(m);
     }
-    return { scene, camera, ambient, sun, far, planet, craft, gates, puffs, rocks, stations: {} };
+    return { scene, camera, ambient, sun, far, planet, craft, gates, puffs, rocks, extra, stations: {} };
   }
 
   // Tore der Reihe nach vor die Sonde legen (seitlich versetzt, damit man lenken muss)
@@ -5200,6 +5345,7 @@ window.Surface = (function () {
       const a = C.planet.from, b = C.planet.to;
       w.planet.position.set(lerp(a[0], b[0], p.f), lerp(a[1], b[1], p.f), lerp(a[2], b[2], p.f));
       C.update(w, p, p.f, dt);
+      if (w.extra) w.extra(dt, p, p.t, w, wind);
       p.shake = Math.max(0, p.shake - dt * 1.5);
     }
 

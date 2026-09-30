@@ -895,7 +895,7 @@ window.SPACE_DATA = {
        jedes Tor ist eine Entdeckung (in dieser Reihenfolge). course = Texte für den Flug. ---------- */
     jupiter: {
       probe: true,
-      course: { note: "Abstieg in die Wolken", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      course: { note: "🪂 Kapsel wie „Galileo“ – Abstieg in die Wolken", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "groesse", icon: "🟠", title: "Der größte Planet", photo: "jupiter.jpg",
           text: "Jupiter ist der größte Planet im Sonnensystem: Er ist 11-mal so breit wie die Erde, und in ihn würden mehr als 1.300 Erden passen! Von der Sonne ist er 778 Millionen Kilometer entfernt." },
@@ -915,7 +915,7 @@ window.SPACE_DATA = {
           text: "Tief in den Wolken drückt das Gas immer stärker. 1995 tauchte wirklich eine Sonde in den Jupiter ein: Sie gehörte zur Raumsonde Galileo und funkte 58 Minuten lang Messwerte. Dann wurde sie vom Druck zerquetscht. Deine Sonde steigt jetzt lieber wieder auf!" }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, auf dem Jupiter kann man nicht landen: Er hat keinen festen Boden. Darum steuerst du jetzt eine Sonde. Flieg durch die leuchtenden Mess-Tore – hinter jedem steckt eine Entdeckung. Es gibt {anzahl}!",
+        start: "Hier ist die Bodenstation! {name}, auf dem Jupiter kann man nicht landen: Er hat keinen festen Boden. Darum steuerst du jetzt eine Eintauch-Kapsel mit Fallschirm – so eine hat die Sonde Galileo 1995 wirklich in die Jupiterwolken geschickt. Flieg durch die leuchtenden Mess-Tore – hinter jedem steckt eine Entdeckung. Es gibt {anzahl}!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder beim Jupiter, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
@@ -930,7 +930,7 @@ window.SPACE_DATA = {
 
     saturn: {
       probe: true,
-      course: { note: "Flug durch die Ringe", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
+      course: { note: "🛰️ Sonde „Cassini“ – Flug durch die Ringe", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
       discoveries: [
         { key: "ringe", icon: "🧊", title: "Ringe aus Eis", photo: "saturn-1.jpg",
           text: "Aus der Nähe siehst du es: Die Ringe sind gar nicht fest! Sie bestehen aus unzähligen Brocken aus Eis und Gestein. Manche sind so klein wie Sandkörner, manche so groß wie ein Haus." },
@@ -950,7 +950,7 @@ window.SPACE_DATA = {
           text: "Die Raumsonde Cassini hat den Saturn 13 Jahre lang umkreist, von 2004 bis 2017, und dieses Foto gemacht. Am Ende ließ man sie absichtlich in den Saturn stürzen – damit sie nicht aus Versehen auf einen seiner Monde fällt." }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, auch der Saturn hat keinen festen Boden. Deine Sonde fliegt jetzt mitten durch die berühmten Ringe! Flieg durch die leuchtenden Mess-Tore – und weich den Eisbrocken aus. Es gibt {anzahl} Entdeckungen!",
+        start: "Hier ist die Bodenstation! {name}, auch der Saturn hat keinen festen Boden. Deine Sonde ist der echten Sonde Cassini nachgebaut und fliegt jetzt mitten durch die berühmten Ringe! Da hinten siehst du den Mond Enceladus mit seinen Eis-Fontänen. Flieg durch die leuchtenden Mess-Tore – und weich den Eisbrocken aus. Es gibt {anzahl} Entdeckungen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder beim Saturn, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
@@ -965,7 +965,7 @@ window.SPACE_DATA = {
 
     uranus: {
       probe: true,
-      course: { note: "Eiskalt hier draußen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      course: { note: "🛰️ Uranus-Sonde – eiskalt hier draußen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "gekippt", icon: "🙃", title: "Auf der Seite",
           text: "Uranus ist ein Querkopf: Er liegt auf der Seite und rollt wie eine Kugel um die Sonne! Forscher glauben, dass ihn vor langer Zeit ein riesiger Himmelskörper gerammt und umgekippt hat." },
@@ -985,7 +985,7 @@ window.SPACE_DATA = {
           text: "Nur eine einzige Raumsonde war je beim Uranus: Voyager 2 flog 1986 an ihm vorbei und machte diese Fotos. Uranus hat über 25 Monde. Sie sind nach Figuren aus Theaterstücken benannt, zum Beispiel Titania, Oberon und Miranda." }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, der Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Steuere deine Sonde durch die leuchtenden Mess-Tore! Schau dir den Planeten genau an: Fällt dir an seinen Ringen etwas auf? Es gibt {anzahl} Entdeckungen!",
+        start: "Hier ist die Bodenstation! {name}, der Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Deine Sonde ist eine, wie die NASA sie zum Uranus schicken will. Steuere sie durch die leuchtenden Mess-Tore! Schau dir den Planeten genau an: Fällt dir an seinen Ringen etwas auf? Es gibt {anzahl} Entdeckungen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder beim Uranus, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
@@ -1000,7 +1000,7 @@ window.SPACE_DATA = {
 
     neptun: {
       probe: true,
-      course: { note: "Der Wind schiebt dich – lenk dagegen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      course: { note: "🛰️ „Voyager 2“ – der Wind schiebt dich, lenk dagegen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "wind", icon: "💨", title: "Die stärksten Winde",
           text: "Merkst du, wie deine Sonde zur Seite gedrückt wird? Auf Neptun wehen die stärksten Winde im ganzen Sonnensystem: über 2.000 km/h – schneller als ein Düsenflugzeug!" },
@@ -1020,7 +1020,7 @@ window.SPACE_DATA = {
           text: "Nur eine einzige Raumsonde hat Neptun je besucht: Voyager 2. Sie startete 1977 und kam erst 1989 an – nach 12 Jahren Flug! Dabei ist dieses Foto entstanden." }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, du bist am äußersten Planeten angekommen. Auch Neptun hat keinen festen Boden. Steuere deine Sonde durch die leuchtenden Mess-Tore – aber Achtung: Der Sturm drückt dich zur Seite! Es gibt {anzahl} Entdeckungen.",
+        start: "Hier ist die Bodenstation! {name}, du bist am äußersten Planeten angekommen. Auch Neptun hat keinen festen Boden. Du steuerst Voyager 2 – die einzige Sonde, die je beim Neptun war (1989). Flieg durch die leuchtenden Mess-Tore – aber Achtung: Der Sturm drückt dich zur Seite! Es gibt {anzahl} Entdeckungen.",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder beim Neptun, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
@@ -1035,7 +1035,7 @@ window.SPACE_DATA = {
 
     sonne: {
       probe: true,
-      course: { note: "Anflug auf die Sonne", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
+      course: { note: "🛡️ „Parker Solar Probe“ – Anflug auf die Sonne", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
       discoveries: [
         { key: "stern", icon: "⭐", title: "Ein Stern",
           text: "Die Sonne ist ein Stern – eine riesige, glühende Kugel aus heißem Gas. Sie ist der einzige Stern in unserem Sonnensystem. Alle anderen Sterne am Himmel sind auch Sonnen, nur unvorstellbar weit weg." },
@@ -1055,7 +1055,7 @@ window.SPACE_DATA = {
           text: "Eine echte Sonde fliegt wirklich so nah an die Sonne: die Parker Solar Probe. Sie ist das schnellste Raumfahrzeug, das Menschen je gebaut haben, und hat einen dicken Hitzeschild – genau wie deine. Und du? Schau niemals direkt in die Sonne, das schadet deinen Augen!" }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, auf der Sonne kann niemand landen – sie ist eine Kugel aus glühendem Gas. Deine Sonde hat einen Hitzeschild. Flieg durch die leuchtenden Mess-Tore und weich den Glutbällen aus! Es gibt {anzahl} Entdeckungen.",
+        start: "Hier ist die Bodenstation! {name}, auf der Sonne kann niemand landen – sie ist eine Kugel aus glühendem Gas. Deine Sonde ist die Parker Solar Probe: Sie fliegt wirklich so nah an die Sonne wie nichts zuvor, geschützt von einem Hitzeschild. Flieg durch die leuchtenden Mess-Tore und weich den Glutbällen aus! Es gibt {anzahl} Entdeckungen.",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder bei der Sonne, {name}! Dir fehlen noch {rest} Entdeckungen – flieg durch die blauen Mess-Tore.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
