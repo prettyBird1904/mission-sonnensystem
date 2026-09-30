@@ -99,6 +99,7 @@ Lizenzen: **gemeinfrei** (Public Domain, v. a. NASA) · **CC0** · **CC BY 2.0 /
 - Schriften „Fredoka“ und „Nunito“ – SIL Open Font License
 - 3D-Bibliothek three.js inkl. GLTFLoader – MIT-Lizenz
 
+
 ## 3D-Modelle
 
 - **Space Kit** von Kenney (www.kenney.nl) – Hallen, Gewächshaus, Gänge, Antennen, Generator, Fässer, Rover, Raumtransporter, Felsen und Krater auf dem Mars. Lizenz: CC0 (gemeinfrei), eingebettet in `models/spacekit.js`. Quelle: https://kenney.nl/assets/space-kit
