@@ -192,10 +192,10 @@ window.Surface = (function () {
     })().catch((e) => { console.warn("Modelle nicht geladen", e); return KIT; });
     return kitPromise;
   }
-  // ---------- Echte NASA-Modelle (NASA 3D Resources): Habitat, Rover Perseverance, Hubschrauber Ingenuity ----------
+  // ---------- Echte NASA-Modelle (NASA 3D Resources): Rover Perseverance, Hubschrauber Ingenuity ----------
   // Sie sind groß und Draco-komprimiert, darum werden sie erst beim ersten Besuch als Datei geladen (danach offline im Speicher).
   const NASA = {};
-  const NASA_FILES = { "habitat-1": 11, "habitat-2": 11, ingenuity: 1.8, perseverance: 3.0 }; // Zielbreite in Metern
+  const NASA_FILES = { ingenuity: 1.8, perseverance: 3.0 }; // Zielbreite in Metern
   let nasaLoader = null;
   async function loadNasa(names) {
     const todo = names.filter((n) => !(n in NASA));
@@ -642,111 +642,316 @@ window.Surface = (function () {
     const lines = wrapText(x, d.title, W2 - 40).slice(0, 2);
     lines.forEach((l, i) => x.fillText(l, W2 / 2, (lines.length > 1 ? 172 : 196) + i * 50));
   }
-  // Mars-Forschungslager hinter der Tafelwand (lokal: Vorderseite = −Z): zwei Wohnmodule, ein Gewächshaus-Tunnel
-  // mit Pflanzen unter rosa Pflanzenlampen, Sonnenkollektoren und ein Funkmast mit blinkendem Licht
-  // Mars-Forschungslager aus fertigen Modellen (Kenney Space Kit): Hallen, Glas-Gewächshaus, Verbindungsgänge,
-  // Generator, Fässer, große Antennenschüssel – dazu Sonnenkollektoren und blinkende Lichter
-  function buildMarsCamp(g, add, hull, dark, lit) {
-    // Am schönsten: das echte NASA-Habitat (Habitat Demonstration Unit), daneben Gewächshaus, Sonnenkollektoren und Funkmast
-    const hab = nasaModel(["habitat-2", "habitat-1"], 16);
-    if (hab) {
-      hab.position.set(-17, 0, 10); hab.rotation.y = MARS_HAB_ROT; g.add(hab); // links neben der Tafelwand, damit man es ganz sieht
-      marsGreenhouse(add, 14, 7);
-      marsPanels(add, dark, [[21, 4], [23.5, 8], [26, 12]]);
-      g.userData.blink.push(marsMast(add, hull, dark, 6, 16));
-      g.userData.nasa = true;
-      return;
+  // ---------- Marskolonie hinter der Tafelwand (lokal: Vorderseite = −Z) ----------
+  // Runde, bunte Bauten statt grauer Kisten: eine große Glaskuppel mit Garten, zwei Wohntürme mit leuchtenden
+  // Bullaugen und Luftschleuse, Verbindungsröhren, Gewächshaus, drehende Antennenschüssel, Sonnenkollektoren, Kisten, Lampen.
+  const srgb = (h) => new THREE.Color(h).convertSRGBToLinear(); // Farben wie im Malprogramm (sonst wirken sie blass)
+  let marsEnvTex = null;
+  function marsEnv() { // weiche Spiegelung von Himmel und Boden – ohne sie wirken glatte Flächen stumpf
+    if (marsEnvTex) return marsEnvTex;
+    const s = new THREE.Scene(), geo = new THREE.SphereGeometry(10, 32, 16), p = geo.attributes.position, col = [];
+    const top = new THREE.Color(0xf0d2ae), hor = new THREE.Color(0xdca679), bot = new THREE.Color(0x6e3a24), c = new THREE.Color();
+    for (let i = 0; i < p.count; i++) {
+      const y = p.getY(i) / 10;
+      if (y > 0) c.copy(hor).lerp(top, Math.min(1, y * 1.5)); else c.copy(hor).lerp(bot, Math.min(1, -y * 4));
+      col.push(c.r, c.g, c.b);
     }
-    if (!KIT.hangar_largeA) return buildMarsCampSimple(g, add, hull, dark, lit);
-    const put = (name, s, x, z, ry = 0, y = 0) => { const m = kit(name, s); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m; };
-    // groß genug und weit genug hinten, dass das Lager über die Tafelwand hinausragt
-    put("hangar_roundGlass", 4.6, -15, 16, Math.PI);         // Gewächshaus
-    put("hangar_largeA", 4.6, 0.5, 17, Math.PI / 2);         // große Halle (quer)
-    put("hangar_roundA", 4.6, 14, 16, Math.PI);              // runde Wohnhalle
-    put("corridor_window", 4.6, -8.2, 16.5, Math.PI / 2);    // Gänge dazwischen
-    put("corridor_window", 4.6, 8.8, 16.5, Math.PI / 2);
-    put("satelliteDish_large", 5.5, 20, 24, -0.6);
-    put("machine_generatorLarge", 3.2, 9, 3.2, Math.PI);
-    put("machine_wireless", 3.2, -9.5, 3.6, Math.PI);
-    put("barrels", 3.2, 13.5, 3, 0.4); put("barrel", 3.2, -13.5, 4.2); put("barrel", 3.2, -12.4, 3.2, 1);
-    put("pipe_straight", 3.2, -8.2, 6.4, Math.PI / 2); put("chimney_detailed", 4.6, 5, 25);
-    // Sonnenkollektoren rechts neben dem Lager
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.5, roughness: 0.3 });
-    for (const [x, z] of [[18.5, 3], [20.5, 6.5], [22.5, 10]]) {
-      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), dark), x, 0.7, z);
-      const p = add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.06, 1.5), panelMat), x, 1.45, z); p.rotation.x = -0.7;
-    }
-    // blinkende Positionslichter auf dem Dach und an der Antenne
-    const light = (color, x, y, z) => add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), new THREE.MeshBasicMaterial({ color, toneMapped: false })), x, y, z, false);
-    g.userData.blink.push(light(0xff3b30, 20, 7.4, 24), light(0x4ade80, 0.5, 7.2, 17), light(0xfcd34d, -15, 6.8, 16));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    s.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 4.6, 4) }));
+    sun.position.copy(SUN_DIR).multiplyScalar(9); s.add(sun);
+    const pm = new THREE.PMREMGenerator(W.renderer);
+    marsEnvTex = pm.fromScene(s, 0.02).texture; pm.dispose();
+    return marsEnvTex;
   }
-  const MARS_HAB_ROT = 0; // Drehung des NASA-Habitats (Vorderseite mit Flagge zum Platz)
-  function marsNasaColliders([sx, sz]) {
-    const c = [[sx - 22, sz + 10, 5.5], [sx - 12, sz + 10, 5.5], [sx + 12, sz + 7, 2.4], [sx + 16, sz + 7, 2.4], [sx + 21, sz + 4, 0.5], [sx + 23.5, sz + 8, 0.5], [sx + 26, sz + 12, 0.5], [sx + 6, sz + 16, 0.4]];
-    for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
-    return c;
+  function canvasTex(w, h, draw) {
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    draw(cv.getContext("2d"), w, h);
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+    return t;
   }
-  // Hindernisse des Mars-Lagers (Weltkoordinaten)
-  function marsCampColliders([sx, sz]) {
-    const c = [[sx - 15, sz + 16, 7], [sx - 4, sz + 17, 5], [sx + 5, sz + 17, 5], [sx + 14, sz + 16, 5], [sx + 20, sz + 24, 2.2], [sx + 9, sz + 3.2, 1.6],
-      [sx - 9.5, sz + 3.6, 1.2], [sx + 13.5, sz + 3, 1.2], [sx - 13, sz + 3.7, 1], [sx + 18.5, sz + 3, 0.5], [sx + 20.5, sz + 6.5, 0.5], [sx + 22.5, sz + 10, 0.5]];
-    for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
-    return c;
-  }
-  function buildMarsCampSimple(g, add, hull, dark, lit) {
-    const accent = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.5 });
-    const module = (x, z, r, h) => {
-      add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28), hull), x, h / 2, z).receiveShadow = true;
-      add(new THREE.Mesh(new THREE.SphereGeometry(r, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), hull), x, h, z);
-      add(new THREE.Mesh(new THREE.CylinderGeometry(r + 0.03, r + 0.03, 0.25, 28), accent), x, h * 0.72, z, false);
-      for (const a of [-0.45, 0, 0.45]) { // Fenster auf der Vorderseite
-        const w = add(new THREE.Mesh(new THREE.CircleGeometry(0.32, 16), lit), x + Math.sin(a) * (r + 0.02), h * 0.45, z - Math.cos(a) * (r + 0.02), false);
-        w.rotation.y = Math.PI + a;
+  // Außenhaut: helle Platten mit feinen Fugen und Nieten, damit die Wände nicht wie glattes Plastik aussehen
+  function hullTex(rx, ry) {
+    const t = canvasTex(256, 256, (x) => {
+      x.fillStyle = "#f5f2ec"; x.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { // Platten leicht unterschiedlich hell
+        x.fillStyle = `rgba(0,0,0,${0.015 + ((i * 7 + j * 3) % 5) * 0.01})`; x.fillRect(i * 64 + (j ? 32 : 0), j * 128, 64, 128);
       }
+      x.strokeStyle = "rgba(60,50,40,0.28)"; x.lineWidth = 2;
+      for (let j = 0; j <= 2; j++) { x.beginPath(); x.moveTo(0, j * 128); x.lineTo(256, j * 128); x.stroke(); }
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { const px = i * 64 + (j ? 32 : 0); x.beginPath(); x.moveTo(px, j * 128); x.lineTo(px, j * 128 + 128); x.stroke(); }
+      x.fillStyle = "rgba(60,50,40,0.3)";
+      for (let i = 0; i < 16; i++) for (const y of [6, 122, 134, 250]) { x.beginPath(); x.arc(i * 16 + 8, y, 1.6, 0, 7); x.fill(); }
+    });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+    return t;
+  }
+  function colonyMats() {
+    const env = marsEnv();
+    const std = (o) => new THREE.MeshStandardMaterial({ envMap: env, envMapIntensity: 0.9, ...o });
+    return {
+      env, std,
+      hull: (rx, ry) => std({ map: hullTex(rx, ry), roughness: 0.42, metalness: 0.05 }),
+      orange: std({ color: srgb(0xc84a12), roughness: 0.4, envMapIntensity: 0.4 }), teal: std({ color: srgb(0x0d9488), roughness: 0.38, envMapIntensity: 0.45 }),
+      metal: std({ color: srgb(0x3b4553), roughness: 0.32, metalness: 0.75 }), steel: std({ color: srgb(0xc7cdd6), roughness: 0.28, metalness: 0.85 }),
+      glow: new THREE.MeshStandardMaterial({ color: srgb(0x2a1600), emissive: srgb(0xffc46b), emissiveIntensity: 1.4 }),
+      glowBlue: new THREE.MeshStandardMaterial({ color: srgb(0x06202e), emissive: srgb(0x7dd3fc), emissiveIntensity: 1.1 }),
+      glass: std({ color: srgb(0xcfeeff), transparent: true, opacity: 0.12, roughness: 0.03, metalness: 0.5, envMapIntensity: 1, depthWrite: false })
     };
-    module(-1.5, 8.2, 3, 3.2);
-    module(4.4, 7.6, 2.2, 2.6);
-    add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 1.6), hull), 1.9, 0.9, 7.9);
-    const door = add(new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.9), dark), -1.5, 0.95, 5.18, false); door.rotation.y = Math.PI; // Luftschleuse
-    marsGreenhouse(add, -10.5, 6.5);
-    marsPanels(add, dark, [[9.5, 4.5], [11.5, 7], [13.5, 9.5]]);
-    g.userData.blink.push(marsMast(add, hull, dark, 7, 11));
-    const green = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0x4ade80, toneMapped: false })), -1.5, 4.9, 8.2, false);
-    g.userData.blink.push(green);
   }
-  // Gewächshaus: halbe Glasröhre (8 m lang, entlang X), innen Beete mit Pflanzen und rosa leuchtende Pflanzenlampen
-  function marsGreenhouse(add, cx, cz) {
-    const glass = new THREE.MeshStandardMaterial({ color: 0xcdeeff, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false });
-    const tunnel = add(new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 8, 24, 1, true, 0, Math.PI), glass), cx, 0, cz, false);
-    tunnel.rotation.z = Math.PI / 2;
-    const frame = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.4, roughness: 0.5 });
-    for (let i = -2; i <= 2; i++) { // Rippen des Glasdachs
-      const rib = add(new THREE.Mesh(new THREE.TorusGeometry(2.22, 0.05, 6, 24, Math.PI), frame), cx + i * 1.9, 0, cz, false); rib.rotation.y = Math.PI / 2;
+  const put = (parent, m, x, y, z, shadow = true) => { m.position.set(x, y, z); m.castShadow = shadow; parent.add(m); return m; };
+  const blinkLamp = (parent, color, x, y, z) => put(parent, new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color, toneMapped: false })), x, y, z, false);
+
+  function buildMarsCamp(g, add) {
+    const M = colonyMats();
+    g.userData.turn = [];
+    // große Glaskuppel mit Garten in der Mitte, dahinter und daneben der Rest
+    const [DX, DZ] = MARS_DOME, R = MARS_DOME[2];
+    colonyDome(g, M, DX, DZ, R);
+    const mods = [[-MARS_TOWER[0], MARS_TOWER[1], "WOHNEN", "#c84a12", "🛏️"], [MARS_TOWER[0], MARS_TOWER[1], "LABOR", "#0d9488", "🔬"]];
+    for (const [x, z, label, color, icon] of mods) {
+      const face = Math.atan2(x * 0.35 - x, -6 - z); // schaut schräg zum Platz vor der Tafelwand
+      g.userData.blink.push(colonyTower(g, M, x, z, 3.4, 4.6, face, label, color, icon));
+      colonyTube(g, M, DX, DZ, R - 0.3, x, z, 3.2);
     }
-    for (const e of [-1, 1]) {
-      const cap = add(new THREE.Mesh(new THREE.CircleGeometry(2.2, 20, 0, Math.PI), glass), cx + e * 4, 0, cz, false);
-      cap.rotation.y = Math.PI / 2;
+    colonyGreenhouse(g, M, -17.5, 24.5);
+    g.userData.turn.push(colonyDish(g, M, 15, 25));
+    colonyPanels(g, M, [[21, 3.5, -0.5], [23.3, 7.5, -0.5], [25.6, 11.5, -0.5]]);
+    // Kisten, Lampen und eine Flagge – kleine Dinge, die das Lager bewohnt wirken lassen
+    for (const [x, z, s, c, r, y] of [[-20.5, 6.5, 1.1, M.orange, 0.3, 0], [-19.2, 5.2, 0.9, M.teal, -0.2, 0], [-20.4, 6.4, 0.8, M.teal, 0.9, 1.1],
+      [20, 17.5, 1.1, M.orange, 0.6, 0], [18.8, 18.9, 0.8, M.teal, 0.1, 0]]) colonyCrate(g, M, x, z, s, c, r, y);
+    for (const [x, z] of [[-9.5, 3], [9.5, 3], [-10.5, 9.5], [10.5, 9.5]]) colonyLamp(g, M, x, z);
+    colonyFlag(g, M, -8.4, 5.5);
+  }
+  // Hindernisse der Kolonie (Weltkoordinaten)
+  const MARS_DOME = [0, 20, 9], MARS_TOWER = [16, 12]; // Kuppel (x, z, Radius), rechter Turm (der linke gespiegelt)
+  function marsCampColliders([sx, sz]) {
+    const [DX, DZ, R] = MARS_DOME, [TX, TZ] = MARS_TOWER;
+    const c = [[sx + DX, sz + DZ, R + 0.4], [sx - TX, sz + TZ, 3.8], [sx + TX, sz + TZ, 3.8], [sx - 17.5 - 2.3, sz + 24.5, 2.4], [sx - 17.5 + 2.3, sz + 24.5, 2.4],
+      [sx + 15, sz + 25, 1.4], [sx + 21, sz + 3.5, 0.6], [sx + 23.3, sz + 7.5, 0.6], [sx + 25.6, sz + 11.5, 0.6],
+      [sx - 20, sz + 6, 1.3], [sx + 19.5, sz + 18.2, 1.2], [sx - 8.4, sz + 5.5, 0.25]];
+    for (const [x, z] of [[-9.5, 3], [9.5, 3], [-10.5, 9.5], [10.5, 9.5]]) c.push([sx + x, sz + z, 0.3]);
+    for (const e of [-1, 1]) { // Luftschleusen und Röhren
+      const x = e * TX, z = TZ, face = Math.atan2(x * 0.35 - x, -6 - z);
+      c.push([sx + x + Math.sin(face) * 4.3, sz + z + Math.cos(face) * 4.3, 1.3]);
+      for (const f of [0.55, 0.7, 0.85]) c.push([sx + DX + (x - DX) * f, sz + DZ + (z - DZ) * f, 1.2]);
     }
-    const soil = new THREE.MeshStandardMaterial({ color: 0x3b2718, roughness: 1 }), leaf = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.8, flatShading: true });
-    const grow = new THREE.MeshBasicMaterial({ color: 0xf472b6, toneMapped: false });
+    for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
+    return c;
+  }
+  // Glaskuppel: Streben im Dreiecksmuster, oranger Sockel, drinnen Wiese, Bäume, Blumen, ein Teich und warmes Licht
+  function colonyDome(g, M, cx, cz, R) {
+    const d = new THREE.Group(); d.position.set(cx, 0, cz); g.add(d);
+    const H = 3.4; // Sockelring, auf dem die Kuppel sitzt – so ragt sie über die Tafelwand hinaus
+    put(d, new THREE.Mesh(new THREE.CylinderGeometry(R + 0.3, R + 0.5, H, 64), M.hull(14, 1)), 0, H / 2, 0).receiveShadow = true;
+    put(d, new THREE.Mesh(new THREE.CylinderGeometry(R + 0.33, R + 0.33, 0.3, 64, 1, true), M.orange), 0, H - 0.2, 0, false);
+    put(d, new THREE.Mesh(new THREE.CylinderGeometry(R + 0.5, R + 0.55, 0.3, 64, 1, true), M.teal), 0, 0.2, 0, false);
+    const pane = new THREE.CircleGeometry(0.34, 20), ring = new THREE.TorusGeometry(0.36, 0.07, 8, 20);
+    const skip = [Math.PI, Math.atan2(MARS_TOWER[0] - cx, MARS_TOWER[1] - cz), Math.atan2(-MARS_TOWER[0] - cx, MARS_TOWER[1] - cz)];
+    for (let i = 0; i < 28; i++) { // Fensterreihe im Sockel (nicht dort, wo Tür und Röhren sind)
+      const a = (i / 28) * Math.PI * 2;
+      if (skip.some((s) => Math.abs(Math.atan2(Math.sin(a - s), Math.cos(a - s))) < 0.3)) continue;
+      const px = Math.sin(a) * (R + 0.42), pz = Math.cos(a) * (R + 0.42);
+      put(d, new THREE.Mesh(pane, M.glow), px, 1.4, pz, false).rotation.y = a;
+      put(d, new THREE.Mesh(ring, M.metal), px, 1.4, pz, false).rotation.y = a;
+    }
+    const glass = put(d, new THREE.Mesh(new THREE.SphereGeometry(R, 64, 24, 0, Math.PI * 2, 0, Math.PI / 2), M.glass), 0, H, 0, false);
+    glass.renderOrder = 2;
+    // Streben: Ringe in mehreren Höhen, dazwischen Diagonalen (wie eine echte Gitterkuppel)
+    const rings = 5, n = 22, pts = [];
+    for (let k = 0; k <= rings; k++) {
+      const el = (k / (rings + 1)) * Math.PI / 2, row = [];
+      for (let i = 0; i < n; i++) { const a = ((i + (k % 2) * 0.5) / n) * Math.PI * 2; row.push(new V(Math.cos(el) * Math.sin(a) * R, H + Math.sin(el) * R, Math.cos(el) * Math.cos(a) * R)); }
+      pts.push(row);
+    }
+    const top = new V(0, H + R, 0), edges = [];
+    for (let k = 0; k <= rings; k++) for (let i = 0; i < n; i++) {
+      const a = pts[k][i];
+      edges.push([a, pts[k][(i + 1) % n]]);
+      if (k < rings) { edges.push([a, pts[k + 1][i]]); edges.push([a, pts[k + 1][(i + n - 1 + (k % 2) * 2) % n]]); }
+      else edges.push([a, top]);
+    }
+    const bar = new THREE.CylinderGeometry(0.08, 0.08, 1, 6), inst = new THREE.InstancedMesh(bar, M.steel, edges.length);
+    const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V(0, 1, 0), sc = new V(), mid = new V();
+    edges.forEach(([a, b], i) => {
+      const dv = b.clone().sub(a); q.setFromUnitVectors(up, dv.clone().normalize()); sc.set(1, dv.length(), 1);
+      mx.compose(mid.copy(a).add(b).multiplyScalar(0.5), q, sc); inst.setMatrixAt(i, mx);
+    });
+    inst.castShadow = true; d.add(inst);
+    put(d, new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 10), M.orange), 0, H + R, 0); // Kappe oben
+    g.userData.blink.push(blinkLamp(d, 0xff3b30, 0, H + R + 0.6, 0));
+    // Garten auf dem Sockel
+    const k = R / 7.5, y0 = H + 0.02;
+    put(d, new THREE.Mesh(new THREE.CircleGeometry(R - 0.05, 48), new THREE.MeshStandardMaterial({ color: srgb(0x4f9d3f), roughness: 0.9 })), 0, y0, 0, false).rotation.x = -Math.PI / 2;
+    put(d, new THREE.Mesh(new THREE.CircleGeometry(1.5 * k, 32), M.std({ color: srgb(0x2f8fd6), roughness: 0.05, metalness: 0.3, envMapIntensity: 1.5 })), 1.4 * k, y0 + 0.02, -1.4 * k, false).rotation.x = -Math.PI / 2;
+    put(d, new THREE.Mesh(new THREE.RingGeometry(3.6 * k, 4.4 * k, 48), new THREE.MeshStandardMaterial({ color: srgb(0xd9c49a), roughness: 1 })), 0, y0 + 0.01, 0, false).rotation.x = -Math.PI / 2;
+    for (const [x, z, s] of [[-2.2, 1.2, 1.25], [1.6, 3, 1], [-3.8, -2.4, 0.85], [4.6, 1.8, 0.75], [-0.4, -4.6, 0.7], [3.4, -4.4, 0.6]]) colonyTree(d, x * k, y0, z * k, s * 1.25);
+    const petal = [0xf472b6, 0xfacc15, 0xf87171, 0xa78bfa, 0xffffff].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.6 }));
+    const fg = new THREE.SphereGeometry(0.15, 8, 6);
+    for (let i = 0; i < 60; i++) { // Blumenbeet am Rand
+      const a = i * 0.137 * Math.PI * 2 + (i % 3), r = R - 1.1 - (i % 3) * 0.4;
+      put(d, new THREE.Mesh(fg, petal[i % petal.length]), Math.sin(a) * r, y0 + 0.15, Math.cos(a) * r, false);
+    }
+    const lamp = new THREE.PointLight(0xffd29a, 0.8, R * 1.7, 1.5); lamp.position.set(0, H + R * 0.7, 0); d.add(lamp);
+    // Eingang zur Tafelwand hin
+    const door = new THREE.Group(); door.position.set(0, 0, -R - 0.2); d.add(door);
+    put(door, new THREE.Mesh(new THREE.BoxGeometry(3, 2.5, 1.4), M.hull(2, 1)), 0, 1.25, 0);
+    put(door, new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.25, 1.45), M.orange), 0, 2.5, 0);
+    put(door, new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2), M.glowBlue), 0, 1.05, -0.71, false).rotation.y = Math.PI;
+  }  function colonyTree(parent, x, y, z, s) {
+    const t = new THREE.Group(); t.position.set(x, y, z); t.scale.setScalar(s); parent.add(t);
+    put(t, new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 2, 8), new THREE.MeshStandardMaterial({ color: srgb(0x7a4a2a), roughness: 0.9 })), 0, 1, 0);
+    const greens = [0x2f7d32, 0x3f9142, 0x256d2c];
+    for (const [dx, dy, dz, r, c] of [[0, 2.5, 0, 1.1, 0], [0.55, 2.1, 0.2, 0.75, 1], [-0.5, 2.2, -0.3, 0.8, 2], [0.1, 3.1, -0.1, 0.7, 1]])
+      put(t, new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshStandardMaterial({ color: srgb(greens[c]), roughness: 0.8 })), dx, dy, dz);
+  }
+  // Wohnturm: runde Wand mit Plattenmuster, farbige Streifen, leuchtende Bullaugen, Kuppeldach, Luftschleuse mit Rundtür und Namensschild
+  function colonyTower(g, M, x, z, r, h, face, label, color, icon) {
+    const t = new THREE.Group(); t.position.set(x, 0, z); t.rotation.y = face; g.add(t);
+    const accent = M.std({ color: new THREE.Color(color).convertSRGBToLinear(), roughness: 0.38, envMapIntensity: 0.45 });
+    put(t, new THREE.Mesh(new THREE.CylinderGeometry(r + 0.2, r + 0.45, 0.5, 48), M.metal), 0, 0.25, 0);
+    put(t, new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 48), M.hull(8, 2)), 0, 0.5 + h / 2, 0).receiveShadow = true;
+    put(t, new THREE.Mesh(new THREE.CylinderGeometry(r + 0.03, r + 0.03, 0.45, 48, 1, true), accent), 0, 1.25, 0, false);
+    put(t, new THREE.Mesh(new THREE.CylinderGeometry(r + 0.03, r + 0.03, 0.18, 48, 1, true), accent), 0, h + 0.2, 0, false);
+    const roof = put(t, new THREE.Mesh(new THREE.SphereGeometry(r, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), M.hull(8, 1)), 0, h + 0.5, 0);
+    roof.scale.y = 0.5;
+    // Bullaugen rundherum
+    const wy = 0.5 + h * 0.68, ring = new THREE.TorusGeometry(0.44, 0.08, 8, 24), pane = new THREE.CircleGeometry(0.42, 24);
+    for (let i = 0; i < 9; i++) {
+      const a = (i - 4) * 0.62; if (i === 4) continue; // vorne ist das Schild
+      const px = Math.sin(a) * (r + 0.02), pz = Math.cos(a) * (r + 0.02);
+      put(t, new THREE.Mesh(pane, M.glow), px, wy, pz, false).rotation.y = a;
+      put(t, new THREE.Mesh(ring, M.metal), px, wy, pz, false).rotation.y = a;
+    }
+    // Namensschild, gebogen wie die Wand
+    const sign = canvasTex(512, 128, (c) => {
+      c.fillStyle = color; c.fillRect(0, 0, 512, 128);
+      c.fillStyle = "#fff"; c.font = "bold 76px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(`${icon} ${label}`, 256, 68);
+    });
+    const arc = 0.9;
+    put(t, new THREE.Mesh(new THREE.CylinderGeometry(r + 0.05, r + 0.05, 0.75, 32, 1, true, -arc / 2, arc), new THREE.MeshStandardMaterial({ map: sign, roughness: 0.5 })), 0, wy + 0.05, 0, false);
+    // Luftschleuse: kurze Röhre nach vorn mit runder Tür (gelb-schwarzer Rand, Fenster in der Mitte)
+    const lock = new THREE.Group(); lock.position.set(0, 0, r - 0.2); t.add(lock);
+    const tube = put(lock, new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 1.6, 32), M.hull(3, 1)), 0, 1.35, 0.8); tube.rotation.x = Math.PI / 2;
+    put(lock, new THREE.Mesh(new THREE.TorusGeometry(1.12, 0.14, 10, 32), accent), 0, 1.35, 1.6);
+    const hatch = canvasTex(256, 256, (c) => {
+      c.fillStyle = "#1f2937"; c.beginPath(); c.arc(128, 128, 128, 0, 7); c.fill();
+      for (let i = 0; i < 20; i++) { c.fillStyle = i % 2 ? "#111" : "#facc15"; c.beginPath(); c.moveTo(128, 128); c.arc(128, 128, 126, i * Math.PI / 10, (i + 1) * Math.PI / 10); c.fill(); }
+      c.fillStyle = "#4b5563"; c.beginPath(); c.arc(128, 128, 104, 0, 7); c.fill();
+      c.strokeStyle = "#9ca3af"; c.lineWidth = 6; c.beginPath(); c.arc(128, 128, 76, 0, 7); c.stroke();
+      c.fillStyle = "#7dd3fc"; c.beginPath(); c.arc(128, 104, 30, 0, 7); c.fill();
+      c.fillStyle = "#e5e7eb"; c.fillRect(88, 160, 80, 12);
+    });
+    put(lock, new THREE.Mesh(new THREE.CircleGeometry(1.02, 32), new THREE.MeshStandardMaterial({ map: hatch, roughness: 0.5, metalness: 0.2 })), 0, 1.35, 1.62, false);
+    put(lock, new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.18, 1), M.metal), 0, 0.09, 2.1); // Stufe
+    const green = blinkLamp(lock, 0x4ade80, 0, 2.75, 1.45);
+    // Dach: kleine Antenne mit rotem Licht
+    put(t, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 6), M.steel), 0.8, h + 0.5 + r * 0.45 + 0.6, 0);
+    blinkLamp(t, 0xff3b30, 0.8, h + 0.5 + r * 0.45 + 1.45, 0);
+    return green;
+  }
+  // Verbindungsröhre zwischen Kuppel und Turm mit Ringen und kleinen Fenstern
+  function colonyTube(g, M, ax, az, ra, bx, bz, rb) {
+    const dir = new V(bx - ax, 0, bz - az), len = dir.length(); dir.normalize();
+    const a = new V(ax, 1.5, az).addScaledVector(dir, ra), b = new V(bx, 1.5, bz).addScaledVector(dir, -rb), L = a.distanceTo(b);
+    const t = new THREE.Group(); t.position.copy(a).add(b).multiplyScalar(0.5); t.rotation.y = Math.atan2(dir.x, dir.z); g.add(t);
+    const body = put(t, new THREE.Mesh(new THREE.CylinderGeometry(1, 1, L + 0.6, 32), M.hull(4, 1)), 0, 0, 0); body.rotation.x = Math.PI / 2;
+    const ring = new THREE.TorusGeometry(1.06, 0.1, 8, 32);
+    for (let i = 0; i < 4; i++) put(t, new THREE.Mesh(ring, M.orange), 0, 0, -L / 2 + (i + 0.5) * (L / 4), false);
+    for (const side of [-1, 1]) for (let i = 0; i < 3; i++) { // Fensterreihe links und rechts
+      const w = put(t, new THREE.Mesh(new THREE.CircleGeometry(0.2, 16), M.glow), side * 1.01, 0.25, -L / 2 + (i + 1) * (L / 4), false);
+      w.rotation.y = side * Math.PI / 2;
+    }
+    for (const f of [-0.35, 0.35]) put(t, new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.55, 0.4), M.metal), 0, -1.2, f * L); // Stützen
+    return len;
+  }
+  // Gewächshaus: Glasröhre mit Rippen, drinnen Beete unter rosa Pflanzenlampen
+  function colonyGreenhouse(g, M, cx, cz) {
+    const tunnel = put(g, new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 8, 32, 1, true, 0, Math.PI), M.glass), cx, 0, cz, false);
+    tunnel.rotation.z = Math.PI / 2; tunnel.renderOrder = 2;
+    for (let i = -2; i <= 2; i++) put(g, new THREE.Mesh(new THREE.TorusGeometry(2.22, 0.07, 6, 32, Math.PI), M.teal), cx + i * 1.95, 0, cz, false).rotation.y = Math.PI / 2;
+    for (const e of [-1, 1]) put(g, new THREE.Mesh(new THREE.CircleGeometry(2.2, 24, 0, Math.PI), M.glass), cx + e * 4, 0, cz, false).rotation.y = Math.PI / 2;
+    const soil = new THREE.MeshStandardMaterial({ color: srgb(0x4a2f1c), roughness: 1 }), grow = new THREE.MeshBasicMaterial({ color: srgb(0xf472b6), toneMapped: false });
+    const leaf = [0x3fa34d, 0x65c14f, 0x2e8b57].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.8 }));
+    const tomato = new THREE.MeshStandardMaterial({ color: srgb(0xef4444), roughness: 0.5 }), lg = new THREE.SphereGeometry(0.26, 10, 8), tg = new THREE.SphereGeometry(0.08, 8, 6);
     for (const dz of [-0.8, 0.8]) {
-      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.35, 0.7), soil), cx, 0.18, cz + dz, false);
-      for (let i = 0; i < 10; i++) add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 0), leaf), cx - 3.3 + i * 0.73, 0.55, cz + dz, false);
-      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.05, 0.08), grow), cx, 1.75, cz + dz, false);
+      put(g, new THREE.Mesh(new THREE.BoxGeometry(7, 0.35, 0.7), soil), cx, 0.18, cz + dz, false);
+      for (let i = 0; i < 10; i++) {
+        put(g, new THREE.Mesh(lg, leaf[i % 3]), cx - 3.3 + i * 0.73, 0.55, cz + dz, false);
+        if (i % 2) put(g, new THREE.Mesh(tg, tomato), cx - 3.3 + i * 0.73 + 0.12, 0.62, cz + dz - 0.2, false);
+      }
+      put(g, new THREE.Mesh(new THREE.BoxGeometry(7, 0.05, 0.08), grow), cx, 1.75, cz + dz, false);
     }
   }
-  function marsPanels(add, dark, spots) {
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.5, roughness: 0.3 });
-    for (const [x, z] of spots) {
-      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), dark), x, 0.7, z);
-      const p = add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.06, 1.5), panelMat), x, 1.45, z); p.rotation.x = -0.7;
+  // Große Antennenschüssel, die sich langsam dreht (liefert den drehenden Kopf zurück)
+  function colonyDish(g, M, x, z) {
+    const base = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.1, 1, 24), M.hull(3, 0.5)), x, 0.5, z);
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 3, 16), M.steel), x, 2.5, z);
+    const head = new THREE.Group(); head.position.set(x, 4, z); head.scale.setScalar(1.35); g.add(head);
+    put(head, new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.8), M.orange), 0, 0, 0);
+    const tilt = new THREE.Group(); tilt.rotation.x = -0.75; head.add(tilt);
+    const white = M.std({ color: srgb(0xf8fafc), roughness: 0.35, side: THREE.DoubleSide });
+    // Kugelkappe umgedreht: Rand bei y = 0, tiefste Stelle 0,56 m darunter – die Schüssel öffnet nach oben
+    put(tilt, new THREE.Mesh(new THREE.SphereGeometry(3, 40, 12, 0, Math.PI * 2, 0, 0.62), white), 0, 2.44, 0).rotation.x = Math.PI;
+    const up = new V(0, 1, 0), tip = new V(0, 1.15, 0);
+    for (let i = 0; i < 3; i++) { // drei Streben vom Rand zum Empfänger
+      const a = i * Math.PI * 2 / 3, foot = new V(Math.sin(a) * 1.6, -0.08, Math.cos(a) * 1.6), dv = tip.clone().sub(foot);
+      const s = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, dv.length(), 5), M.steel);
+      s.position.copy(foot).addScaledVector(dv, 0.5); s.quaternion.setFromUnitVectors(up, dv.normalize()); tilt.add(s);
+    }
+    put(tilt, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.45, 12), M.metal), 0, 1.3, 0);
+    g.userData.blink.push(blinkLamp(tilt, 0xff3b30, 0, 1.65, 0));
+    base.receiveShadow = true;
+    return head;
+  }
+  function colonyPanels(g, M, spots) {
+    const cells = canvasTex(256, 128, (c) => {
+      c.fillStyle = "#0f2a6b"; c.fillRect(0, 0, 256, 128);
+      const grd = c.createLinearGradient(0, 0, 256, 128); grd.addColorStop(0, "rgba(120,170,255,0.25)"); grd.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = grd; c.fillRect(0, 0, 256, 128);
+      c.strokeStyle = "#c7d2fe"; c.lineWidth = 2;
+      for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * 32, 0); c.lineTo(i * 32, 128); c.stroke(); }
+      for (let j = 0; j <= 4; j++) { c.beginPath(); c.moveTo(0, j * 32); c.lineTo(256, j * 32); c.stroke(); }
+    });
+    const cellMat = M.std({ map: cells, roughness: 0.2, metalness: 0.4, envMapIntensity: 1.3 });
+    for (const [x, z, ry] of spots) {
+      const p = new THREE.Group(); p.position.set(x, 0, z); p.rotation.y = ry; g.add(p);
+      put(p, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 8), M.steel), 0, 0.7, 0);
+      const panel = new THREE.Group(); panel.position.y = 1.45; panel.rotation.x = -0.7; p.add(panel);
+      put(panel, new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 1.6), M.steel), 0, 0, 0);
+      put(panel, new THREE.Mesh(new THREE.PlaneGeometry(2.45, 1.45), cellMat), 0, 0.045, 0, false).rotation.x = -Math.PI / 2;
     }
   }
-  // Funkmast mit Schüssel und blinkendem rotem Licht (liefert das Licht zurück)
-  function marsMast(add, hull, dark, x, z) {
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), dark), x, 2.75, z);
-    const dish = add(new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 6, 0, Math.PI * 2, 0, 0.9), hull), x, 4.6, z - 0.4); dish.rotation.x = -1.1;
-    return add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff3b30, toneMapped: false })), x, 5.6, z, false);
+  // Kiste mit abgerundeten Kanten und Streifen
+  function colonyCrate(g, M, x, z, s, mat, ry, y) {
+    const shape = new THREE.Shape(), r = 0.12, w = 1, h = 1;
+    shape.moveTo(-w / 2 + r, -h / 2); shape.lineTo(w / 2 - r, -h / 2); shape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+    shape.lineTo(w / 2, h / 2 - r); shape.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); shape.lineTo(-w / 2 + r, h / 2);
+    shape.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); shape.lineTo(-w / 2, -h / 2 + r); shape.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.84, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.06, bevelSegments: 3, curveSegments: 4 });
+    geo.translate(0, 0, -0.42);
+    const c = new THREE.Group(); c.position.set(x, y, z); c.rotation.y = ry; c.scale.setScalar(s); g.add(c);
+    put(c, new THREE.Mesh(geo, mat), 0, 0.56, 0).receiveShadow = true;
+    for (const dx of [-0.3, 0.3]) put(c, new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.06, 1.08), M.metal), dx, 0.56, 0, false);
+  }
+  function colonyLamp(g, M, x, z) {
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 2.6, 8), M.metal), x, 1.3, z);
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 10), new THREE.MeshBasicMaterial({ color: srgb(0xffe2a8), toneMapped: false })), x, 2.75, z, false);
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.2, 0.12, 16), M.metal), x, 2.98, z);
+  }
+  function colonyFlag(g, M, x, z) {
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 4.2, 8), M.steel), x, 2.1, z);
+    const tex = canvasTex(256, 160, (c) => {
+      c.fillStyle = "#f97316"; c.fillRect(0, 0, 256, 160);
+      c.fillStyle = "#0fa3a3"; c.fillRect(0, 110, 256, 50);
+      c.fillStyle = "#fff"; c.beginPath(); c.arc(92, 62, 34, 0, 7); c.fill();
+      c.fillStyle = "#c2410c"; c.beginPath(); c.arc(92, 62, 26, 0, 7); c.fill();
+      c.fillStyle = "#fff"; c.font = "bold 40px sans-serif"; c.textBaseline = "middle"; c.fillText("★", 150, 62);
+    });
+    const flag = put(g, new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1, 8, 1), new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 0.7 })), x + 0.82, 3.6, z, false);
+    const p = flag.geometry.attributes.position; // leicht gewellt
+    for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin((p.getX(i) + 0.8) * 3) * 0.08 * (p.getX(i) + 0.8));
+    flag.geometry.computeVertexNormals();
   }
 
   function makeStation(discoveries, name, style = "") {
@@ -771,7 +976,11 @@ window.Surface = (function () {
       sail.rotation.x = -0.9; // zur Sonne geneigt
     }
     // Wand mit Schild
-    add(new THREE.Mesh(new THREE.BoxGeometry(15.6, 3.7, 0.3), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 })), 0, 1.85, 0).receiveShadow = true;
+    if (style === "mars") { // Tafelwand passend zur Kolonie: helle Platten, oranger Rahmen
+      const M = colonyMats();
+      add(new THREE.Mesh(new THREE.BoxGeometry(15.6, 3.7, 0.3), M.hull(6, 1.5)), 0, 1.85, 0).receiveShadow = true;
+      for (const [w, h, x, y] of [[16, 0.25, 0, 3.75], [16, 0.25, 0, 0.1], [0.25, 3.9, -7.9, 1.9], [0.25, 3.9, 7.9, 1.9]]) add(new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.42), M.orange), x, y, 0);
+    } else add(new THREE.Mesh(new THREE.BoxGeometry(15.6, 3.7, 0.3), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 })), 0, 1.85, 0).receiveShadow = true;
     for (const px of [-4.6, 4.6]) add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 8), dark), px, 4.2, 0);
     const sv = document.createElement("canvas"); sv.width = 1024; sv.height = 200;
     const sx = sv.getContext("2d");
@@ -2045,14 +2254,50 @@ window.Surface = (function () {
 
   // Raumtransporter: fliegt heran, landet auf seinem Landeplatz, wartet, startet wieder – und nach einer Pause von vorn
   function makeShuttle(B, pad) {
-    const g = kit("craft_cargoA", 6);
+    const g = makeShuttleModel();
     const glowMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,240,200,1)", "rgba(255,140,40,0.8)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     const jets = [];
-    for (const x of [-1.2, 1.2]) { const s = new THREE.Sprite(glowMat); s.position.set(x, 0.1, 0); s.scale.setScalar(2.2); g.add(s); jets.push(s); }
-    g.traverse((o) => { if (o.isSprite) o.scale.divideScalar(6); }); // Sprites nicht mitskalieren
+    for (const [x, y, z, s0] of [[-1.3, 0.5, 0.8, 2.6], [1.3, 0.5, 0.8, 2.6], [-0.75, 1.75, -5.1, 1.8], [0.75, 1.75, -5.1, 1.8]]) {
+      const s = new THREE.Sprite(glowMat); s.position.set(x, y, z); s.scale.setScalar(s0); g.add(s); jets.push(s);
+    }
     B.scene.add(g);
     const [px, pz] = pad, py = B.height(px, pz);
     return { g, jets, t: 20, pad: new V(px, py + 0.1, pz), from: new V(px - 240, py + 150, pz + 260), to: new V(px + 260, py + 170, pz - 220) };
+  }
+  // Raumtransporter (vorn = +Z): runder Rumpf mit Cockpitscheibe, Pfeilflügel, Leitwerk, zwei Triebwerke, Landebeine
+  function makeShuttleModel() {
+    const M = colonyMats(), g = new THREE.Group();
+    const body = put(g, new THREE.Mesh(new THREE.CapsuleGeometry(1.3, 6, 10, 32), M.hull(6, 3)), 0, 2, 0); body.rotation.x = Math.PI / 2;
+    const cockpit = put(g, new THREE.Mesh(new THREE.SphereGeometry(1.05, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      M.std({ color: srgb(0x0c2a4a), roughness: 0.08, metalness: 0.7, envMapIntensity: 1.6 })), 0, 2.45, 3.1, false);
+    cockpit.scale.set(0.95, 0.55, 1.35); cockpit.rotation.x = 0.35;
+    for (const [z, m, w] of [[-0.6, M.orange, 0.55], [0.1, M.teal, 0.2]]) put(g, new THREE.Mesh(new THREE.CylinderGeometry(1.32, 1.32, w, 32, 1, true), m), 0, 2, z, false).rotation.x = Math.PI / 2;
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) { // Bullaugen
+      const w = put(g, new THREE.Mesh(new THREE.CircleGeometry(0.2, 16), M.glow), side * 1.31, 2.25, 1.8 - i * 0.75, false); w.rotation.y = side * Math.PI / 2;
+    }
+    // Pfeilflügel mit orangen Spitzen
+    const wing = new THREE.Shape(); wing.moveTo(0, 1.4); wing.lineTo(4.4, -2.4); wing.lineTo(4.4, -3.3); wing.lineTo(0, -3.1); wing.closePath();
+    const wingGeo = new THREE.ExtrudeGeometry(wing, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2 });
+    wingGeo.rotateX(Math.PI / 2);
+    const tipGeo = new THREE.BoxGeometry(0.25, 0.3, 1.2);
+    for (const side of [-1, 1]) {
+      const w = put(g, new THREE.Mesh(wingGeo, M.hull(2, 2)), 0, 1.45, 0); w.scale.x = side;
+      put(g, new THREE.Mesh(tipGeo, M.orange), side * 4.4, 1.42, -2.85);
+    }
+    const fin = new THREE.Shape(); fin.moveTo(0, 0); fin.lineTo(1.9, 0); fin.lineTo(0.3, 2.2); fin.lineTo(-0.5, 2.2); fin.closePath();
+    const finGeo = new THREE.ExtrudeGeometry(fin, { depth: 0.14, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 });
+    finGeo.rotateY(-Math.PI / 2); finGeo.translate(0.07, 0, 0); // oben nach hinten gepfeilt
+    put(g, new THREE.Mesh(finGeo, M.orange), 0, 3.05, -3.6);
+    for (const x of [-0.75, 0.75]) { // Triebwerke hinten
+      const e = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, 1.4, 20), M.metal), x, 1.75, -4.4); e.rotation.x = Math.PI / 2;
+      put(g, new THREE.Mesh(new THREE.CircleGeometry(0.42, 20), new THREE.MeshStandardMaterial({ color: srgb(0x1f2937), emissive: srgb(0xf97316), emissiveIntensity: 0.35 })), x, 1.75, -5.11, false).rotation.y = Math.PI;
+    }
+    for (const [x, z] of [[-1.3, -2], [1.3, -2], [0, 2.8]]) { // Landebeine
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.2, 8), M.steel), x * 0.8, 0.6, z);
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.1, 16), M.metal), x * 0.8, 0.05, z);
+    }
+    g.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+    return g;
   }
   const SHUTTLE_CYCLE = 75;
   function updateShuttle(dt) {
@@ -2425,17 +2670,17 @@ window.Surface = (function () {
     const bands = bandTexture(["#8a4a33", "#9b5a3f", "#7a3f2b", "#a8694a", "#8f5038", "#b37757"], 3); // gedämpfte Rottöne, die im Dunst verschwimmen
     const buttes = [[-150, 120, 34, 42], [175, 95, 26, 30], [135, -165, 40, 36], [-185, -105, 30, 48], [60, 215, 44, 28], [-60, -205, 24, 26]];
     buttes.slice(0, rich ? 6 : 3).forEach(([x, z, r, h], i) => on(makeButte(r, h, bands, i * 7 + 1), x, z, h / 2 - 3));
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a4e36, roughness: 0.95, vertexColors: true });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x6a3a26, roughness: 0.95, vertexColors: true });
     rockMat.userData.natural = true;
     const clusters = [[18, 26, 6], [33, 24, 5], [9, -9, 5], [-14, 42, 6], [22, 62, 5], [-24, 60, 6], [-4, 30, 4], [-38, 10, 5], [28, -30, 6], [-18, -12, 4]];
     clusters.slice(0, rich ? 10 : 5).forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 13 + 2));
     const veils = rich ? makeDustVeils("rgba(210,150,100,1)", 9) : new THREE.Group(); scene.add(veils);
-    const patrol = on(makeMarsRover(false), 48, 62);
+    const patrol = on(makeMarsRover(), 48, 62);
     const patrolCol = [48, 62, 1.8];
     // Leben: zwei Mitbewohner und ein Raumtransporter mit eigenem Landeplatz
     const npcs = addNpcs(B);
     const landing = makeHeliPad(); landing.scale.setScalar(2.4); on(landing, ...L.pad, 0.05); // Landeplatz des Transporters
-    const shuttle = KIT.craft_cargoA ? makeShuttle(B, L.pad) : null;
+    const shuttle = makeShuttle(B, L.pad);
     if (rich && KIT.craterLarge) for (const [x, z, s] of [[40, -12, 9], [-52, 36, 7], [62, 30, 8], [-20, -52, 10], [8, 90, 9]]) on(kit("craterLarge", s), x, z, -0.2);
     for (const [x, z, r] of [[...L.monde, 1.1], [...L.vulkan, 2.3], [...L.rover, 1.1], [...L.eis, 1.3], [...L.wegweiser, 0.6], [...L.rost, 1.3], [...L.abend, 1], [...L.waage, 1.2]]) addBlob(B, x, z, r);
 
@@ -2445,7 +2690,7 @@ window.Surface = (function () {
 
     const colliders = [[0, 0, 1.8], [...L.monde, 0.6], [...L.vulkan, 0.7], [...L.rover, 1], [...L.eis, 0.9], [...L.wegweiser, 0.3],
       [...L.rost, 1], [...L.abend, 0.6], [...L.roverZiel, 0.7], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25],
-      ...(station.userData.nasa ? marsNasaColliders(L.station) : KIT.hangar_largeA ? marsCampColliders(L.station) : stationColliders(L.station)), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
+      ...marsCampColliders(L.station), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
     for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
     return { ...B, L, station, scale, telescope, phobos, deimos, volcano, everest, zugspitze, heli, heliY: heli.position.y, rover, roverGoal, drill,
@@ -3752,6 +3997,7 @@ window.Surface = (function () {
         updateNpcs(dt, elapsed, busy);
         updateShuttle(dt);
         world.blink.forEach((m, i) => { m.visible = ((elapsed * 0.9 + i * 0.37) % 1) < 0.45; });
+        for (const h of world.station.userData.turn) h.rotation.y = Math.sin(elapsed * 0.12) * 1.4; // Antenne sucht die Erde
         world.veils.rotation.y += dt * 0.004;
         Sound.wind(0.35 + 0.18 * Math.sin(elapsed * 0.37) + 0.12 * Math.sin(elapsed * 1.3 + 1)); // leises Heulen mit Böen
         world.phobos.rotation.y += dt * 0.05; world.deimos.rotation.y += dt * 0.03;
