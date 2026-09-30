@@ -256,7 +256,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "10",
+  version: "11",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
@@ -264,9 +264,10 @@ window.SPACE_DATA = {
      {name} = Name des Kindes, {rest} = noch offene Entdeckungen, {hoehe} = gemessene Sprunghöhe */
   surfaces: {
     mond: {
-      gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81)
+      gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81); gilt für den Hammer-und-Feder-Versuch
+      moveGravity: 2.4, // fürs Laufen und Springen etwas stärker, damit es sich nicht zu zäh anfühlt
       discoveries: [
-        { key: "sprung", icon: "🦘", title: "Leichte Anziehung",
+        { key: "sprung", icon: "🦘", title: "Leichte Anziehung", fallback: { hoehe: "etwa 45 Zentimeter", zeit: "über 1" },
           text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden durch die Luft geschwebt! Mit genau demselben Absprung kämst du auf der Erde nur ein Sechstel so hoch – der Mond zieht nur ein Sechstel so stark. Meterhoch geht es trotzdem nicht: Raumanzug und Rucksack wiegen zusammen fast so viel wie ein Erwachsener. So ähnlich ist Astronaut John Young 1972 für ein berühmtes Foto gesprungen." },
         { key: "apollo", icon: "👣", title: "Die erste Mondlandung", photo: "mond-1.jpg",
           text: "Hier in der Nähe landeten im Juli 1969 Neil Armstrong und Buzz Aldrin mit der Mondfähre „Eagle“ – als allererste Menschen auf dem Mond! Das Unterteil der Fähre steht noch heute dort. Und ihre Fußabdrücke sind bis heute zu sehen: Auf dem Mond gibt es keinen Wind und keinen Regen, der sie verweht." },
@@ -278,10 +279,29 @@ window.SPACE_DATA = {
           text: "Hammer und Feder sind genau gleichzeitig unten angekommen! Auf der Erde bremst die Luft die leichte Feder – sie segelt langsam herab. Auf dem Mond gibt es keine Luft, darum fällt alles gleich schnell. Astronaut Dave Scott hat genau diesen Versuch 1971 auf dem Mond gemacht!" }
       ],
       stations: {
-        apollo:      { label: "Landestelle von 1969", hint: "Geh zur Mondfähre" },
+        // action = Knopf an der Station · again = Knopf, um schon Entdecktes nochmal anzusehen · reach = Reichweite in Metern
+        apollo:      { label: "Landestelle von 1969", hint: "Geh zur Mondfähre", again: "👣 Nochmal ansehen", reach: 6 },
         himmel:      { label: "Fernrohr", action: "🔭 Durchschauen" },
-        temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten" },
-        fallversuch: { label: "Experiment-Tisch", action: "🪶 Hammer & Feder fallen lassen" }
+        temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten", again: "🌡️ Nochmal ansehen", reach: 5 },
+        fallversuch: { label: "Experiment-Tisch", action: "🪶 Hammer & Feder fallen lassen" },
+        rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      // Fernrohr: Erde selbst suchen → Größe vergleichen → ausprobieren, was Luft mit dem Himmel macht
+      scope: {
+        aim: "Such unsere Erde! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten, um das Fernrohr zu schwenken.",
+        aimTouch: "Such unsere Erde! Wische über den Himmel, um das Fernrohr zu schwenken.",
+        hint: "Tipp der Bodenstation: Die Erde ist in dieser Richtung",
+        almost: "Fast! Halte das Fernrohr genau auf die Erde.",
+        found: "Gefunden! Das ist unsere Erde. Dort sind gerade alle Menschen, die du kennst.",
+        compareBtn: "🌕 Wie groß ist sie?",
+        compare: "Links: die Erde, vom Mond aus gesehen. Rechts: der Mond, so klein wie wir ihn von zu Hause sehen. Die Erde sieht fast 4-mal so groß aus!",
+        next: "Weiter ▶",
+        airIntro: "Schau dir den Himmel an: Die Sonne scheint – und trotzdem ist er schwarz! Auf dem Mond gibt es keine Luft. Was wäre, wenn es hier Luft gäbe? Probier es aus!",
+        airOn: "🌬️ Luft an",
+        airOff: "🚫 Luft aus",
+        airOnText: "Mit Luft: Die Luft verteilt das Sonnenlicht über den ganzen Himmel. Er wird blau und die Sterne verschwinden – genau wie bei uns auf der Erde.",
+        airOffText: "Ohne Luft: Nichts verteilt das Sonnenlicht. Der Himmel bleibt schwarz – sogar mitten am Tag!",
+        done: "Fertig ✓"
       },
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es 5 Dinge zu entdecken. Die leuchtenden Lichtsäulen zeigen dir, wo. Probier doch zuerst mal zu springen!",
@@ -289,7 +309,7 @@ window.SPACE_DATA = {
         back: "Willkommen zurück auf dem Mond, {name}! Dir fehlen noch {rest} Entdeckungen – folge den blauen Lichtsäulen.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch 3 Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
-        quizDone: "Mission erfüllt! Wenn du fertig bist, tippe auf „Einsteigen“ – oder erkunde noch ein bisschen."
+        quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
       },
       quiz: [
         { q: "Was passiert, wenn du auf dem Mond genauso kräftig abspringst wie auf der Erde?", a: ["Ich komme genauso hoch", "Ich komme etwa 6-mal so hoch und schwebe lange", "Ich fliege ins All davon"], c: 1, why: "Der Mond zieht nur ein Sechstel so stark wie die Erde – man kommt 6-mal so hoch und schwebt lange." },

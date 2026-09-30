@@ -58,7 +58,7 @@ Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustart
 | 🎮 **Selbst fliegen** | Tastatur: `W` Gas, `A`/`D` lenken, `R`/`F` hoch/runter, Leertaste Turbo, `E` erforschen · Tablet: Joystick + GAS/TURBO · In Planetennähe schaltet sich der Turbo automatisch ab (Landeanflug), damit man nicht vorbeischießt. |
 | 🏅 **12 Missionen** | Rätsel („Finde den heißesten Planeten“) – mit 💡 Tipp-Knopf, der einen Pfeil zum Ziel zeigt |
 | 🛬 **Landen** | Auf Merkur, Venus, Erde, Mond, Mars und Pluto landet die Rakete. Bei Sonne, Jupiter, Saturn, Uranus und Neptun geht das nicht (kein fester Boden / zu heiß) – dort fliegt sie in eine Umlaufbahn und erklärt, warum. Antippen oder eine Taste überspringt die Animation. |
-| 👨‍🚀 **Mond erkunden** | Nach der Landung auf dem Mond „Aussteigen“: Als Astronaut über den Mond laufen (echte Mond-Schwerkraft) und 5 Dinge selbst entdecken – Springen, Landestelle von Apollo 11, Blick zur Erde, Hitze & Kälte im Schatten, Hammer-und-Feder-Versuch. Die Bodenstation spricht per Funk und stellt am Ende 3 Fragen. |
+| 👨‍🚀 **Mond erkunden** | Nach der Landung auf dem Mond „Aussteigen“: Als Astronaut über den Mond laufen (echte Mond-Schwerkraft) und 5 Dinge selbst entdecken – Springen, Landestelle von Apollo 11, Fernrohr (Erde selbst suchen, Größe vergleichen, „Luft an/aus“ ausprobieren), Hitze & Kälte im Schatten, Hammer-und-Feder-Versuch. Die Bodenstation spricht per Funk und stellt am Ende 3 Fragen. Alles Entdeckte kann man sich beliebig oft wieder ansehen: an der Station selbst oder per Tipp auf den Zähler 🔍 oben rechts. Zurück ins All geht es nur zu Fuß: zur eigenen Rakete laufen (gelbe Lichtsäule) und dort „Einsteigen“ – der Astronaut klettert die Leiter hoch, die Rakete startet und fliegt zurück ins All. |
 | 📷 **Echte Fotos** | Unten im Steckbrief: Fotos von Raumsonden, Teleskopen und Astronauten – z. B. Buzz Aldrin auf dem Mond, Selfie des Mars-Rovers, der Boden der Venus. Wischen oder Pfeile zum Blättern, Antippen zum Vergrößern. Quellen: `BILDNACHWEIS.md` |
 | 📋 **Steckbrief** | Größe, Entfernung, Tag, Jahr, Temperatur, Monde, Größenvergleich mit der Erde, Thermometer |
 | 💡 **Wusstest du?** | 4–5 spannende Fakten pro Himmelskörper |
@@ -67,7 +67,6 @@ Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustart
 | 🧩 **Planeten ordnen** | Reihenfolge der Planeten + Merksatz „Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten“ |
 | 📘 **Forscherpass** | Stempel für besuchte Orte, Ränge (Weltraum-Neuling → Weltraum-Profi) |
 | 📜 **Urkunde** | Nach Besuch aller 8 Planeten – mit Namen, druckbar |
-| 🔊 **Vorlesen** | Jeder Text kann vorgelesen werden (Leseförderung / DaZ) |
 
 Die Abstände und Größen sind – wie im Spiel erklärt – **nicht maßstabsgetreu**, damit alles sichtbar bleibt. Das eignet sich gut als Gesprächsanlass im Unterricht.
 

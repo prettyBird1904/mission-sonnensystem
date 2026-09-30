@@ -110,12 +110,13 @@
   };
 
   // ---------- Aussteigen & erkunden ----------
-  Game.discover = function (id, key) {
+  // val (optional): Messwerte der Entdeckung, z. B. die eigene Sprunghöhe – für „nochmal ansehen“
+  Game.discover = function (id, key, val) {
     const s = Game.state;
     s.found = s.found || {};
     s.found[id] = s.found[id] || {};
     if (s.found[id][key]) return;
-    s.found[id][key] = true;
+    s.found[id][key] = val || true;
     Game.save();
     UI.updateHUD(true);
   };
@@ -135,13 +136,13 @@
     setTimeout(async () => {
       await ready; // Modell & Landschaft fertig
       document.getElementById("panel").classList.add("hidden");
-      if ("speechSynthesis" in window) speechSynthesis.cancel();
       Game.mode = "surface";
+      // Zurück kommt man nur, indem man einsteigt und die Rakete startet → im All gleich weiter abheben
       Surface.enter(id, () => {
         fade(true);
         setTimeout(() => {
           Game.mode = "explore";
-          UI.openPanel(id);
+          leaveExplore();
           fade(false);
         }, 450);
       });

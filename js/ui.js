@@ -21,23 +21,6 @@ window.UI = (function () {
     return { title: r[1], icon: r[2], min: r[0], next };
   }
 
-  // ---------- Vorlesen ----------
-  let voice = null;
-  function pickVoice() {
-    if (!("speechSynthesis" in window)) return;
-    const vs = speechSynthesis.getVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith("de"));
-    voice = vs.find((v) => /natural|online|google/i.test(v.name)) || vs[0] || null;
-  }
-  if ("speechSynthesis" in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-  function speak(text) {
-    if (!("speechSynthesis" in window)) { toast("Vorlesen geht in diesem Browser leider nicht."); return; }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/[\u{1F300}-\u{1FAFF}☀-➿]/gu, ""));
-    u.lang = "de-DE"; u.rate = 0.95; u.pitch = 1.05;
-    if (voice) u.voice = voice;
-    speechSynthesis.speak(u);
-  }
-
   // ---------- Toasts, Feiern, Konfetti ----------
   function toast(msg, type = "") {
     const t = el("div", "toast " + type, msg);
@@ -153,7 +136,6 @@ window.UI = (function () {
     });
 
     $("btnHint").onclick = () => { Sound.click(); G.toggleHint(); };
-    $("btnSpeakMission").onclick = () => { const m = G.currentMission(); speak(m ? m.text : "Alle Missionen geschafft!"); };
     $("btnPass").onclick = () => { Sound.click(); showPass(); };
     $("btnOrder").onclick = () => { Sound.click(); showOrder(); };
     $("btnHelp").onclick = () => { Sound.click(); showHelp(); };
@@ -314,12 +296,10 @@ window.UI = (function () {
     $("pBall").outerHTML = `<div class="panel-ball" id="pBall">${ball(id, 58)}</div>`;
     $("pName").textContent = current.name;
     $("pKind").textContent = current.kind;
-    $("pSpeak").onclick = () => speak(`${current.name}. ${current.intro}`);
     renderInfo(); renderFacts(0); renderLab(); renderQuizStart();
     showTab("info");
   }
   function closePanel() {
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
     $("panel").classList.add("hidden");
     $("hud").classList.remove("hidden");
   }
@@ -327,13 +307,6 @@ window.UI = (function () {
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
     document.querySelectorAll(".tabpane").forEach((t) => t.classList.toggle("active", t.dataset.pane === name));
     document.querySelector(".panel-body").scrollTop = 0;
-    const b = current;
-    if (b) $("pSpeak").onclick = {
-      info: () => speak(`${b.name}. ${b.intro}`),
-      facts: () => speak(b.facts[factIdx]),
-      lab: () => speak($("paneLab").innerText.split("\n").slice(0, 6).join(". ")),
-      quiz: () => { const q = $("paneQuiz").querySelector(".quiz-q"); speak(q ? q.textContent : "Teste dein Wissen im Quiz!"); }
-    }[name];
   }
 
   function renderInfo() {
@@ -489,12 +462,9 @@ window.UI = (function () {
         <button class="btn ghost" id="fPrev">◀</button>
         <div class="dots">${b.facts.map((_, k) => `<i class="${k === factIdx ? "on" : ""}"></i>`).join("")}</div>
         <button class="btn primary" id="fNext">Nächster ▶</button>
-      </div>
-      <div class="row-gap"><button class="btn ghost" id="fSpeak">🔊 Vorlesen</button></div>`;
+      </div>`;
     $("fPrev").onclick = () => { Sound.click(); renderFacts(factIdx - 1); };
     $("fNext").onclick = () => { Sound.click(); renderFacts(factIdx + 1); };
-    $("fSpeak").onclick = () => speak(b.facts[factIdx]);
-    if ($("pSpeak") && document.querySelector('.tab.active')?.dataset.tab === "facts") $("pSpeak").onclick = () => speak(b.facts[factIdx]);
   }
 
   function travelText(km) {
@@ -597,7 +567,6 @@ window.UI = (function () {
         <div class="quiz-q">${q.q}</div>
         <div class="answers">${order.map((o) => `<button class="answer" data-k="${o.k}">${o.txt}</button>`).join("")}</div>
         <div id="qAfter"></div>`;
-      if (document.querySelector(".tab.active")?.dataset.tab === "quiz") $("pSpeak").onclick = () => speak(q.q + " " + order.map((o) => o.txt).join(". Oder: "));
       $("paneQuiz").querySelectorAll(".answer").forEach((btn) => btn.onclick = () => {
         const ok = +btn.dataset.k === q.c;
         results[i] = ok;
@@ -640,7 +609,6 @@ window.UI = (function () {
   }
   function closeModal() {
     $("modal").classList.add("hidden");
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
   }
   function modalOpen() { return !$("modal").classList.contains("hidden"); }
 
@@ -799,6 +767,6 @@ window.UI = (function () {
   return {
     nearId: null,
     init, onStateReady, showStart, countdown, showHUD, updateHUD, frame, warp,
-    openPanel, closePanel, toast, celebrate, confetti, speak, openModal, closeModal, modalOpen
+    openPanel, closePanel, toast, celebrate, confetti, openModal, closeModal, modalOpen
   };
 })();

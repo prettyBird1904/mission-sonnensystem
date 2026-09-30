@@ -315,8 +315,15 @@ window.Surface = (function () {
   // Oberkörper leicht vorgebeugt, Arme angewinkelt vor dem Körper (der Anzug ist steif).
   function poseRig(rig, st) {
     const breathe = Math.sin(st.t * 1.4) * 0.015;
-    let legL = 0, legR = 0, kneeL = 0, kneeR = 0, down = 1.3, fwd = 0.08, elbow = 0.3, lean = breathe;
-    if (st.mode === "lope") {
+    let legL = 0, legR = 0, kneeL = 0, kneeR = 0, down = 1.3, fwd = 0.08, elbow = 0.3, lean = breathe, downL = null, downR = null;
+    if (st.mode === "climb") {
+      // Leiter hochsteigen: Hände und Füße greifen abwechselnd nach oben
+      const s = Math.sin(st.phase);
+      legL = 0.75 + 0.4 * s; legR = 0.75 - 0.4 * s;
+      kneeL = -(0.95 + 0.45 * s); kneeR = -(0.95 - 0.45 * s);
+      fwd = 1.3; elbow = 0.5; lean -= 0.06;
+      downL = -0.15 - 0.35 * s; downR = -0.15 + 0.35 * s;
+    } else if (st.mode === "lope") {
       lean -= 0.2 * st.speed;
       down = 1.0; fwd = 0.35; elbow = 0.75;
       if (st.air) {
@@ -341,7 +348,7 @@ window.Surface = (function () {
     if (st.hold) { down = 0.25; fwd = 1.35; elbow = 0.2; } // beide Arme waagerecht nach vorn
     setBone(rig, "legL", legL, 0, 0); setBone(rig, "legR", legR, 0, 0);
     setBone(rig, "kneeL", kneeL, 0, 0); setBone(rig, "kneeR", kneeR, 0, 0);
-    setArm(rig, "armL", fwd, down); setArm(rig, "armR", -fwd, down);
+    setArm(rig, "armL", fwd, downL == null ? down : downL); setArm(rig, "armR", -fwd, downR == null ? down : downR);
     setBone(rig, "foreL", 0, 0, elbow); setBone(rig, "foreR", 0, 0, -elbow);
     setBone(rig, "spine", lean, 0, 0);
   }
@@ -368,6 +375,30 @@ window.Surface = (function () {
       const rung = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.05), metal);
       rung.position.set(2.15, 0.3 + i * 0.3, 0); rung.rotation.y = Math.PI / 2; g.add(rung);
     }
+    return g;
+  }
+
+  // Einstieg der eigenen Rakete: Leiter und offene Luke (lokal +Z zeigt von der Rakete weg).
+  // Sitzt genau zwischen zwei Flossen auf der Sonnenseite (nicht im Schatten der Rakete).
+  const HATCH = { a: -Math.PI / 3, x: Math.sin(-Math.PI / 3), z: Math.cos(-Math.PI / 3), y: 3.75 };
+  function makeHatch() {
+    const g = new THREE.Group();
+    const metal = new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.6, roughness: 0.4 });
+    // Offene Luke: aus der Kabine scheint warmes Licht
+    const door = new THREE.Mesh(new THREE.CylinderGeometry(1.47, 1.41, 1.9, 12, 1, true, -0.36, 0.72),
+      new THREE.MeshStandardMaterial({ color: 0x1f2937, emissive: 0xfcd34d, emissiveIntensity: 0.9, roughness: 0.6, side: THREE.DoubleSide }));
+    door.position.y = HATCH.y + 0.95; g.add(door);
+    const step = new THREE.Mesh(new THREE.BoxGeometry(1, 0.06, 0.5), metal);
+    step.position.set(0, HATCH.y - 0.03, 1.62); step.castShadow = true; g.add(step);
+    for (const x of [-0.3, 0.3]) {
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, HATCH.y, 6), metal);
+      rail.position.set(x, HATCH.y / 2, 1.8); rail.castShadow = true; g.add(rail);
+    }
+    for (let y = 0.35; y < HATCH.y; y += 0.34) {
+      const rung = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.05), metal);
+      rung.position.set(0, y, 1.8); g.add(rung);
+    }
+    g.userData = { door };
     return g;
   }
 
@@ -479,8 +510,8 @@ window.Surface = (function () {
     scene.add(rocks);
 
     // Licht: grelle Sonne, kaum Umgebungslicht (auf dem Mond sind Schatten tiefschwarz), bläulicher Erdschein
-    scene.add(new THREE.AmbientLight(0x8090b0, 0.16));
-    scene.add(new THREE.HemisphereLight(0x5b7bbf, 0x000000, 0.12));
+    const ambient = new THREE.AmbientLight(0x8090b0, 0.16), hemi = new THREE.HemisphereLight(0x5b7bbf, 0x000000, 0.12);
+    scene.add(ambient, hemi);
     const sun = new THREE.DirectionalLight(0xfffaf0, 1.9);
     sun.castShadow = true;
     const shadowRes = FAST || W.lite ? 1024 : 2048; // Tablets/Surface: sparsamer
@@ -496,7 +527,8 @@ window.Surface = (function () {
       sp.set([r * Math.cos(th) * 1400, u * 1400, r * Math.sin(th) * 1400], i * 3);
     }
     const sg = new THREE.BufferGeometry(); sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
-    scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, color: 0xffffff, transparent: true, opacity: 0.85 })));
+    const stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, color: 0xffffff, transparent: true, opacity: 0.85 }));
+    scene.add(stars);
     const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,245,1)", "rgba(255,240,200,0.5)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
     sunGlow.position.copy(SUN_DIR).multiplyScalar(1200); sunGlow.scale.set(160, 160, 1);
     scene.add(sunGlow);
@@ -513,6 +545,12 @@ window.Surface = (function () {
     }
     const earthGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(110,160,255,0.35)", "rgba(70,130,255,0.08)"), blending: THREE.AdditiveBlending, depthWrite: false }));
     earthGlow.scale.set(100, 100, 1); earth.add(earthGlow);
+    // Vergleichs-Mond fürs Fernrohr: so klein sieht der Mond von der Erde aus (Erde vom Mond: 3,67-mal so breit)
+    const cmpMoon = new THREE.Mesh(new THREE.SphereGeometry(40 / 3.67, 32, 24), new THREE.MeshStandardMaterial({ map: W.bodies.mond.mesh.material.map, color: 0xb8b8b8, roughness: 1 }));
+    const cmpRight = new V().crossVectors(earthDir, new V(0, 1, 0)).normalize(); // im Fernrohr: rechts neben der Erde
+    cmpMoon.position.copy(earth.position).addScaledVector(cmpRight, 68);
+    cmpMoon.visible = false;
+    scene.add(cmpMoon);
 
     // Objekte
     const on = (obj, x, z, lift = 0) => { obj.position.set(x, height(x, z) + lift, z); scene.add(obj); return obj; };
@@ -521,6 +559,8 @@ window.Surface = (function () {
     rocket.userData.flame.visible = false;
     rocket.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     on(rocket, 0, 0, 0.95 * 4.6);
+    const hatch = on(makeHatch(), 0, 0);
+    hatch.rotation.y = HATCH.a;
 
     const lander = on(makeLander(), ...L.apollo);
     lander.rotation.y = 0.6;
@@ -558,7 +598,7 @@ window.Surface = (function () {
 
     // Markierungen (Lichtsäulen) für die Entdeckungs-Stationen
     const stations = {};
-    const stationPos = { apollo: L.apollo, himmel: L.himmel, temperatur: L.shadowSpot, fallversuch: L.fallversuch };
+    const stationPos = { apollo: L.apollo, himmel: L.himmel, temperatur: L.shadowSpot, fallversuch: L.fallversuch, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] };
     for (const [key, [x, z]] of Object.entries(stationPos)) {
       const mk = on(makeMarker(), key === "apollo" ? x + 6 : x, key === "apollo" ? z - 5 : z);
       stations[key] = { marker: mk, x: mk.position.x, z: mk.position.z };
@@ -576,7 +616,7 @@ window.Surface = (function () {
     const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], [...L.fallversuch, 1], [...L.himmel, 0.6]];
 
     return {
-      scene, camera, height, L, sun, earth, earthDir, rocket, lander, boulder, telescope, table, hammer, feather,
+      scene, camera, height, L, sun, ambient, hemi, stars, earth, earthDir, cmpMoon, cmpRight, rocket, rocketY: rocket.position.y, hatch, hatchY: hatch.position.y, lander, boulder, telescope, table, hammer, feather,
       stations, astronaut, myPrints, printIdx: 0, dust, dustIdx: 0, colliders, shadowCasters: [boulder, rocket, lander]
     };
   }
@@ -587,7 +627,7 @@ window.Surface = (function () {
   const keys = {}, joy = { x: 0, y: 0 };
   let jumpPressed = false, actionPressed = false;
   let temp = { shown: 120, inShadow: false, shadowTime: 0, sunSeen: false, check: 0 };
-  let radioTimer = 0, farWarned = 0, experiment = null, quizDone = false;
+  let radioTimer = 0, farWarned = 0, experiment = null, quizDone = false, boarding = null;
 
   function fmtVars(t, vars) { return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : k === "name" ? G.state.name : "")); }
 
@@ -595,8 +635,6 @@ window.Surface = (function () {
     const msg = fmtVars(text, vars);
     $("radioText").textContent = msg;
     const r = $("radio"); r.classList.remove("hidden"); r.classList.remove("ping"); void r.offsetWidth; r.classList.add("ping");
-    $("radioSpeak").onclick = () => UI.speak(msg);
-    if (Sound.enabled) UI.speak(msg);
     radioTimer = 14;
   }
 
@@ -606,39 +644,63 @@ window.Surface = (function () {
   function updateCounter() {
     $("discCount").textContent = `${foundCount()}/${cfg.discoveries.length}`;
     for (const [key, st] of Object.entries(world.stations)) {
-      const done = !!foundMap()[key];
-      st.marker.userData.beam.material.color.set(done ? 0x4ade80 : 0x7dd3fc);
-      st.marker.userData.ring.material.color.set(done ? 0x4ade80 : 0x7dd3fc);
-      st.marker.userData.beam.scale.y = done ? 0.25 : 1;
-      st.marker.userData.beam.position.y = done ? 3.75 : 15;
+      const home = !!cfg.stations[key].home, done = !!foundMap()[key];
+      const color = home ? 0xfbbf24 : done ? 0x4ade80 : 0x7dd3fc;
+      st.marker.userData.beam.material.color.set(color);
+      st.marker.userData.ring.material.color.set(color);
+      st.marker.userData.beam.scale.y = done || home ? 0.25 : 1;
+      st.marker.userData.beam.position.y = done || home ? 3.75 : 15;
     }
   }
 
-  // Eine Entdeckung wurde gemacht → Karte zeigen, speichern, Sterne
-  function discover(key, vars) {
-    if (foundMap()[key]) return;
+  // Eine Entdeckung wurde gemacht → Karte zeigen, speichern, Sterne.
+  // replay = true: schon Entdecktes darf man sich beliebig oft wieder ansehen (dann ohne neuen Stern).
+  function discover(key, vars, replay) {
+    const saved = foundMap()[key], known = !!saved;
+    if (known && !replay) return;
     const d = cfg.discoveries.find((x) => x.key === key);
-    G.discover(bodyId, key);
-    updateCounter();
-    Sound.correct(); UI.confetti(90);
+    if (known) vars = vars || (typeof saved === "object" ? saved : d.fallback);
+    else {
+      G.discover(bodyId, key, vars);
+      updateCounter();
+      Sound.correct(); UI.confetti(90);
+    }
     const text = fmtVars(d.text, vars);
     UI.openModal(`
       <div class="discovery">
         <div class="disc-icon">${d.icon}</div>
-        <div class="disc-kicker">Neue Entdeckung! +1 ⭐</div>
+        <div class="disc-kicker">${known ? "✓ Schon entdeckt – nochmal angesehen" : "Neue Entdeckung! +1 ⭐"}</div>
         <h2>${d.title}</h2>
         ${d.photo ? `<img src="img/${d.photo}" alt="" class="disc-photo">` : ""}
         <p>${text}</p>
-        <div class="row-gap"><button class="btn ghost" id="discSpeak">🔊 Vorlesen</button><button class="btn primary" id="discOk">Weiter erkunden ▶</button></div>
+        <div class="row-gap"><button class="btn primary" id="discOk">Weiter erkunden ▶</button></div>
       </div>`);
-    if (Sound.enabled) UI.speak(`${d.title}. ${text}`);
-    $("discSpeak").onclick = () => UI.speak(`${d.title}. ${text}`);
     $("discOk").onclick = () => {
       UI.closeModal();
+      if (known) return;
       const rest = cfg.discoveries.length - foundCount();
       if (rest > 0) radio(cfg.radio.found, { rest });
       else if (!quizDone) { radio(cfg.radio.allFound); setTimeout(startQuiz, 2500); }
     };
+  }
+
+  // Liste aller Entdeckungen (Tipp auf den Zähler oben rechts): Entdecktes nochmal ansehen, Funk-Fragen wiederholen
+  function showFound() {
+    if (!S.active || boarding || experiment || view.special) return;
+    Sound.click();
+    const f = foundMap(), n = cfg.discoveries.length, all = foundCount() >= n;
+    UI.openModal(`
+      <div class="discovery">
+        <div class="disc-kicker">🔍 ${foundCount()} von ${n} entdeckt</div>
+        <h2>Meine Entdeckungen</h2>
+        <div class="answers">${cfg.discoveries.map((d) => f[d.key]
+          ? `<button class="answer" data-key="${d.key}">✓ ${d.icon} ${d.title}</button>`
+          : `<button class="answer" disabled style="opacity:.55">○ ❓ Noch nicht entdeckt</button>`).join("")}</div>
+        <div class="row-gap">${all ? `<button class="btn ghost" id="foundQuiz">📻 Funk-Fragen nochmal</button>` : ""}<button class="btn primary" id="foundOk">Weiter erkunden ▶</button></div>
+      </div>`);
+    document.querySelectorAll("#modalContent .answer[data-key]").forEach((b) => b.onclick = () => discover(b.dataset.key, null, true));
+    $("foundOk").onclick = () => UI.closeModal();
+    if (all) $("foundQuiz").onclick = () => { UI.closeModal(); startQuiz(); };
   }
 
   function startQuiz() {
@@ -653,7 +715,6 @@ window.Surface = (function () {
           <div class="answers">${q.a.map((t, k) => `<button class="answer" data-k="${k}">${t}</button>`).join("")}</div>
           <div id="sqAfter"></div>
         </div>`);
-      if (Sound.enabled) UI.speak(q.q);
       document.querySelectorAll("#modalContent .answer").forEach((b) => b.onclick = () => {
         const ok = +b.dataset.k === q.c; if (ok) { right++; Sound.correct(); } else Sound.wrong();
         document.querySelectorAll("#modalContent .answer").forEach((x) => { x.disabled = true; if (+x.dataset.k === q.c) x.classList.add("right"); });
@@ -704,16 +765,23 @@ window.Surface = (function () {
     pad.addEventListener("pointerup", end); pad.addEventListener("pointercancel", end);
     $("sJump").addEventListener("pointerdown", (e) => { e.preventDefault(); jumpPressed = true; });
     $("surfAction").addEventListener("click", () => { actionPressed = true; });
-    $("btnBoard").addEventListener("click", () => exit());
+    $("btnDisc").addEventListener("click", showFound);
 
     // Kamera per Wischen/Ziehen drehen und neigen
     const canvas = $("scene"); let drag = null;
     canvas.addEventListener("pointerdown", (e) => { if (S.active) drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
     window.addEventListener("pointermove", (e) => {
       if (!S.active || !drag || drag.id !== e.pointerId) return;
-      view.yaw -= (e.clientX - drag.x) * 0.006;
-      view.height = Math.max(0.8, Math.min(9, view.height + (e.clientY - drag.y) * 0.02));
-      drag.x = e.clientX; drag.y = e.clientY; view.dragged = 1.5;
+      if (view.special) {
+        // Fernrohr schwenken: der Himmel wandert mit dem Finger mit
+        const k = 0.52 / innerHeight;
+        view.special.yaw += (e.clientX - drag.x) * k; view.special.pitch += (e.clientY - drag.y) * k;
+      } else {
+        view.yaw -= (e.clientX - drag.x) * 0.006;
+        view.height = Math.max(0.8, Math.min(9, view.height + (e.clientY - drag.y) * 0.02));
+        view.dragged = 1.5;
+      }
+      drag.x = e.clientX; drag.y = e.clientY;
     });
     window.addEventListener("pointerup", (e) => { if (drag && drag.id === e.pointerId) drag = null; });
   }
@@ -745,8 +813,17 @@ window.Surface = (function () {
     world.camera.position.set(sx - Math.sin(view.yaw) * 7, ast.pos.y + 3.2, sz - Math.cos(view.yaw) * 7);
     temp = { shown: 120, inShadow: false, shadowTime: 0, sunSeen: true, check: 0 };
     quizDone = (G.state.surfaceQuiz && G.state.surfaceQuiz[id] != null) || false;
-    experiment = null; jumpPressed = actionPressed = false;
+    experiment = null; boarding = null; jumpPressed = actionPressed = false;
     world.hammer.visible = world.feather.visible = true;
+    world.astronaut.visible = true; world.astronaut.scale.setScalar(1);
+    world.hatch.userData.door.material.emissiveIntensity = 0.9;
+    world.rocket.position.y = world.rocketY; world.hatch.position.y = world.hatchY;
+    world.rocket.userData.flame.visible = false;
+    world.telescope.visible = world.stations.himmel.marker.visible = true;
+    world.cmpMoon.visible = false; applySky(0);
+    $("scope").classList.add("hidden"); $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
+    world.camera.fov = 60; world.camera.updateProjectionMatrix();
+    world.stations.rakete.marker.visible = true;
     const rig = world.astronaut.userData.rig;
     if (rig) setSuitAccent(rig, G.state.color);
     updateCounter();
@@ -760,8 +837,8 @@ window.Surface = (function () {
 
   function exit() {
     if (!S.active) return;
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
     S.active = false;
+    Sound.engine(0);
     $("surfaceHud").classList.add("hidden");
     $("surfLabels").innerHTML = "";
     if (onExit) onExit();
@@ -788,18 +865,24 @@ window.Surface = (function () {
   const tmp = new V(), tmp2 = new V(), ray = new THREE.Raycaster();
   S.update = function (dt, elapsed) {
     if (!S.active || !world) return;
-    const H = world.height, g = cfg.gravity;
+    const H = world.height, g = cfg.moveGravity || cfg.gravity;
     const paused = UI.modalOpen();
 
     // Eingabe → Bewegungsrichtung relativ zur Kamera
     let mx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + joy.x;
     let my = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0) - joy.y;
-    if (paused || view.special || experiment) { mx = my = 0; jumpPressed = false; }
+    const busy = paused || !!boarding;
+    if (view.special) {
+      // Im Fernrohr steuern Joystick/Tasten das Fernrohr, „E“ drückt den leuchtenden Knopf
+      view.special.ix = mx; view.special.iy = my;
+      if (actionPressed) { actionPressed = false; const b = $("scopeBtns").querySelector(".primary"); if (b) b.click(); }
+    }
+    if (busy || view.special || experiment) { mx = my = 0; jumpPressed = false; }
     const len = Math.hypot(mx, my);
     const fwd = tmp.set(Math.sin(view.yaw), 0, Math.cos(view.yaw));
     const right = tmp2.set(-Math.cos(view.yaw), 0, Math.sin(view.yaw));
-    // Tempo wie bei Apollo: Astronauten liefen im „Lope“ mit etwa 1 bis 2 m/s
-    const LOPE_SPEED = 2.1;
+    // Apollo-Astronauten liefen im „Lope“ mit etwa 1 bis 2 m/s – fürs Spiel etwas flotter
+    const LOPE_SPEED = 3.0;
     let targetSpeed = 0;
     if (len > 0.12) {
       const mvx = fwd.x * my + right.x * mx, mvz = fwd.z * my + right.z * mx;
@@ -811,12 +894,12 @@ window.Surface = (function () {
     }
     view.dragged = Math.max(0, (view.dragged || 0) - dt);
     // Wenig Halt auf dem Mondstaub: beschleunigen/bremsen nur am Boden – und gemächlich
-    if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * (targetSpeed > ast.speed ? 2.0 : 2.6));
+    if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * (targetSpeed > ast.speed ? 3.0 : 3.4));
     const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
     ast.pos.x += hx * ast.speed * dt; ast.pos.z += hz * ast.speed * dt;
 
     // Hindernisse & Grenze
-    for (const [cx, cz, r] of world.colliders) {
+    if (!boarding) for (const [cx, cz, r] of world.colliders) {
       const dx = ast.pos.x - cx, dz = ast.pos.z - cz, d = Math.hypot(dx, dz), min = r + 0.45;
       if (d < min && d > 0.001) { ast.pos.x = cx + (dx / d) * min; ast.pos.z = cz + (dz / d) * min; }
     }
@@ -826,11 +909,11 @@ window.Surface = (function () {
       if (elapsed - farWarned > 12) { farWarned = elapsed; radio(cfg.radio.tooFar); }
     }
 
-    // Springen & Lope-Schritte – echte Mond-Schwerkraft (1,62 m/s²)
+    // Springen & Lope-Schritte – mit moveGravity (etwas stärker als die echte Mond-Schwerkraft, fühlt sich weniger zäh an)
     const ground = H(ast.pos.x, ast.pos.z);
     if (jumpPressed && ast.onGround) {
-      // Realistisch: Anzug + Rucksack wiegen so viel wie ein Erwachsener → ca. 45 cm hoch, ~1,5 s in der Luft
-      ast.vy = 1.2; ast.onGround = false; ast.jumpBase = ast.pos.y; ast.maxY = ast.pos.y; ast.jumping = true; ast.hopping = false;
+      // Anzug + Rucksack wiegen so viel wie ein Erwachsener → ca. 45 cm hoch, gut 1 s in der Luft
+      ast.vy = Math.sqrt(2 * g * 0.45); ast.onGround = false; ast.jumpBase = ast.pos.y; ast.maxY = ast.pos.y; ast.jumping = true; ast.hopping = false;
       ast.airT = 0; ast.airDur = 2 * ast.vy / g;
       Sound.whoosh();
       grains(ast.pos, 8, 0.6);
@@ -858,7 +941,9 @@ window.Surface = (function () {
           footprint(0.17); footprint(-0.17);
           Sound.land();
           const h = Math.max(0, ast.maxY - ast.jumpBase);
-          if (h > 0.3) discover("sprung", { hoehe: `${Math.round(h * 100)} Zentimeter`, zeit: ast.airT.toFixed(1).replace(".", ",") });
+          const jump = { hoehe: `${Math.round(h * 100)} Zentimeter`, zeit: ast.airT.toFixed(1).replace(".", ",") };
+          if (h > 0.3 && foundMap().sprung) UI.toast(`🦘 ${jump.hoehe} hoch · ${jump.zeit} Sekunden in der Luft`, "gold");
+          else if (h > 0.3) discover("sprung", jump);
         }
       }
     } else {
@@ -872,15 +957,18 @@ window.Surface = (function () {
       if (ast.walked > 0.55) { ast.walked = 0; ast.foot = 1 - ast.foot; footprint(ast.foot ? 0.17 : -0.17); }
     }
 
+    if (boarding) updateBoarding(dt);
+
     // Astronaut darstellen
     const a = world.astronaut, u = a.userData;
-    const speedFrac = Math.min(1, ast.speed / LOPE_SPEED);
-    ast.phase += dt * (1.5 + ast.speed * 3);
+    const speedFrac = boarding ? 0.8 : Math.min(1, ast.speed / LOPE_SPEED);
+    ast.phase += dt * (boarding ? 6 : 1.5 + ast.speed * 3);
     a.position.set(ast.pos.x, ast.pos.y, ast.pos.z);
     a.rotation.y = ast.heading;
     const hold = !!(experiment && experiment.t < 0.15);
     if (u.rig) {
-      const mode = ast.jumping ? "jump" : (ast.hopping || (ast.speed > 0.7 && ast.onGround)) ? "lope" : ast.speed > 0.15 ? "walk" : "stand";
+      const mode = boarding ? (boarding.phase === "walk" ? "walk" : boarding.phase === "climb" ? "climb" : "stand")
+        : ast.jumping ? "jump" : (ast.hopping || (ast.speed > 0.7 && ast.onGround)) ? "lope" : ast.speed > 0.15 ? "walk" : "stand";
       poseRig(u.rig, { mode, air: !ast.onGround, airP: ast.airDur ? Math.min(1, ast.airT / ast.airDur) : 0, contact: ast.contact || 0,
         speed: speedFrac, phase: ast.phase, hold, t: elapsed });
     } else {
@@ -902,7 +990,7 @@ window.Surface = (function () {
     const target = temp.inShadow ? -150 : 120;
     temp.shown += (target - temp.shown) * Math.min(1, dt * 1.2);
     if (temp.inShadow) temp.shadowTime += dt; else { temp.shadowTime = 0; temp.sunSeen = true; }
-    if (temp.inShadow && temp.shadowTime > 1.8 && temp.sunSeen && !paused) discover("temperatur");
+    if (temp.inShadow && temp.shadowTime > 1.8 && temp.sunSeen && !busy) discover("temperatur");
     const t = Math.round(temp.shown);
     const tEl = $("suitTemp");
     const tText = (t < 0 ? "−" : "") + Math.abs(t) + " °C";
@@ -911,16 +999,19 @@ window.Surface = (function () {
     $("suitState").textContent = temp.inShadow ? "❄️ Schatten – eiskalt!" : "☀️ Sonne – glühend heiß!";
 
     // Stationen: Nähe prüfen
-    let near = null;
+    let near = null, nearText = "";
     for (const [key, st] of Object.entries(world.stations)) {
-      const d = Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z);
-      if (key === "apollo" && Math.hypot(ast.pos.x - world.L.apollo[0], ast.pos.z - world.L.apollo[1]) < 9 && !paused) discover("apollo");
-      if (cfg.stations[key].action && d < 3.2) near = key;
+      const sc = cfg.stations[key], d = Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z);
+      if (key === "apollo" && Math.hypot(ast.pos.x - world.L.apollo[0], ast.pos.z - world.L.apollo[1]) < 9 && !busy) discover("apollo");
+      // Stationen ohne eigene Aktion: nach der Entdeckung kann man sie sich dort nochmal ansehen
+      const text = sc.action || (sc.again && foundMap()[key] ? sc.again : "");
+      if (text && d < (sc.reach || 3.2)) { near = key; nearText = text; }
     }
     const act = $("surfAction");
-    if (near && !experiment && !view.special && !paused) {
+    if (near && !experiment && !view.special && !busy) {
       act.classList.remove("hidden");
-      act.innerHTML = `${cfg.stations[near].action} <kbd>E</kbd>`;
+      const html = `${nearText} <kbd>E</kbd>`;
+      if (act.innerHTML !== html) act.innerHTML = html;
       if (actionPressed) startAction(near);
     } else act.classList.add("hidden");
     actionPressed = false;
@@ -940,6 +1031,16 @@ window.Surface = (function () {
 
   function updateCamera(dt) {
     const c = world.camera;
+    if (boarding) {
+      // Schräg von hinten zuschauen, wie der Astronaut die Leiter hochsteigt
+      // … und beim Start ein Stück zurückgehen und der Rakete nachschauen
+      const a = HATCH.a + 0.45, launch = boarding.phase === "launch", dist = launch ? 17 : 9.5;
+      c.position.lerp(tmp.set(Math.sin(a) * dist, 2.6, Math.cos(a) * dist), 1 - Math.exp(-dt * 2.5));
+      if (launch) view.look.lerp(tmp2.set(0, 4 + (boarding.rise || 0), 0), 1 - Math.exp(-dt * 3));
+      else view.look.lerp(tmp2.set(HATCH.x * 1.6, 3.3, HATCH.z * 1.6), 1 - Math.exp(-dt * 3));
+      c.lookAt(view.look);
+      return;
+    }
     if (experiment) {
       // Nah heran: von der Seite zuschauen, wie Hammer und Feder fallen
       const hp = world.hammer.position, fp = world.feather.position;
@@ -949,18 +1050,7 @@ window.Surface = (function () {
       c.lookAt(view.look);
       return;
     }
-    if (view.special) {
-      // Blick durchs Fernrohr zur Erde
-      const sp = view.special; sp.t += dt;
-      const eye = tmp.set(world.telescope.position.x, world.telescope.position.y + 1.7, world.telescope.position.z);
-      c.position.lerp(eye, 1 - Math.exp(-dt * 3));
-      view.look.lerp(world.earth.position, 1 - Math.exp(-dt * 2.5));
-      c.lookAt(view.look);
-      c.fov += ((sp.t < 5 ? 14 : 60) - c.fov) * Math.min(1, dt * 1.5); c.updateProjectionMatrix();
-      $("scope").classList.toggle("hidden", !(sp.t > 0.8 && sp.t < 5));
-      if (sp.t > 5.6) { view.special = null; $("scope").classList.add("hidden"); c.fov = 60; c.updateProjectionMatrix(); discover("himmel"); }
-      return;
-    }
+    if (view.special) { updateScope(dt); return; }
     const dist = view.dist || 7.5;
     const want = tmp.set(ast.pos.x - Math.sin(view.yaw) * dist, ast.pos.y + view.height, ast.pos.z - Math.cos(view.yaw) * dist);
     want.y = Math.max(want.y, world.height(want.x, want.z) + 0.8);
@@ -973,7 +1063,9 @@ window.Surface = (function () {
 
   function startAction(key) {
     Sound.click();
-    if (key === "himmel") { view.special = { t: 0 }; radioTimer = 0; $("radio").classList.add("hidden"); }
+    if (key === "rakete") { startBoarding(); return; }
+    if (!cfg.stations[key].action) { discover(key, null, true); return; }
+    if (key === "himmel") startScope();
     if (key === "fallversuch") {
       // Der Astronaut hält Hammer und Feder vor sich (wie Dave Scott 1971) und lässt beide gleichzeitig los
       const tb = world.table.position;
@@ -989,6 +1081,111 @@ window.Surface = (function () {
       experiment = { t: -1.0, y0: baseY + 1.12, ground: baseY, landed: false, fx, fz };
       world.stations.fallversuch.marker.visible = false;
     }
+  }
+
+  // ---------- Fernrohr: selbst die Erde suchen, Größen vergleichen, „Luft an / Luft aus“ ausprobieren ----------
+  const SKY_AIR = new THREE.Color(0x5aa2e8);
+  const ARROWS = ["➡️", "↗️", "⬆️", "↖️", "⬅️", "↙️", "⬇️", "↘️"];
+  // a = 0: Mond (keine Luft, schwarzer Himmel) … a = 1: mit Luft wie auf der Erde (blauer Himmel, hellere Schatten)
+  function applySky(a) {
+    world.scene.background.setRGB(0, 0, 0).lerp(SKY_AIR, a);
+    world.stars.material.opacity = 0.85 * (1 - a);
+    world.ambient.intensity = 0.16 + 0.55 * a; world.hemi.intensity = 0.12 + 0.5 * a;
+  }
+  // Text und Knöpfe unter dem Fernrohr-Bild: buttons = [[Beschriftung, Funktion, hervorgehoben], …]
+  function scopeSay(text, buttons) {
+    $("scopeText").textContent = text;
+    const host = $("scopeBtns"); host.innerHTML = "";
+    for (const [label, fn, primary] of buttons || []) {
+      const b = document.createElement("button");
+      b.className = "btn " + (primary ? "primary" : "ghost"); b.textContent = label;
+      b.onclick = () => { Sound.click(); fn(); };
+      host.appendChild(b);
+    }
+    host.classList.toggle("hidden", !host.children.length);
+    $("scopeUi").classList.remove("hidden");
+  }
+  function startScope() {
+    const e = world.earthDir, yawE = Math.atan2(e.x, e.z), pitchE = Math.asin(e.y);
+    // Das Fernrohr zeigt erst links an der Erde vorbei (rechts stünde der Felsen im Bild) – das Kind muss sie selbst finden
+    view.special = { phase: "aim", t: 0, yawE, pitchE, yaw: yawE + 0.5, pitch: pitchE - 0.2, lock: 0, air: 0, airOn: false, tried: 0, ix: 0, iy: 0, hint: "" };
+    radioTimer = 0; $("radio").classList.add("hidden");
+    world.telescope.visible = world.astronaut.visible = world.stations.himmel.marker.visible = false;
+    $("surfaceHud").classList.add("scoping");
+    scopeSay(document.documentElement.classList.contains("touch-ui") ? cfg.scope.aimTouch : cfg.scope.aim);
+  }
+  function scopeCompare() {
+    view.special.phase = "compare"; world.cmpMoon.visible = true;
+    scopeSay(cfg.scope.compare, [[cfg.scope.next, scopeAir, true]]);
+  }
+  function scopeAir() {
+    view.special.phase = "air"; world.cmpMoon.visible = false;
+    scopeSay(cfg.scope.airIntro, [[cfg.scope.airOn, () => setAir(true), true]]);
+  }
+  function setAir(on) {
+    const sp = view.special, T = cfg.scope;
+    sp.airOn = on;
+    if (on) sp.tried = 1; else if (sp.tried) sp.tried = 2;
+    if (on) { Sound.whoosh(); scopeSay(T.airOnText, [[T.airOff, () => setAir(false), true]]); }
+    else scopeSay(T.airOffText, [[T.airOn, () => setAir(true)], [T.done, endScope, true]]);
+  }
+  function endScope() {
+    view.special = null;
+    applySky(0);
+    world.telescope.visible = world.astronaut.visible = world.stations.himmel.marker.visible = true;
+    world.cmpMoon.visible = false;
+    $("scope").classList.add("hidden"); $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
+    world.camera.fov = 60; world.camera.updateProjectionMatrix();
+    discover("himmel", null, true);
+  }
+  function updateScope(dt) {
+    const c = world.camera, sp = view.special, T = cfg.scope; sp.t += dt;
+    const tp = world.telescope.position;
+    c.position.lerp(tmp.set(tp.x, tp.y + 1.7, tp.z), 1 - Math.exp(-dt * 4));
+    let fov = 30;
+    if (sp.phase === "aim") {
+      sp.yaw -= sp.ix * dt * 0.55; sp.pitch += sp.iy * dt * 0.55;
+      if (sp.t > 25) { // die Bodenstation hilft beim Zielen, damit niemand hängen bleibt
+        const k = Math.min(1, dt * 0.8);
+        sp.yaw += angleLerp(0, sp.yawE - sp.yaw, 1) * k; sp.pitch += (sp.pitchE - sp.pitch) * k;
+      }
+      // nicht zu weit wegschwenken: höchstens ein Stück links/rechts der Erde, nicht unter den Horizont
+      const dYaw = Math.max(-1.1, Math.min(0.4, angleLerp(0, sp.yawE - sp.yaw, 1)));
+      sp.yaw = sp.yawE - dYaw;
+      sp.pitch = Math.max(0.03, Math.min(1.25, sp.pitch));
+      const dPitch = sp.pitchE - sp.pitch;
+      const off = Math.hypot(dYaw * Math.cos(sp.pitch), dPitch);
+      sp.lock = off < 0.07 ? sp.lock + dt : 0;
+      if (sp.t > 8) { // Tipp: Pfeil in Richtung Erde (Erde links = größerer Drehwinkel)
+        const arrow = off < 0.12 ? "" : ARROWS[(Math.round(Math.atan2(dPitch, -dYaw * Math.cos(sp.pitch)) / (Math.PI / 4)) + 8) % 8];
+        if (arrow !== sp.hint) { sp.hint = arrow; $("scopeText").textContent = arrow ? `${T.hint} ${arrow}` : T.almost; }
+      }
+      const cp = Math.cos(sp.pitch);
+      view.look.set(c.position.x + Math.sin(sp.yaw) * cp * 900, c.position.y + Math.sin(sp.pitch) * 900, c.position.z + Math.cos(sp.yaw) * cp * 900);
+      if (sp.lock > 0.45) {
+        sp.phase = "zoom"; Sound.correct();
+        scopeSay(T.found, [[T.compareBtn, scopeCompare, true]]);
+      }
+    } else if (sp.phase === "zoom") {
+      fov = 10;
+      view.look.lerp(world.earth.position, 1 - Math.exp(-dt * 4));
+    } else if (sp.phase === "compare") {
+      fov = 15;
+      view.look.lerp(tmp2.copy(world.earth.position).addScaledVector(world.cmpRight, 19.5), 1 - Math.exp(-dt * 3));
+    } else {
+      // Ohne Fernrohr: der ganze Himmel über dem Mondhorizont, mit der Erde darin
+      fov = 60;
+      const p = sp.pitchE * 0.5, cp = Math.cos(p), y = sp.yawE + 0.35; // etwas nach links, weg vom Felsen
+      view.look.lerp(tmp2.set(c.position.x + Math.sin(y) * cp * 900, c.position.y + Math.sin(p) * 900, c.position.z + Math.cos(y) * cp * 900), 1 - Math.exp(-dt * 3));
+      sp.air += ((sp.airOn ? 1 : 0) - sp.air) * Math.min(1, dt * 2.5);
+      applySky(sp.air);
+    }
+    c.lookAt(view.look);
+    if (c.aspect < 1) fov /= c.aspect; // Hochformat: Bildausschnitt an die Breite anpassen
+    c.fov += (Math.min(90, fov) - c.fov) * Math.min(1, dt * 2.5); c.updateProjectionMatrix();
+    const masked = sp.phase !== "air" && sp.t > 0.5;
+    $("scope").classList.toggle("hidden", !masked);
+    $("scope").classList.toggle("aim", sp.phase === "aim");
   }
 
   function updateExperiment(dt) {
@@ -1009,10 +1206,57 @@ window.Surface = (function () {
       world.scene.remove(world.hammer, world.feather); world.table.add(world.hammer, world.feather);
       world.hammer.rotation.set(0, 0, Math.PI / 2); world.feather.rotation.set(0, 0, Math.PI / 2);
       world.hammer.position.set(-0.3, 1.06, 0); world.feather.position.set(0.3, 1.04, 0);
-      discover("fallversuch");
+      discover("fallversuch", null, true);
     }
   }
 
+  // Einsteigen: zur Leiter gehen, hochklettern, durch die Luke in die Kabine – dann startet die Rakete zurück ins All
+  function startBoarding() {
+    boarding = { phase: "walk", t: 0, y: ast.pos.y };
+    ast.speed = ast.vy = 0; ast.onGround = true; ast.jumping = ast.hopping = false;
+    radioTimer = 0; $("radio").classList.add("hidden");
+    world.stations.rakete.marker.visible = false;
+  }
+  function updateBoarding(dt) {
+    const b = boarding, R = 2.05; b.t += dt;
+    if (b.phase === "walk") {
+      const dx = HATCH.x * R - ast.pos.x, dz = HATCH.z * R - ast.pos.z, d = Math.hypot(dx, dz), step = 1.3 * dt;
+      if (d <= step) { ast.pos.x = HATCH.x * R; ast.pos.z = HATCH.z * R; b.phase = "climb"; b.t = 0; }
+      else {
+        ast.pos.x += (dx / d) * step; ast.pos.z += (dz / d) * step;
+        ast.heading = angleLerp(ast.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 8));
+      }
+      b.y = world.height(ast.pos.x, ast.pos.z);
+    } else {
+      ast.heading = angleLerp(ast.heading, Math.atan2(-HATCH.x, -HATCH.z), 1 - Math.exp(-dt * 8)); // Blick zur Rakete
+      if (b.phase === "climb") {
+        b.y = Math.min(HATCH.y, b.y + 0.95 * dt);
+        if (b.y >= HATCH.y) { b.phase = "enter"; b.t = 0; }
+      } else if (b.phase === "enter") {
+        const k = Math.min(1, b.t / 0.9), r = R - 1.2 * k;
+        ast.pos.x = HATCH.x * r; ast.pos.z = HATCH.z * r;
+        world.astronaut.scale.setScalar(1 - 0.25 * k);
+        if (k >= 1) {
+          // Luke zu: das Licht aus der Kabine verschwindet
+          world.astronaut.visible = false;
+          world.hatch.userData.door.material.emissiveIntensity = 0;
+          Sound.land();
+          b.phase = "closed"; b.t = 0;
+        }
+      } else if (b.phase === "closed") {
+        if (b.t > 0.8) { b.phase = "launch"; b.t = 0; world.rocket.userData.flame.visible = true; Sound.engine(1); }
+      } else {
+        // Start: Triebwerk zündet, Staub fliegt weg, die Rakete hebt immer schneller ab
+        const lift = Math.max(0, b.t - 0.6);
+        b.rise = 0.5 * 4.5 * lift * lift;
+        world.rocket.position.y = world.rocketY + b.rise; world.hatch.position.y = world.hatchY + b.rise;
+        world.rocket.userData.flame.scale.setScalar(1.5 + Math.random() * 0.5);
+        if (b.rise < 6) grains(tmp.set(0, world.hatchY + 0.1, 0), 4, 2.5);
+        if (b.t > 3.8) { exit(); return; }
+      }
+    }
+    ast.pos.y = b.y;
+  }
   // Fußabdruck neben dem Astronauten (side = links/rechts, back = Versatz nach hinten)
   function footprint(side, back = 0) {
     const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
@@ -1049,16 +1293,17 @@ window.Surface = (function () {
     for (const [key, st] of Object.entries(world.stations)) {
       const el = labelEls[key]; if (!el) continue;
       tmp.set(st.x, st.marker.position.y + 3.2, st.z).project(c);
-      if (tmp.z > 1 || Math.abs(tmp.x) > 1.1 || Math.abs(tmp.y) > 1.1 || view.special) { el.style.display = "none"; continue; }
-      const done = !!foundMap()[key];
-      const text = `${done ? "✓" : "🔍"} ${cfg.stations[key].label}`;
+      if (tmp.z > 1 || Math.abs(tmp.x) > 1.1 || Math.abs(tmp.y) > 1.1 || view.special || boarding) { el.style.display = "none"; continue; }
+      const home = !!cfg.stations[key].home, done = !!foundMap()[key];
+      const text = `${home ? "🚀" : done ? "✓" : "🔍"} ${cfg.stations[key].label}`;
       if (el.textContent !== text) el.textContent = text;
       el.classList.toggle("done", done);
+      el.classList.toggle("home", home);
       el.style.display = "";
       el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h}px) translate(-50%, -100%)`;
     }
   }
 
-  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, discover, POSE, setBone };
+  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, discover, startAction, showFound, POSE, setBone, HATCH };
   return S;
 })();

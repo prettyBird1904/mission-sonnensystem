@@ -96,9 +96,7 @@
       <div class="mission glass" id="missionCard">
         <div class="mission-head">
           <span class="mission-tag" id="missionTag">Mission 1/12</span>
-          <button class="chip" id="btnHint">💡 Tipp</button>
-          <button class="chip icon" id="btnSpeakMission" title="Vorlesen">🔊</button>
-        </div>
+          <button class="chip" id="btnHint">💡 Tipp</button>        </div>
         <div class="mission-text" id="missionText"></div>
       </div>
 
@@ -141,12 +139,11 @@
   <div id="surfaceHud" class="hidden">
     <div id="surfLabels"></div>
     <div id="radio" class="radio glass hidden">
-      <div class="radio-head">📻 Bodenstation <button class="chip icon" id="radioSpeak" title="Vorlesen">🔊</button></div>
+      <div class="radio-head">📻 Bodenstation</div>
       <div id="radioText"></div>
     </div>
     <div class="surf-top-right">
-      <div class="disc-count glass" title="Entdeckungen">🔍 <b id="discCount">0/5</b></div>
-      <button class="btn warm" id="btnBoard">🚀 Einsteigen</button>
+      <button class="disc-count glass" id="btnDisc" title="Meine Entdeckungen ansehen">🔍 <b id="discCount">0/5</b></button>
     </div>
     <div id="suit" class="suit glass">
       <div class="suit-t">🌡️ <b id="suitTemp">120 °C</b></div>
@@ -161,6 +158,10 @@
     </div>
   </div>
   <div id="scope" class="hidden"></div>
+  <div id="scopeUi" class="scope-ui glass hidden">
+    <div id="scopeText"></div>
+    <div class="row-gap" id="scopeBtns"></div>
+  </div>
   <div id="fade"></div>
 
   <div id="warp" style="display:none"></div>
@@ -174,7 +175,6 @@
         <span class="kind" id="pKind"></span>
         <h2 id="pName"></h2>
       </div>
-      <button class="chip icon" id="pSpeak" title="Vorlesen">🔊</button>
       <button class="chip icon close" id="pClose" title="Zurück ins Cockpit">✖</button>
     </header>
     <div class="tabs" role="tablist">
