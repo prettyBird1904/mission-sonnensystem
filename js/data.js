@@ -266,6 +266,9 @@ window.SPACE_DATA = {
     mond: {
       gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81); gilt für den Hammer-und-Feder-Versuch
       moveGravity: 2.4, // fürs Laufen und Springen etwas stärker, damit es sich nicht zu zäh anfühlt
+      jump: 0.45,       // Sprunghöhe in Metern (mit schwerem Raumanzug)
+      // Thermometer am Raumanzug: in der Sonne / im Schatten
+      temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Leichte Anziehung", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 45 Zentimeter", zeit: "über 1" },
           text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden durch die Luft geschwebt! Mit genau demselben Absprung kämst du auf der Erde nur ein Sechstel so hoch – der Mond zieht nur ein Sechstel so stark. Meterhoch geht es trotzdem nicht: Raumanzug und Rucksack wiegen zusammen fast so viel wie ein Erwachsener. So ähnlich ist Astronaut John Young 1972 für ein berühmtes Foto gesprungen." },
@@ -357,6 +360,111 @@ window.SPACE_DATA = {
         { q: "Was passiert, wenn du auf dem Mond genauso kräftig abspringst wie auf der Erde?", a: ["Ich komme genauso hoch", "Ich komme etwa 6-mal so hoch und schwebe lange", "Ich fliege ins All davon"], c: 1, why: "Der Mond zieht nur ein Sechstel so stark wie die Erde – man kommt 6-mal so hoch und schwebt lange." },
         { q: "Warum ist der Himmel auf dem Mond schwarz?", a: ["Weil es dort keine Luft gibt", "Weil dort immer Nacht ist", "Weil die Sonne dort nicht scheint"], c: 0, why: "Ohne Luft wird das Sonnenlicht nicht verteilt – der Himmel bleibt schwarz." },
         { q: "Was kommt auf dem Mond zuerst unten an?", a: ["Der Hammer", "Die Feder", "Beide gleichzeitig"], c: 2, why: "Ohne Luft bremst nichts die Feder – alles fällt gleich schnell." }
+      ]
+    },
+
+    mars: {
+      gravity: 3.71, // m/s² – echte Mars-Schwerkraft
+      jump: 0.3,
+      temp: { sun: -50, shade: -75, sunText: "☀️ Sonne – trotzdem eiskalt!", shadeText: "❄️ Schatten – noch kälter!" },
+      discoveries: [
+        { key: "sprung", icon: "🦘", title: "Leichter als zu Hause", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 30 Zentimeter", zeit: "0,8" },
+          text: "Du bist {hoehe} hoch gesprungen – und das mit einem schweren Raumanzug! Der Mars ist kleiner als die Erde und zieht nur gut ein Drittel so stark an dir. Auf dem Mond wärst du noch höher gekommen, auf der Erde viel weniger hoch." },
+        { key: "waage", icon: "⚖️", title: "Ein Drittel so schwer", fallback: { erde: "30", mond: "11,3" },
+          text: "Auf der Erde wiegst du {erde} Kilo – hier zeigt die Waage nur {mond} Kilo! Der Mars ist nur etwa halb so breit wie die Erde. Darum zieht er schwächer an dir: Du fühlst dich nur gut ein Drittel so schwer." },
+        { key: "rover", icon: "🤖", title: "Rover auf Spurensuche", gallery: ["mars-1.jpg", "mars-2.jpg"],
+          text: "Dein Rover hat den hellen Stein untersucht: Er ist vor langer Zeit in Wasser entstanden! Früher gab es auf dem Mars Flüsse und Seen. Echte Rover wie „Curiosity“ und „Perseverance“ fahren seit Jahren über den Mars und suchen nach Spuren von Wasser und Leben. Sie werden von der Erde aus gesteuert – jedes Funksignal ist viele Minuten unterwegs." },
+        { key: "rost", icon: "🧲", title: "Rost im Marsstaub",
+          text: "Der Staub ist am Magneten hängen geblieben! Im Marsstaub steckt nämlich Eisen – und dieses Eisen ist verrostet. Rost ist rotbraun, und der Staub liegt überall. Darum sieht der ganze Mars rot aus. Auch die echten Mars-Rover hatten Magnete dabei, um den Staub zu untersuchen." },
+        { key: "vulkan", icon: "🌋", title: "Der höchste Vulkan",
+          text: "Der Olympus Mons ist der höchste Vulkan im ganzen Sonnensystem: etwa 22 Kilometer hoch! Das ist zweieinhalbmal so hoch wie der Mount Everest und mehr als siebenmal so hoch wie die Zugspitze. Und dein Hubschrauber? 2021 flog „Ingenuity“ auf dem Mars – das allererste Fluggerät auf einem anderen Planeten." },
+        { key: "monde", icon: "🥔", title: "Zwei kleine Monde",
+          text: "Der Mars hat zwei Monde: Phobos und Deimos. Beide sind winzig und sehen aus wie Kartoffeln! Phobos ist nur etwa 22 Kilometer groß und saust in knapp 8 Stunden einmal um den Mars. Deimos ist noch kleiner. Unser Mond ist fast 300-mal so breit wie Deimos." },
+        { key: "abend", icon: "🌇", title: "Blauer Sonnenuntergang",
+          text: "Auf dem Mars ist der Sonnenuntergang blau! Bei uns ist es genau umgekehrt: Am Tag ist der Himmel blau und am Abend rot. Das liegt am feinen Staub in der dünnen Marsluft. Ein Tag auf dem Mars dauert 24 Stunden und 37 Minuten – fast genauso lang wie bei uns." },
+        { key: "eis", icon: "🧊", title: "Eis unter dem Staub",
+          text: "Unter dem roten Staub liegt gefrorenes Wasser! Genau so hat die Landesonde „Phoenix“ 2008 Eis auf dem Mars gefunden. An den Polen hat der Mars sogar dicke Eiskappen. Flüssiges Wasser gibt es heute nicht mehr: Es ist mit etwa −60 °C viel zu kalt, und die Luft ist zu dünn." },
+        { key: "teufel", icon: "🌪️", title: "Staubteufel!",
+          text: "Erwischt! Staubteufel sind kleine Wirbelwinde, die den roten Staub hochreißen. Sie haben schon echten Mars-Rovern geholfen: Sie pusteten den Staub von deren Sonnensegeln! Manchmal gibt es auf dem Mars aber auch riesige Staubstürme, die den ganzen Planeten einhüllen." },
+        { key: "wegweiser", icon: "🪧", title: "Weit weg von der Sonne",
+          text: "Der Mars ist der vierte Planet. Bis zur Sonne sind es 228 Millionen Kilometer – anderthalbmal so weit wie von der Erde. Darum ist es hier kälter, und die Sonne sieht kleiner aus. Ein Jahr dauert auf dem Mars 687 Erdtage, also fast zwei Erdjahre. Eine Rakete braucht von der Erde bis hierher etwa 7 Monate." }
+      ],
+      stations: {
+        wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
+        waage:     { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        rover:     { label: "Rover-Steuerpult", hint: "Steuere den Rover vom Steuerpult aus", action: "🤖 Rover fernsteuern" },
+        rost:      { label: "Magnet-Versuch", hint: "Geh zur Marsstation und probier den Magneten aus", action: "🧲 Magnet-Versuch starten" },
+        vulkan:    { label: "Hubschrauber", hint: "Steig mit dem Hubschrauber auf", action: "🚁 Mit dem Hubschrauber aufsteigen" },
+        monde:     { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
+        abend:     { label: "Himmelskamera", hint: "Geh zur Marsstation und probier die Himmelskamera aus", action: "⏩ Zeit vorspulen bis zum Abend" },
+        eis:       { label: "Bohrer", hint: "Such den Bohrer hinter deiner Rakete", action: "⛏️ Bohrer benutzen" },
+        teufel:    { label: "Staubteufel", hint: "Fang den Staubteufel – er wirbelt hinter deiner Rakete herum", again: "🌪️ Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
+        wegweiser: { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Mars zeigt die Waage nur {mond} Kilo!",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      rover: {
+        drive: "Steuere den Rover mit W, A, S, D zum hellen Stein mit dem goldenen Licht!",
+        driveTouch: "Steuere den Rover mit dem Joystick zum hellen Stein mit dem goldenen Licht!",
+        found: "Geschafft! Der Rover untersucht den Stein mit seinem Roboterarm …",
+        done: "Was hat er gefunden? ▶"
+      },
+      heli: {
+        rising: "Der Hubschrauber steigt auf … Schau, wie klein deine Rakete wird!",
+        intro: "Da hinten am Horizont: der Olympus Mons, der höchste Vulkan im ganzen Sonnensystem. Wie hoch ist er wohl? Stell bekannte Berge daneben!",
+        everestBtn: "🏔️ Mount Everest", zugspitzeBtn: "⛰️ Zugspitze",
+        everest: "Das ist der Mount Everest, der höchste Berg der Erde: fast 9 Kilometer hoch. Neben dem Olympus Mons sieht er klein aus!",
+        zugspitze: "Das ist die Zugspitze, der höchste Berg Deutschlands: fast 3 Kilometer hoch. Man sieht sie kaum!",
+        all: "Der Olympus Mons ist 22 Kilometer hoch – zweieinhalbmal so hoch wie der Mount Everest und mehr als siebenmal so hoch wie die Zugspitze!",
+        done: "Landen ✓"
+      },
+      moons: {
+        aim: "Der Mars hat zwei Monde. Such den größeren! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten.",
+        aimTouch: "Der Mars hat zwei Monde. Such den größeren! Wische über den Himmel, um das Fernrohr zu schwenken.",
+        hint: "Tipp der Bodenstation: Der Mond ist in dieser Richtung",
+        almost: "Fast! Halte das Fernrohr genau auf den Mond.",
+        phobos: "Gefunden! Das ist Phobos. Er ist nicht rund wie unser Mond – er sieht aus wie eine Kartoffel!",
+        deimosBtn: "🔭 Zweiten Mond suchen",
+        deimos: "Und das ist Deimos. Er ist noch kleiner: nur etwa 12 Kilometer groß. So weit könntest du an einem Nachmittag wandern!",
+        done: "Fertig ✓"
+      },
+      drill: {
+        steps: [
+          "Unter dem roten Staub ist vielleicht etwas versteckt. Bohr nach!",
+          "10 Zentimeter tief: nur roter Staub. Weiter!",
+          "20 Zentimeter tief: Der Boden wird steinhart. Noch einmal!",
+          "30 Zentimeter tief: Eis! Unter dem Marsstaub liegt gefrorenes Wasser."
+        ],
+        drill: "⛏️ Bohren", done: "Fertig ✓"
+      },
+      magnet: {
+        ready: "In der Schale liegt Marsstaub. Warum ist er so rot? Halte einen Magneten hinein!",
+        go: "🧲 Magnet in den Staub halten",
+        running: "Der Magnet senkt sich in den Staub …",
+        end: "Der Staub klebt am Magneten! Im Marsstaub steckt also Eisen – verrostetes Eisen. Und Rost ist rotbraun.",
+        again: "🧲 Nochmal", done: "Fertig ✓"
+      },
+      dusk: {
+        ready: "Am Tag ist der Marshimmel gelbbraun vom Staub. Welche Farbe hat wohl der Sonnenuntergang? Wir spulen die Zeit vor …",
+        running: "Die Sonne sinkt … es wird Abend auf dem Mars.",
+        end: "Der Sonnenuntergang auf dem Mars ist blau! Bei uns ist es genau umgekehrt: tagsüber blau, abends rot.",
+        again: "⏩ Nochmal", done: "Fertig ✓"
+      },
+      radio: {
+        start: "Hier ist die Bodenstation! Willkommen auf dem Mars, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Marsstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Willkommen zurück auf dem Mars, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
+        quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
+      },
+      quiz: [
+        { q: "Welche Farbe hat der Sonnenuntergang auf dem Mars?", a: ["Rot", "Blau", "Grün"], c: 1, why: "Der feine Staub in der dünnen Marsluft lässt den Himmel um die Abendsonne blau leuchten." },
+        { q: "Was lag unter dem roten Staub, als du gebohrt hast?", a: ["Eis", "Gold", "Lava"], c: 0, why: "Unter dem Staub liegt gefrorenes Wasser – das hat auch die Sonde Phoenix gefunden." },
+        { q: "Wie sehen die beiden Marsmonde aus?", a: ["Rund wie unser Mond", "Wie kleine Kartoffeln", "Wie Ringe"], c: 1, why: "Phobos und Deimos sind winzig und unregelmäßig geformt." }
       ]
     }
   },

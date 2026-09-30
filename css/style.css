@@ -490,6 +490,9 @@ kbd {
 #scopeText { font-size: 17px; line-height: 1.4; }
 .scope-ui .row-gap { margin-top: 8px; }
 #surfaceHud.scoping > :not(#surfLabels) { display: none; }
+/* Rover fernsteuern: nur der Joystick bleibt, der Text wandert nach oben (unten wäre er dem Joystick im Weg) */
+#surfaceHud.driving > :not(#surfLabels):not(.touch), #surfaceHud.driving .touch-btns { display: none; }
+#surfaceHud.driving ~ #scopeUi { bottom: auto; top: 2vh; }
 #fade { position: fixed; inset: 0; z-index: 70; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s; }
 #fade.on { opacity: 1; }
 
