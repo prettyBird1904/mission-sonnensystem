@@ -2493,6 +2493,365 @@ window.Surface = (function () {
   }
   function endSignal() { world.beam.visible = world.pulse.visible = false; leaveExhibit(); }
 
+  // Anzeigetafel auf einem Mast (z. B. großes Thermometer), von beiden Seiten lesbar: userData.show(text)
+  function makeBoard() {
+    const g = new THREE.Group();
+    const metal = new THREE.MeshStandardMaterial({ color: 0xaab2bd, metalness: 0.6, roughness: 0.4 });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 8), metal); pole.position.y = 1.2; pole.castShadow = true; g.add(pole);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.8, 0.06), metal); back.position.y = 2.6; back.castShadow = true; g.add(back);
+    const cv = document.createElement("canvas"); cv.width = 448; cv.height = 160;
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: false });
+    for (const r of [0, Math.PI]) {
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.68), mat); d.position.set(0, 2.6, r ? -0.035 : 0.035); d.rotation.y = r; g.add(d);
+    }
+    let shown = "";
+    g.userData.show = (text) => {
+      if (text === shown) return; shown = text;
+      const x = cv.getContext("2d");
+      x.fillStyle = "#1a0d06"; x.fillRect(0, 0, 448, 160);
+      x.fillStyle = "#fb923c"; x.font = "bold 92px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(text, 224, 86);
+      tex.needsUpdate = true;
+    };
+    return g;
+  }
+  // Globus auf einem Ständer mit einem roten Fähnchen am Äquator (damit man die Drehung sieht)
+  function makeGlobe(id) {
+    const g = new THREE.Group();
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.2, 1.1, 10), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.7 }));
+    stand.position.y = 0.55; stand.castShadow = true; g.add(stand);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.55, 32, 22), new THREE.MeshStandardMaterial({ map: W.bodies[id].mesh.material.map, roughness: 0.9 }));
+    ball.position.y = 1.65; ball.castShadow = true; g.add(ball);
+    const pin = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    pin.rotation.x = Math.PI / 2; pin.position.z = 0.62; ball.add(pin);
+    g.userData = { ball };
+    return g;
+  }
+
+  // =========================================================
+  //  Venus
+  // =========================================================
+  const VENUS_LAYOUT = {
+    spawn: [-6.9, 4], waage: [-12, 20], hitze: [10, 18], druck: [24, 30], abendstern: [-24, 34],
+    venera: [20, -20], lava: [-30, -18], wegweiser: [14, 4],
+    station: [0, 56], tag: [-6, 49], groesse: [6, 49]
+  };
+  const VENUS_SKY = new THREE.Color(0xd9a441), VENUS_CLEAR = new THREE.Color(0x05070f);
+  const VENUS_EARTH_DIR = new V(0.35, 0.55, 0.75).normalize();
+  function buildVenus() {
+    const L = { ...VENUS_LAYOUT };
+    const craters = [[70, 30, 14, 1.2], [-80, -50, 18, 1.6], [50, -80, 12, 1.2], [-70, 80, 12, 1]];
+    const flats = [[0, 0, 11], [...L.station, 16], [...L.waage, 3], [...L.hitze, 4], [...L.druck, 4], [...L.abendstern, 4]];
+    const B = buildBase({
+      height: makeHeight(craters, flats, 160),
+      // dichte, giftige Wolken: gelb-oranger Dunst, man sieht kaum 100 Meter weit, die Sonne ist nur ein heller Schein
+      sky: VENUS_SKY.getHex(), fog: [18, 190], stars: false, sunSize: 190,
+      ground: 0x8a6a48, rock: 0x5a4632,
+      tint: (x, z) => { const m = 0.6 + 0.35 * fbm2(x * 0.03 + 4, z * 0.03); return [m, m * 0.92, m * 0.8]; },
+      keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.hitze, 4], [...L.druck, 4], [...L.abendstern, 4],
+        [...L.venera, 3], [...L.lava, 5], [...L.wegweiser, 3]],
+      ambient: [0xffc070, 0.75], hemi: [0xffd28a, 0x5a3a1a, 0.4], sun: [0xffe2b0, 0.5],
+      dust: ["rgba(200,160,100,1)", "rgba(170,130,80,0.9)"]
+    });
+    const { scene, on, rocket } = B;
+    const common = addCommon(B, L, "Venusstation");
+
+    // Großes Thermometer (Treibhaus-Versuch), schaut zur Sonne hin
+    const board = on(makeBoard(), ...L.hitze);
+    board.rotation.y = Math.atan2(-SUN_DIR.x, -SUN_DIR.z);
+    // Druck-Versuch: Blechdose unter einer Schutzglocke
+    const press = on(makeTable(), ...L.druck);
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.34, 20), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.85, roughness: 0.3 }));
+    can.position.y = 1.2; press.add(can);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.35, roughness: 0.1, side: THREE.DoubleSide }));
+    dome.position.y = 1.03; press.add(dome);
+    // Spezial-Fernrohr, das durch die Wolken schaut: die Erde als blauer Punkt, daneben winzig der Mond
+    const telescope = on(makeTelescope(VENUS_EARTH_DIR), ...L.abendstern);
+    const dot = (inner, outer, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(inner, outer), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false })); s.scale.setScalar(size); s.visible = false; scene.add(s); return s; };
+    const earthStar = dot("rgba(200,225,255,1)", "rgba(80,150,255,0.7)", 14), moonStar = dot("rgba(255,255,255,1)", "rgba(200,200,200,0.5)", 4);
+    earthStar.position.copy(VENUS_EARTH_DIR).multiplyScalar(900);
+    moonStar.position.copy(earthStar.position).addScaledVector(new V().crossVectors(VENUS_EARTH_DIR, new V(0, 1, 0)).normalize(), 12);
+
+    on(makeProbe(), ...L.venera).rotation.y = 0.9;
+    // Lava-Spalte: glühende Risse im dunklen Gestein
+    const lava = new THREE.Group(), glow = new THREE.MeshBasicMaterial({ color: 0xff6a1a, fog: false });
+    for (let i = 0; i < 6; i++) {
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.22 + hash2(i, 1) * 0.2, 0.04, 1.5), glow);
+      seg.position.set((hash2(i, 2) - 0.5) * 0.9, 0.03, (i - 2.5) * 1.25); seg.rotation.y = (hash2(i, 3) - 0.5) * 0.9; lava.add(seg);
+    }
+    on(lava, ...L.lava);
+    on(makeSignpost("SONNE", "108 Mio. km"), ...L.wegweiser).rotation.y = Math.atan2(L.wegweiser[0], L.wegweiser[1]) + Math.PI;
+    // Dreh-Vergleich: Erde und Venus als Globen nebeneinander
+    const globes = new THREE.Group(), gE = makeGlobe("erde"), gV = makeGlobe("venus");
+    gE.position.x = 0.9; gV.position.x = -0.9; globes.add(gE, gV);
+    on(globes, ...L.tag);
+    const rack = on(makeSizeRack(["mond", "venus", "erde"]), ...L.groesse);
+
+    const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
+      waage: L.waage, hitze: L.hitze, druck: L.druck, tag: L.tag, groesse: L.groesse, abendstern: L.abendstern,
+      venera: L.venera, lava: L.lava, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
+    const colliders = [...common.colliders, [...L.hitze, 0.4], [...L.druck, 1], [...L.abendstern, 0.6], [...L.venera, 1], [...L.wegweiser, 0.3],
+      [...L.tag, 1.5], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1]];
+
+    return { ...B, ...common, L, board, press, can, dome, telescope, earthStar, moonStar, globeE: gE.userData.ball, globeV: gV.userData.ball, rack,
+      stations, colliders, shadowCasters: [rocket, common.station] };
+  }
+  // c = 0: dichte Wolken (so ist die Venus wirklich) … c = 1: Wolken weg – klarer Himmel, die Wärme kann entweichen
+  function venusSky(c) {
+    const w = world;
+    w.scene.background.copy(VENUS_SKY).lerp(VENUS_CLEAR, c);
+    w.scene.fog.color.copy(w.scene.background);
+    w.scene.fog.near = 18 + c * 400; w.scene.fog.far = 190 + c * 2600;
+    w.sunGlow.visible = c > 0.35; w.stars.visible = c > 0.6;
+    w.earthStar.visible = w.moonStar.visible = c > 0.6;
+    w.ambient.intensity = 0.75 - 0.5 * c; w.hemi.intensity = 0.4 - 0.3 * c;
+    w.sun.intensity = 0.5 + 1.5 * c;
+    w.board.userData.show(`${Math.round((465 - 415 * c) / 5) * 5} °C`);
+  }
+  // --- Treibhaus: Wolken wegschieben und zusehen, wie die Temperatur fällt ---
+  function startHeat() {
+    enterExhibit("hitze", { update: updateHeat, c: 0, clear: false, tried: 0 });
+    scopeSay(cfg.heat.intro, [[cfg.heat.off, () => setClouds(false), true]]);
+  }
+  function setClouds(on) {
+    const sp = view.special, T = cfg.heat;
+    sp.clear = !on;
+    if (!on) sp.tried = 1; else if (sp.tried) sp.tried = 2;
+    Sound.whoosh();
+    if (!on) scopeSay(T.offText, [[T.on, () => setClouds(true), true]]);
+    else scopeSay(T.onText, [[T.off, () => setClouds(false)], [T.done, () => { venusSky(0); leaveExhibit(); }, true]]);
+  }
+  function updateHeat(dt) {
+    const c = world.camera, sp = view.special, p = world.board.position, h = Math.hypot(SUN_DIR.x, SUN_DIR.z), dx = SUN_DIR.x / h, dz = SUN_DIR.z / h;
+    c.position.lerp(tmp.set(p.x - dx * 6.5, p.y + 2.6, p.z - dz * 6.5), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(p.x + dx * 30, p.y + 9, p.z + dz * 30), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    sp.c += ((sp.clear ? 1 : 0) - sp.c) * Math.min(1, dt * 1.4);
+    venusSky(sp.c);
+  }
+  // --- Druck: Blechdose unter der Schutzglocke, Glocke auf → Dose wird zerquetscht ---
+  function resetCan() { world.can.scale.set(1, 1, 1); world.can.position.y = 1.2; world.dome.position.y = 1.03; }
+  function startPress() {
+    enterExhibit("druck", { update: updatePress, t: 0, run: false });
+    world.astronaut.visible = false; resetCan();
+    scopeSay(cfg.press.ready, [[cfg.press.go, runPress, true]]);
+  }
+  function runPress() { const sp = view.special; sp.t = 0; sp.run = true; sp.hit = false; resetCan(); scopeSay(cfg.press.running); }
+  function updatePress(dt) {
+    const c = world.camera, sp = view.special, p = world.press.position;
+    c.position.lerp(tmp.set(p.x + 0.8, p.y + 1.7, p.z - 2.3), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(p.x, p.y + 1.25, p.z), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (!sp.run) return;
+    sp.t += dt;
+    world.dome.position.y = 1.03 + smooth(0, 1, sp.t) * 0.9; // Glocke hebt sich
+    const k = smooth(1.1, 1.35, sp.t);                      // … und die Dose gibt schlagartig nach
+    world.can.scale.set(1 + 0.25 * k, 1 - 0.78 * k, 1 + 0.25 * k); world.can.position.y = 1.2 - 0.13 * k;
+    if (k > 0.5 && !sp.hit) { sp.hit = true; Sound.land(); }
+    if (sp.t > 2.4) { sp.run = false; Sound.correct(); scopeSay(cfg.press.end, [[cfg.press.again, runPress], [cfg.press.done, endHidden, true]]); }
+  }
+  // --- Dreh-Vergleich: 10 Erdtage lang drehen sich beide Globen ---
+  const SPIN_TIME = 12, SPIN_DAYS = 10;
+  function startSpin() {
+    enterExhibit("tag", { update: updateSpin, t: 0, run: false, last: "" });
+    world.astronaut.visible = false;
+    scopeSay(cfg.spin.ready, [[cfg.spin.go, runSpin, true]]);
+  }
+  function runSpin() { const sp = view.special; sp.t = 0; sp.run = true; sp.last = ""; scopeSay(""); }
+  function updateSpin(dt) {
+    const c = world.camera, sp = view.special, [x, z] = world.L.tag, y = world.height(x, z), T = cfg.spin;
+    c.position.lerp(tmp.set(x, y + 2.1, z - 4.4), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(x, y + 1.6, z), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (!sp.run) return;
+    sp.t += dt;
+    const f = Math.min(1, sp.t / SPIN_TIME), days = f * SPIN_DAYS;
+    world.globeE.rotation.y = days * Math.PI * 2;            // Erde: eine Drehung pro Tag
+    world.globeV.rotation.y = -(days / 243) * Math.PI * 2;   // Venus: 243 Tage für eine Drehung – und andersherum
+    if (f >= 1) { sp.run = false; Sound.correct(); scopeSay(T.end, [[T.again, runSpin], [T.done, endHidden, true]]); return; }
+    const text = fmtVars(T.run, { erde: Math.floor(days) });
+    if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
+  }
+  function startEveningStar() {
+    const T = cfg.eveningStar, w = world;
+    venusSky(1); // das Spezial-Fernrohr schaut durch die Wolken
+    startTour("abendstern", T, [{ pos: w.earthStar.position, fov: 5, text: T.found }], { end: () => venusSky(0) });
+  }
+
+  // =========================================================
+  //  Erde
+  // =========================================================
+  const ERDE_LAYOUT = {
+    spawn: [-6.9, 4], waage: [-12, 20], luft: [10, 18], stern: [24, 30], mond: [-24, 34],
+    see: [44, -12], wasser: [31, -8], wald: [-36, -16], wegweiser: [14, 4],
+    station: [0, 56], tag: [18, 46], groesse: [0, 49] // Sonnenuhr rechts neben der Station: freier Blick zum Sonnenuntergang
+  };
+  const ERDE_SKY = new THREE.Color(0x7ec0ee), ERDE_NIGHT = new THREE.Color(0x04060e), ERDE_DUSK = new THREE.Color(0xf08a3c);
+  const ERDE_MOON_DIR = new V(-0.55, 0.5, 0.65).normalize();
+  function makeTree(s) {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.22 * s, 1.6 * s, 8), new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 1 }));
+    trunk.position.y = 0.8 * s; trunk.castShadow = true; g.add(trunk);
+    const green = new THREE.MeshStandardMaterial({ color: 0x2f7d32, roughness: 1, flatShading: true });
+    for (let i = 0; i < 3; i++) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry((1.5 - i * 0.35) * s, 1.8 * s, 9), green);
+      c.position.y = (1.9 + i * 1.05) * s; c.castShadow = true; g.add(c);
+    }
+    return g;
+  }
+  function buildErde() {
+    const L = { ...ERDE_LAYOUT };
+    const craters = [[...L.see, 18, 2.4]]; // die Senke für den See
+    const flats = [[0, 0, 11], [...L.station, 16], [...L.waage, 3], [...L.luft, 4], [...L.stern, 4], [...L.mond, 4], [...L.wald, 9], [...L.tag, 3]];
+    const B = buildBase({
+      height: makeHeight(craters, flats, 200),
+      // Luft: blauer Himmel, leichter Dunst in der Ferne, am Tag keine Sterne
+      sky: ERDE_SKY.getHex(), fog: [160, 560], stars: false, sunSize: 150,
+      ground: 0x6aa84f, rock: 0x8a8a86,
+      tint: (x, z) => { const m = 0.75 + 0.3 * fbm2(x * 0.02 + 6, z * 0.02); return [m * 0.95, m, m * 0.85]; },
+      keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.luft, 4], [...L.stern, 4], [...L.mond, 4],
+        [...L.see, 20], [...L.wald, 9], [...L.wegweiser, 3]],
+      ambient: [0xffffff, 0.55], hemi: [0xbfe3ff, 0x4a7a3a, 0.5], sun: [0xfff4e0, 1.5],
+      dust: ["rgba(170,150,110,1)", "rgba(140,125,95,0.9)"]
+    });
+    const { scene, height, on, rocket } = B;
+    const common = addCommon(B, L, "Erdstation");
+
+    // See: flüssiges Wasser gibt es nur auf der Erde
+    const water = new THREE.Mesh(new THREE.CircleGeometry(17.5, 48), new THREE.MeshStandardMaterial({ color: 0x2f7fd0, roughness: 0.12, metalness: 0.35, transparent: true, opacity: 0.88 }));
+    water.rotation.x = -Math.PI / 2; water.position.set(L.see[0], -0.7, L.see[1]); water.receiveShadow = true; scene.add(water);
+    // Wald
+    const trees = new THREE.Group();
+    for (let i = 0; i < 16; i++) {
+      const a = hash2(i, 11) * Math.PI * 2, r = 3.5 + hash2(i, 12) * 7, x = L.wald[0] + Math.cos(a) * r, z = L.wald[1] + Math.sin(a) * r;
+      const t = makeTree(0.8 + hash2(i, 13) * 0.7); t.position.set(x, height(x, z), z); trees.add(t);
+    }
+    for (let i = 0; i < 14; i++) { // einzelne Bäume in der Landschaft
+      const x = (hash2(i, 21) - 0.5) * 240, z = (hash2(i, 22) - 0.5) * 240;
+      if (Math.hypot(x, z) < 70 || Math.hypot(x - L.see[0], z - L.see[1]) < 22) continue;
+      const t = makeTree(0.9 + hash2(i, 23) * 0.8); t.position.set(x, height(x, z), z); trees.add(t);
+    }
+    scene.add(trees);
+    // Wolken
+    const clouds = new THREE.Group(), white = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, transparent: true, opacity: 0.9 });
+    for (let i = 0; i < 9; i++) {
+      const c = new THREE.Group();
+      for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(16 + hash2(i, k) * 12, 10, 8), white); b.scale.y = 0.45; b.position.set((k - 1.5) * 18, hash2(k, i) * 5, (hash2(i + k, 3) - 0.5) * 12); c.add(b); }
+      const a = (i / 9) * Math.PI * 2 + hash2(i, 5);
+      c.position.set(Math.cos(a) * (350 + hash2(i, 6) * 250), 190 + hash2(i, 7) * 80, Math.sin(a) * (350 + hash2(i, 8) * 250));
+      clouds.add(c);
+    }
+    scene.add(clouds);
+    // Der Mond am Taghimmel
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(9, 28, 20), new THREE.MeshBasicMaterial({ map: W.bodies.mond.mesh.material.map, color: 0xe8eef8, fog: false, transparent: true, opacity: 0.8 }));
+    moon.position.copy(ERDE_MOON_DIR).multiplyScalar(900); scene.add(moon);
+    const telescope = on(makeTelescope(ERDE_MOON_DIR), ...L.mond);
+
+    // Sternschnuppen-Versuch
+    on(makeTable(), ...L.stern);
+    const meteor = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({ color: 0x4a4540, roughness: 1, flatShading: true }));
+    const fire = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,225,150,1)", "rgba(255,110,20,0.9)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+    meteor.add(fire); meteor.visible = false; scene.add(meteor);
+    on(makeAntenna(new V(0.3, 0.8, 0.5).normalize()), ...L.luft); // Wetterstation beim Luft-Versuch
+    on(makeSignpost("SONNE", "150 Mio. km"), ...L.wegweiser).rotation.y = Math.atan2(L.wegweiser[0], L.wegweiser[1]) + Math.PI;
+    // Sonnenuhr: Der Schatten des Stabs wandert im Lauf des Tages
+    const dial = new THREE.Group();
+    const plate = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.12, 32), new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.8 })); plate.position.y = 0.06; plate.receiveShadow = true;
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 8), new THREE.MeshStandardMaterial({ color: 0x374151 })); rod.position.y = 0.75; rod.castShadow = true;
+    dial.add(plate, rod); on(dial, ...L.tag);
+    const rack = on(makeSizeRack(["merkur", "mars", "venus", "erde"]), ...L.groesse);
+
+    const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
+      waage: L.waage, luft: L.luft, stern: L.stern, tag: L.tag, groesse: L.groesse, mond: L.mond,
+      wasser: L.wasser, wald: L.wald, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
+    const colliders = [...common.colliders, [...L.luft, 0.6], [...L.stern, 1], [...L.mond, 0.6], [...L.wegweiser, 0.3], [...L.tag, 0.4],
+      [L.groesse[0] - 1.6, L.groesse[1], 1], [L.groesse[0], L.groesse[1], 1], [L.groesse[0] + 1.6, L.groesse[1], 1]];
+
+    return { ...B, ...common, L, water, trees, clouds, cloudMat: white, moon, telescope, meteor, fire, rack, stations, colliders, shadowCasters: [rocket, common.station, trees] };
+  }
+  // Himmel der Erde: air = wie viel Luft (1 = normal, 0 = keine, wie auf dem Mond); dazu die Tageszeit aus der Sonnenhöhe
+  function erdeSky(air) {
+    const w = world, e = sunNow.y, day = smooth(-0.08, 0.22, e), dusk = Math.max(0, 1 - Math.abs(e - 0.04) / 0.2);
+    const bg = w.scene.background.copy(ERDE_NIGHT).lerp(ERDE_SKY, day).lerp(ERDE_DUSK, dusk * 0.55);
+    bg.lerp(ERDE_NIGHT, 1 - air); // ohne Luft: schwarz, sogar am Tag
+    w.scene.fog.color.copy(bg);
+    w.scene.fog.far = 560 + (1 - air) * 2600;
+    const dark = Math.max(1 - day, 1 - air);
+    w.stars.visible = dark > 0.35; w.stars.material.opacity = 0.85 * dark;
+    w.clouds.visible = air > 0.5;
+    w.cloudMat.color.setScalar(0.18 + 0.82 * day); // nachts sind auch die Wolken dunkel
+    w.ambient.intensity = (0.12 + 0.43 * air) * (0.25 + 0.75 * day);
+    w.hemi.intensity = (0.08 + 0.42 * air) * (0.2 + 0.8 * day);
+  }
+  // --- Luft an/aus: Was die Lufthülle für uns tut ---
+  function startAir() {
+    enterExhibit("luft", { update: updateAir, a: 1, on: true, tried: 0 });
+    scopeSay(cfg.air.intro, [[cfg.air.off, () => setEarthAir(false), true]]);
+  }
+  function setEarthAir(on) {
+    const sp = view.special, T = cfg.air;
+    sp.on = on;
+    if (!on) sp.tried = 1; else if (sp.tried) sp.tried = 2;
+    Sound.whoosh();
+    if (!on) scopeSay(T.offText, [[T.on, () => setEarthAir(true), true]]);
+    else scopeSay(T.onText, [[T.off, () => setEarthAir(false)], [T.done, () => { erdeSky(1); leaveExhibit(); }, true]]);
+  }
+  function updateAir(dt) {
+    const c = world.camera, sp = view.special, [x, z] = world.L.luft, y = world.height(x, z);
+    c.position.lerp(tmp.set(x - 5, y + 2.4, z - 6), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(x + 25, y + 12, z + 40), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    sp.a += ((sp.on ? 1 : 0) - sp.a) * Math.min(1, dt * 2);
+    erdeSky(sp.a);
+  }
+  // --- Sternschnuppe: Derselbe Brocken wie auf dem Merkur – aber hier bremst ihn die Luft, er verglüht ---
+  function startShooting() {
+    enterExhibit("stern", { update: updateShooting, t: 0, run: false });
+    scopeSay(cfg.shooting.ready, [[cfg.shooting.go, runShooting, true]]);
+  }
+  function runShooting() { const sp = view.special; sp.t = 0; sp.run = true; world.meteor.visible = true; scopeSay(cfg.shooting.running); }
+  function updateShooting(dt) {
+    const c = world.camera, sp = view.special, [x, z] = world.L.stern, y = world.height(x, z);
+    c.position.lerp(tmp.set(x - 4, y + 2.2, z - 7), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(x + 14, y + 22, z + 40), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (!sp.run) return;
+    sp.t += dt;
+    const f = sp.t / 2.2; // Flugbahn quer über den Himmel; bei f = 0,75 ist der Brocken verglüht
+    world.meteor.position.set(x + 70 - 95 * f, y + 95 - 70 * f, z + 75 - 35 * f);
+    const burn = smooth(0.15, 0.75, f);
+    world.meteor.scale.setScalar(Math.max(0.03, 3 * (1 - burn)));
+    world.fire.scale.setScalar((1 + 3 * Math.sin(Math.min(1, f / 0.75) * Math.PI)) / Math.max(0.03, 1 - burn)); // Glut um den Brocken (gleicht sein Schrumpfen aus)
+    if (f >= 0.78) world.meteor.visible = false;
+    if (sp.t > 3) { sp.run = false; Sound.correct(); scopeSay(cfg.shooting.end, [[cfg.shooting.again, runShooting], [cfg.shooting.done, leaveExhibit, true]]); }
+  }
+  // --- Sonnenuhr: ein ganzer Tag im Zeitraffer ---
+  const DAY_TIME = 14;
+  function startDay() { enterExhibit("tag", { update: updateDay }); runDay(); }
+  function runDay() { const sp = view.special; sp.t = -1.5; sp.run = true; sp.last = ""; setSun(0); erdeSky(1); scopeSay(cfg.day.ready); }
+  function updateDay(dt) {
+    const c = world.camera, sp = view.special, [x, z] = world.L.tag, y = world.height(x, z), T = cfg.day;
+    // Blick über die Sonnenuhr dorthin, wo die Sonne untergeht (gegenüber von dort, wo sie jetzt steht)
+    const h = Math.hypot(SUN_DIR.x, SUN_DIR.z), dx = -SUN_DIR.x / h, dz = -SUN_DIR.z / h;
+    c.position.lerp(tmp.set(x - dx * 6, y + 3.4, z - dz * 6), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(x + dx * 30, y + 8, z + dz * 30), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
+    if (!sp.run) return;
+    sp.t += dt;
+    if (sp.t < 0) return;
+    const f = Math.min(1, sp.t / DAY_TIME);
+    setSun(f * Math.PI * 2); erdeSky(1);
+    if (f >= 1) { sp.run = false; setSun(0); erdeSky(1); Sound.correct(); scopeSay(T.end, [[T.again, runDay], [T.done, leaveExhibit, true]]); return; }
+    const hour = Math.floor(9 + f * 24) % 24;
+    const text = fmtVars(sunNow.y > 0 ? T.day : T.night, { uhr: hour });
+    if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
+  }
+  function startMoonScope() {
+    const T = cfg.moonScope;
+    startTour("mond", T, [{ pos: world.moon.position, fov: 5, text: T.found }]);
+  }
+
   // =========================================================
   //  Orte: was jeder Himmelskörper zusätzlich zum gemeinsamen Ablauf mitbringt
   //  build = Welt aufbauen · reset = beim Betreten zurückstellen · update = pro Bild · actions = Knopf an einer Station
@@ -2556,6 +2915,29 @@ window.Surface = (function () {
       // Wettrennen: Die Erde läuft 12 Runden, Pluto in derselben Zeit nur 12/248 einer Runde
       orrery: { earthLaps: 12, planetLaps: 12 / 248, vars: (f) => ({ erde: Math.floor(f * 12) }) },
       actions: { charon: startCharon, herz: startDrone, funk: startSignal, jahr: startOrrery, groesse: startGuess }
+    },
+    venus: {
+      build: buildVenus,
+      reset() {
+        venusSky(0); resetCan();
+        world.telescope.visible = true;
+        world.globeE.rotation.y = world.globeV.rotation.y = 0;
+      },
+      update() {},
+      actions: { hitze: startHeat, druck: startPress, tag: startSpin, groesse: startGuess, abendstern: startEveningStar }
+    },
+    erde: {
+      build: buildErde,
+      reset() {
+        erdeSky(1);
+        world.telescope.visible = true; world.meteor.visible = false;
+      },
+      update(dt, busy) {
+        const [sx, sz] = world.L.see;
+        if (!busy && !view.special && Math.hypot(ast.pos.x - sx, ast.pos.z - sz) < 15) discover("wasser"); // am Ufer des Sees
+        world.clouds.rotation.y += dt * 0.004;
+      },
+      actions: { luft: startAir, stern: startShooting, tag: startDay, groesse: startGuess, mond: startMoonScope }
     }
   };
 

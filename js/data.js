@@ -648,6 +648,190 @@ window.SPACE_DATA = {
         { q: "Wie lange braucht ein Funkspruch von Pluto bis zur Erde?", a: ["1 Sekunde", "8 Minuten", "5½ Stunden"], c: 2, why: "Pluto ist 5,9 Milliarden Kilometer entfernt – selbst Licht braucht dafür Stunden." },
         { q: "Wie sieht die Sonne von Pluto aus?", a: ["Riesig", "Wie ein sehr heller Stern", "Man sieht sie gar nicht"], c: 1, why: "Pluto ist fast 40-mal so weit von der Sonne weg wie die Erde." }
       ]
+    },
+
+    venus: {
+      gravity: 8.87, jump: 0.13,
+      temp: { sun: 465, shade: 465, sunText: "🔥 Überall glühend heiß!", shadeText: "🔥 Auch im Schatten glühend heiß!" },
+      discoveries: [
+        { key: "sprung", icon: "🦘", title: "Fast wie zu Hause", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 13 Zentimeter", zeit: "0,3" },
+          text: "Nur {hoehe} – mit dem schweren Spezialanzug kommst du kaum vom Boden weg! Die Venus ist fast so groß wie die Erde und zieht fast genauso stark an dir. Man nennt sie deshalb auch die Schwester der Erde." },
+        { key: "waage", icon: "⚖️", title: "Fast dein Gewicht", fallback: { erde: "30", mond: "27,1" },
+          text: "Auf der Erde wiegst du {erde} Kilo – hier zeigt die Waage {mond} Kilo. Das ist fast dasselbe! Die Venus ist nur ein kleines bisschen kleiner als die Erde." },
+        { key: "hitze", icon: "🌡️", title: "Der heißeste Planet",
+          text: "Auf der Venus ist es 465 °C heiß – heißer als auf dem Merkur, obwohl der viel näher an der Sonne ist! Schuld sind die dicken Wolken: Das Sonnenlicht kommt herein, aber die Wärme kommt nicht mehr hinaus – wie unter einer dicken Decke. Man nennt das Treibhauseffekt. Ohne die Wolken wäre es hier viel kühler." },
+        { key: "druck", icon: "🥫", title: "Zerquetscht!",
+          text: "Die Venusluft ist so dicht, dass sie 90-mal so stark drückt wie die Luft auf der Erde. So stark drückt bei uns das Wasser in 900 Metern Meerestiefe! Ohne deinen Spezialanzug würde es dir gehen wie der Blechdose. Die Wolken bestehen außerdem aus giftiger Säure." },
+        { key: "tag", icon: "🔄", title: "Ein Tag länger als ein Jahr",
+          text: "Die Venus dreht sich unglaublich langsam: Für eine einzige Drehung braucht sie 243 Erdtage. Für eine Runde um die Sonne braucht sie nur 225 Erdtage – ein Tag ist dort also länger als ein Jahr! Außerdem dreht sie sich andersherum als die Erde: Auf der Venus geht die Sonne im Westen auf." },
+        { key: "groesse", icon: "📏", title: "Die Schwester der Erde",
+          text: "Die Venus ist 12.104 Kilometer breit – die Erde 12.742 Kilometer. Die beiden sind fast gleich groß! Einen Mond hat die Venus nicht." },
+        { key: "abendstern", icon: "✨", title: "Der Abendstern",
+          text: "Von der Venus aus wäre die Erde ein heller blauer Punkt. Und umgekehrt? Von der Erde aus ist die Venus der hellste Punkt am ganzen Himmel – heller als jeder Stern! Man sieht sie abends oder morgens und nennt sie deshalb Abendstern oder Morgenstern. Ihre Wolken werfen das Sonnenlicht besonders gut zurück." },
+        { key: "venera", icon: "🛰️", title: "Zwei Stunden auf der Venus", photo: "venus-1.jpg",
+          text: "Das ist ein Modell einer Landesonde. 1982 landete die Sonde Venera 13 auf der Venus und funkte dieses Foto zur Erde – es zeigt wirklich den Boden der Venus! Nach etwa 2 Stunden gab die Sonde auf: Hitze und Druck waren zu stark." },
+        { key: "lava", icon: "🌋", title: "Land der Vulkane",
+          text: "Glühende Lava! Auf der Venus gibt es mehr Vulkane als auf jedem anderen Planeten – viele Tausend. Fast der ganze Boden besteht aus erkalteter Lava. Forscher glauben, dass einige Vulkane heute noch ausbrechen." },
+        { key: "wegweiser", icon: "🪧", title: "Der zweite Planet",
+          text: "Die Venus ist der zweite Planet. Bis zur Sonne sind es 108 Millionen Kilometer. Von allen Planeten kommt sie der Erde am nächsten – trotzdem könnte dort kein Mensch leben." }
+      ],
+      stations: {
+        wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
+        waage:      { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        hitze:      { label: "Thermometer", hint: "Probier den Wolken-Versuch am großen Thermometer aus", action: "☁️ Wolken-Versuch starten" },
+        druck:      { label: "Druck-Versuch", hint: "Probier den Druck-Versuch mit der Blechdose aus", action: "🥫 Druck-Versuch starten" },
+        tag:        { label: "Dreh-Vergleich", hint: "Geh zur Venusstation und lass die Globen drehen", action: "🔄 Globen drehen lassen" },
+        groesse:    { label: "Größenvergleich", hint: "Geh zur Venusstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
+        abendstern: { label: "Spezial-Fernrohr", hint: "Schau durch das Spezial-Fernrohr", action: "🔭 Durchschauen" },
+        venera:     { label: "Landesonde", hint: "Such ein goldenes Licht hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        lava:       { label: "Lava-Spalte", hint: "Such das Glühen hinter deiner Rakete", again: "🌋 Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
+        wegweiser:  { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf der Venus zeigt die Waage {mond} Kilo – fast dasselbe!",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      heat: {
+        intro: "465 °C – heißer als in jedem Backofen, sogar im Schatten! Schuld ist die dicke Wolkendecke. Was wäre ohne sie?",
+        off: "☁️ Wolken wegschieben", on: "☁️ Wolken zurückholen",
+        offText: "Ohne Wolken: Die Wärme kann ins All entweichen. Schau aufs Thermometer – es wird viel kühler!",
+        onText: "Mit Wolken: Das Sonnenlicht kommt herein, aber die Wärme kommt nicht mehr hinaus – wie unter einer dicken Decke.",
+        done: "Fertig ✓"
+      },
+      press: {
+        ready: "Unter der Glocke steht eine Blechdose, geschützt vor der Venusluft. Was passiert, wenn wir die Glocke öffnen?",
+        go: "🔔 Glocke öffnen",
+        running: "Die Glocke hebt sich …",
+        end: "Zerquetscht! Die Venusluft drückt 90-mal so stark wie die Luft auf der Erde.",
+        again: "🔔 Nochmal", done: "Fertig ✓"
+      },
+      spin: {
+        ready: "Links die Venus, rechts die Erde. Wir lassen beide 10 Erdtage lang drehen. Achte auf die roten Fähnchen!",
+        go: "🔄 Drehen lassen",
+        run: "Erdtage: {erde} · Die Erde dreht sich jeden Tag einmal. Und die Venus?",
+        end: "In 10 Tagen hat sich die Venus nur ein winziges Stück gedreht – und andersherum! Für eine ganze Drehung braucht sie 243 Erdtage.",
+        again: "🔄 Nochmal", done: "Fertig ✓"
+      },
+      guess: {
+        q: "Was ist größer: die Venus oder die Erde?", a: ["Die Venus", "Die Erde"], c: 1,
+        right: "Richtig!", wrong: "Nicht ganz.",
+        why: "Die Erde ist ein kleines bisschen größer. Die beiden sind aber fast gleich groß – viel größer als unser Mond.",
+        done: "Fertig ✓"
+      },
+      eveningStar: {
+        aim: "Dieses Spezial-Fernrohr schaut durch die Wolken hindurch. Such die Erde – einen hellen blauen Punkt! Zieh mit der Maus oder nimm die Pfeiltasten.",
+        aimTouch: "Dieses Spezial-Fernrohr schaut durch die Wolken hindurch. Such die Erde – einen hellen blauen Punkt! Wische, um es zu schwenken.",
+        hint: "Tipp der Bodenstation: Die Erde ist in dieser Richtung",
+        almost: "Fast! Halte das Fernrohr genau auf den blauen Punkt.",
+        found: "Das ist die Erde – und der winzige Punkt daneben ist der Mond! Von der Erde aus gesehen ist die Venus der hellste Punkt am Himmel: der Abendstern.",
+        done: "Fertig ✓"
+      },
+      radio: {
+        start: "Hier ist die Bodenstation! Willkommen auf der Venus, {name}! Dein Spezialanzug schützt dich vor Hitze und Druck. Hier gibt es {anzahl} Dinge zu entdecken. Durch die dicken Wolken siehst du nicht weit – folge den Lichtsäulen! An der Wand der Venusstation erscheint alles, was du entdeckt hast.",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Willkommen zurück auf der Venus, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
+        quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
+      },
+      quiz: [
+        { q: "Warum ist es auf der Venus so heiß?", a: ["Weil sie der Sonne am nächsten ist", "Weil die dicken Wolken die Wärme festhalten", "Weil sie innen brennt"], c: 1, why: "Die Wolken wirken wie eine dicke Decke – die Wärme kommt nicht mehr hinaus." },
+        { q: "Was ist mit der Blechdose passiert?", a: ["Sie ist geschmolzen", "Sie ist davongeflogen", "Die dichte Luft hat sie zerquetscht"], c: 2, why: "Die Venusluft drückt 90-mal so stark wie die Luft auf der Erde." },
+        { q: "Wo geht auf der Venus die Sonne auf?", a: ["Im Osten, wie bei uns", "Im Westen", "Gar nicht"], c: 1, why: "Die Venus dreht sich andersherum als die Erde – darum geht die Sonne dort im Westen auf." }
+      ]
+    },
+
+    erde: {
+      gravity: 9.81, jump: 0.11,
+      temp: { sun: 22, shade: 15, sunText: "☀️ Sonne – angenehm warm!", shadeText: "🌳 Schatten – schön kühl!" },
+      discoveries: [
+        { key: "sprung", icon: "🦘", title: "Hier bist du am schwersten", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 11 Zentimeter", zeit: "0,3" },
+          text: "Nur {hoehe}! Mit dem schweren Raumanzug kommst du auf der Erde kaum vom Boden weg. Auf dem Mond wärst du mit demselben Absprung sechsmal so hoch gekommen. Die Erde ist der größte Gesteinsplanet und zieht am stärksten an dir." },
+        { key: "waage", icon: "⚖️", title: "Genau dein Gewicht", fallback: { erde: "30", mond: "30,0" },
+          text: "Hier zeigt die Waage genau {mond} Kilo – dein richtiges Gewicht. Auf dem Mars wären es gut ein Drittel davon, auf dem Mond nur ein Sechstel und auf Pluto noch viel weniger." },
+        { key: "luft", icon: "🌬️", title: "Unser Schutzschild",
+          text: "Die Luft um die Erde nennt man Atmosphäre. Sie macht den Himmel blau, hält die Erde angenehm warm und schützt uns wie ein Schild. Und das Wichtigste: Wir können sie atmen! Auf keinem anderen Planeten könntest du ohne Raumanzug überleben." },
+        { key: "stern", icon: "🌠", title: "Sternschnuppe!",
+          text: "Verglüht! Die Luft bremst den Brocken so stark, dass er glühend heiß wird und aufleuchtet – das ist eine Sternschnuppe. Auf dem Merkur oder dem Mond wäre derselbe Brocken eingeschlagen und hätte einen Krater hinterlassen. Die Luft schützt uns also auch vor Steinen aus dem All." },
+        { key: "tag", icon: "🌗", title: "Tag und Nacht",
+          text: "Ein ganzer Tag ist vorbei: 24 Stunden. Dabei wandert gar nicht die Sonne – die Erde dreht sich einmal um sich selbst! So entstehen Tag und Nacht. Für eine Runde um die Sonne braucht die Erde ein Jahr: 365 Tage." },
+        { key: "groesse", icon: "📏", title: "Der größte Gesteinsplanet",
+          text: "Merkur, Venus, Erde und Mars haben einen festen Boden aus Gestein. Die Erde ist mit 12.742 Kilometern der größte von ihnen – knapp vor der Venus. Die vier Riesenplaneten dahinter sind aber noch viel größer!" },
+        { key: "mond", icon: "🌙", title: "Unser Mond", photo: "erde-1.jpg",
+          text: "Die Erde hat genau einen Mond. Er ist 384.400 Kilometer entfernt – und der einzige andere Himmelskörper, auf dem schon Menschen waren. Manchmal sieht man ihn sogar am Tag! Das Foto zeigt es umgekehrt: die Erde, vom Mond aus gesehen." },
+        { key: "wasser", icon: "💧", title: "Der Blaue Planet", photo: "erde.jpg",
+          text: "Flüssiges Wasser! Ungefähr zwei Drittel der Erde sind mit Wasser bedeckt – darum nennt man sie den Blauen Planeten. Auf keinem anderen Planeten gibt es Seen, Flüsse und Meere aus Wasser. Hier ist es genau richtig: nicht zu heiß und nicht zu kalt." },
+        { key: "wald", icon: "🌳", title: "Leben!",
+          text: "Bäume, Gras, Tiere, Menschen: Die Erde ist der einzige Planet, von dem wir wissen, dass es dort Leben gibt. Dafür braucht es Wasser, Luft und die richtige Temperatur – all das gibt es nur hier. Darum müssen wir gut auf unsere Erde aufpassen." },
+        { key: "wegweiser", icon: "🪧", title: "Genau richtig weit weg",
+          text: "Die Erde ist der dritte Planet. Bis zur Sonne sind es 150 Millionen Kilometer – das Sonnenlicht braucht dafür 8 Minuten. Näher dran wäre es zu heiß, weiter weg zu kalt. Im Durchschnitt ist es auf der Erde etwa 15 °C warm." }
+      ],
+      stations: {
+        wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
+        waage:     { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        luft:      { label: "Luft-Versuch", hint: "Probier den Luft-Versuch aus", action: "🌬️ Luft-Versuch starten" },
+        stern:     { label: "Sternschnuppen-Versuch", hint: "Probier den Sternschnuppen-Versuch aus", action: "🌠 Brocken aus dem All fallen lassen" },
+        tag:       { label: "Sonnenuhr", hint: "Geh zur Erdstation und spul an der Sonnenuhr die Zeit vor", action: "⏩ Einen Tag vorspulen" },
+        groesse:   { label: "Größenvergleich", hint: "Geh zur Erdstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
+        mond:      { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
+        wasser:    { label: "See", hint: "Lauf zum See hinter deiner Rakete", again: "💧 Nochmal ansehen", small: true, reach: 6 },
+        wald:      { label: "Wald", hint: "Lauf in den Wald hinter deiner Rakete", again: "🌳 Nochmal ansehen", small: true, auto: 5, reach: 6 },
+        wegweiser: { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      weigh: {
+        text: "Stell ein, wie viel du wiegst: {erde} Kilo. Hier auf der Erde zeigt die Waage genau {mond} Kilo!",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      air: {
+        intro: "Die Luft um die Erde nennt man Atmosphäre. Was wäre, wenn sie plötzlich weg wäre?",
+        off: "🚫 Luft wegnehmen", on: "🌬️ Luft zurückholen",
+        offText: "Ohne Luft: Der Himmel ist schwarz wie auf dem Mond, die Schatten sind tiefschwarz – und atmen könnte hier niemand.",
+        onText: "Mit Luft: Der Himmel ist blau. Die Luft schützt uns wie ein Schild und hält die Erde angenehm warm.",
+        done: "Fertig ✓"
+      },
+      shooting: {
+        ready: "Auf dem Merkur schlägt ein Brocken aus dem All einfach ein. Und hier, wo es Luft gibt?",
+        go: "🌠 Brocken fallen lassen",
+        running: "Achtung, er kommt … schau zum Himmel!",
+        end: "Verglüht, bevor er unten ankommt! Die Luft hat ihn gebremst und zum Glühen gebracht – eine Sternschnuppe.",
+        again: "🌠 Nochmal", done: "Fertig ✓"
+      },
+      day: {
+        ready: "Die Sonnenuhr zeigt mit ihrem Schatten die Uhrzeit. Wir spulen einen ganzen Tag vor – schau auf Sonne, Schatten und Himmel!",
+        day: "{uhr} Uhr: Es ist Tag. Die Sonne wandert über den Himmel.",
+        night: "{uhr} Uhr: Es ist Nacht. Jetzt sieht man die Sterne!",
+        end: "24 Stunden sind vorbei. Aber eigentlich wandert nicht die Sonne – die Erde dreht sich einmal um sich selbst!",
+        again: "⏩ Nochmal", done: "Fertig ✓"
+      },
+      guess: {
+        q: "Merkur, Mars, Venus, Erde: Welcher ist der größte?", a: ["Die Venus", "Die Erde"], c: 1,
+        right: "Richtig!", wrong: "Nicht ganz.",
+        why: "Die Erde ist der größte der vier Gesteinsplaneten – knapp vor der Venus. Mars und Merkur sind viel kleiner.",
+        done: "Fertig ✓"
+      },
+      moonScope: {
+        aim: "Manchmal steht der Mond auch am Tag am Himmel. Such ihn! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten.",
+        aimTouch: "Manchmal steht der Mond auch am Tag am Himmel. Such ihn! Wische über den Himmel, um das Fernrohr zu schwenken.",
+        hint: "Tipp der Bodenstation: Der Mond ist in dieser Richtung",
+        almost: "Fast! Halte das Fernrohr genau auf den Mond.",
+        found: "Da ist er: unser Mond! Die dunklen Flecken nennt man Meere – Wasser gibt es dort aber keins. Warst du schon dort?",
+        done: "Fertig ✓"
+      },
+      radio: {
+        start: "Hier ist die Bodenstation! Willkommen zu Hause, {name}! Auch auf der Erde gibt es {anzahl} Dinge zu entdecken – und du wirst staunen, wie besonders unser Planet ist. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke.",
+        found: "Klasse Entdeckung! Noch {rest} übrig.",
+        back: "Willkommen zurück auf der Erde, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
+        tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
+        quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
+      },
+      quiz: [
+        { q: "Warum verglüht eine Sternschnuppe?", a: ["Weil die Luft sie bremst und erhitzt", "Weil sie aus Feuer besteht", "Weil die Sonne sie anzündet"], c: 0, why: "Die Luft bremst den Brocken so stark, dass er glühend heiß wird." },
+        { q: "Was gibt es nur auf der Erde?", a: ["Krater", "Flüssiges Wasser und Leben", "Berge"], c: 1, why: "Seen, Meere und Lebewesen kennen wir nur von der Erde." },
+        { q: "Wie wäre der Himmel ohne Luft?", a: ["Blau wie immer", "Schwarz, sogar am Tag", "Grün"], c: 1, why: "Erst die Luft verteilt das Sonnenlicht und macht den Himmel blau." }
+      ]
     }
   },
 
