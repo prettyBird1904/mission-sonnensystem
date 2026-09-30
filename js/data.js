@@ -269,6 +269,23 @@ window.SPACE_DATA = {
       jump: 0.45,       // Sprunghöhe in Metern (mit schwerem Raumanzug)
       // Thermometer am Raumanzug: in der Sonne / im Schatten
       temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
+      // Bewohner der Mondbasis (Ideen von ESA und NASA für eine echte Basis am Südpol des Mondes)
+      npcs: [
+        { name: "Kommandantin Lea", color: "#3b82f6", path: [[-6, 44], [4, 42], [0, 34], [-8, 38]],
+          hello: "Hallo {name}! Ich bin Lea und leite die Mondbasis. Willkommen auf dem Mond!",
+          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
+          done: "Du hast alles entdeckt – toll! Jetzt kennst du den Mond besser als die meisten Erdlinge.",
+          facts: ["Unsere Kuppeln sind mit Mondstaub bedeckt. Der dicke Staub schützt uns vor Strahlung und kleinen Meteoriten.",
+            "In den dunklen Kratern am Südpol des Mondes liegt Eis. Daraus machen wir Wasser – und sogar Luft zum Atmen.",
+            "Die Solartürme sind so hoch, weil die Sonne hier am Südpol immer ganz tief über dem Horizont steht."] },
+        { name: "Ingenieur Tom", color: "#f59e0b", path: [[17, 74], [26, 72]], work: true,
+          hello: "Hi {name}, ich bin Tom! Siehst du den großen Drucker? Er baut gerade eine neue Kuppel.",
+          hint: "Tipp: Probier mal „{ziel}“ aus!",
+          done: "Alles entdeckt? Super! Vergiss nicht, zur Rakete zurückzulaufen.",
+          facts: ["Der Drucker baut die Kuppel Schicht für Schicht aus Mondstaub. So müssen wir kein Baumaterial von der Erde mitbringen.",
+            "Mondstaub ist scharfkantig wie winzige Glassplitter. Darum putzen wir unsere Anzüge nach jedem Ausflug gründlich.",
+            "Der Frachtlander bringt uns Nachschub von der Erde. Die Reise dauert etwa drei Tage."] }
+      ],
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Leichte Anziehung", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 45 Zentimeter", zeit: "über 1" },
           text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden durch die Luft geschwebt! Mit genau demselben Absprung kämst du auf der Erde nur ein Sechstel so hoch – der Mond zieht nur ein Sechstel so stark. Meterhoch geht es trotzdem nicht: Raumanzug und Rucksack wiegen zusammen fast so viel wie ein Erwachsener. So ähnlich ist Astronaut John Young 1972 für ein berühmtes Foto gesprungen." },
@@ -295,17 +312,17 @@ window.SPACE_DATA = {
       stations: {
         // action = Knopf an der Station · again = Knopf, um schon Entdecktes nochmal anzusehen · reach = Reichweite in Metern
         // hint = Tipp in der Liste „Meine Entdeckungen“ · small + auto = Fundstück: kleines Licht, Entdeckung beim Hingehen (Meter)
-        apollo:      { label: "Landestelle von 1969", hint: "Geh zur Mondfähre", again: "👣 Nochmal ansehen", reach: 6 },
-        himmel:      { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
+        apollo:      { label: "Landestelle von 1969", hint: "Geh zur Mondfähre hinter der Absperrung", again: "👣 Nochmal ansehen", reach: 6 },
+        himmel:      { label: "Erdblick", hint: "Schau vom Aussichtsturm „Erdblick“ durchs Fernrohr", action: "🔭 Durchschauen" },
         temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten des großen Felsens", again: "🌡️ Nochmal ansehen", reach: 5 },
-        fallversuch: { label: "Experiment-Tisch", hint: "Probier den Versuch am Tisch aus", action: "🪶 Hammer & Feder fallen lassen" },
-        waage:       { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        fallversuch: { label: "Hammer & Feder", hint: "Probier den berühmten Versuch an der Apollo-Landestelle aus", action: "🪶 Hammer & Feder fallen lassen" },
+        waage:       { label: "Frachtwaage", hint: "Stell dich auf die Frachtwaage am Frachtlander", action: "⚖️ Auf die Waage stellen" },
         wegweiser:   { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         // Tafelwand der Mondstation: keine Entdeckung (info), öffnet die Liste „Meine Entdeckungen“
         wand:        { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         // Exponate auf dem Platz vor der Mondstation
-        antenne:     { label: "Antenne", hint: "Geh zur Mondstation und probier die Antenne aus", action: "⏩ Zeit vorspulen" },
-        spiegel:     { label: "Laser-Spiegel", hint: "Geh zur Mondstation und probier den Laser-Spiegel aus", action: "🔦 Laser-Messung starten" },
+        antenne:     { label: "Funkstation", hint: "Die Funkstation steht vor der Mondbasis", action: "⏩ Zeit vorspulen" },
+        spiegel:     { label: "Laser-Spiegel", hint: "Den Laser-Spiegel haben die Apollo-Astronauten neben ihrer Fähre aufgestellt", action: "🔦 Laser-Messung starten" },
         mondstein:   { label: "Mondstein im Krater", hint: "Such ein ✨ im Krater hinter deiner Rakete", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
@@ -349,7 +366,7 @@ window.SPACE_DATA = {
       },
       // {anzahl} = Zahl der Entdeckungen, {fragen} = Zahl der Funk-Fragen am Ende
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. An der Wand der Mondstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
+        start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. An der Wand der Mondbasis erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Willkommen zurück auf dem Mond, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
@@ -491,6 +508,16 @@ window.SPACE_DATA = {
     merkur: {
       gravity: 3.7, jump: 0.3,
       temp: { sun: 430, shade: -180, sunText: "☀️ Sonne – heißer als ein Backofen!", shadeText: "❄️ Schatten – eiskalt!" },
+      npcs: [
+        { name: "Forscher Kofi", color: "#b45309", path: [[-6, 48], [6, 46], [2, 38]],
+          hello: "Hallo {name}! Ich bin Kofi. Gut, dass du einen Raumanzug trägst – in der Sonne ist es hier heißer als in einem Backofen!",
+          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
+          done: "Du hast alles entdeckt! Jetzt weißt du mehr über den Merkur als fast alle Menschen.",
+          facts: ["Siehst du den großen weißen Schild? Er wirft Schatten auf unsere Station. Ohne ihn würde sie in der Sonne glühend heiß.",
+            "Die weißen Rippen sind Kühler. Sie strahlen die Wärme aus unserer Station ins All ab.",
+            "Von einem Sonnenaufgang bis zum nächsten vergehen hier 176 Erdtage. Ein Tag auf dem Merkur ist länger als sein Jahr!",
+            "Der Merkur hat einen riesigen Kern aus Eisen – fast wie eine Kanonenkugel mit einer dünnen Schale aus Stein."] }
+      ],
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Klein, aber schwer", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 30 Zentimeter", zeit: "0,8" },
           text: "Du bist {hoehe} hoch gesprungen. Der Merkur zieht nur gut ein Drittel so stark an dir wie die Erde – genauso stark wie der Mars, obwohl der Merkur viel kleiner ist! Das liegt an seinem riesigen, schweren Kern aus Eisen." },
@@ -509,21 +536,21 @@ window.SPACE_DATA = {
         { key: "eis", icon: "🧊", title: "Eis im ewigen Schatten",
           text: "Eis – auf dem Planeten, der der Sonne am nächsten ist! In tiefe Krater an den Polen scheint niemals die Sonne. Dort ist es immer eiskalt, und dort liegt gefrorenes Wasser." },
         { key: "sonde", icon: "🛰️", title: "Besuch von der Erde", photo: "merkur.jpg",
-          text: "Das ist ein Modell der Raumsonde MESSENGER. Sie umkreiste den Merkur von 2011 bis 2015 und hat ihn komplett fotografiert. Eine Reise zum Merkur ist schwierig: Die Sonne zieht so stark, dass eine Sonde ständig bremsen muss. Die nächste Sonde heißt BepiColombo und ist schon unterwegs." },
+          text: "Das sind die Reste der Raumsonde MESSENGER. Sie umkreiste den Merkur von 2011 bis 2015 und hat ihn komplett fotografiert. Als ihr Treibstoff aufgebraucht war, stürzte sie wirklich auf den Merkur und schlug einen kleinen Krater. Eine Reise zum Merkur ist schwierig: Die Sonne zieht so stark, dass eine Sonde ständig bremsen muss. Die nächste Sonde heißt BepiColombo und ist schon unterwegs." },
         { key: "wegweiser", icon: "🪧", title: "Ganz nah an der Sonne",
           text: "Der Merkur ist der erste Planet. Bis zur Sonne sind es nur 58 Millionen Kilometer. Das Sonnenlicht braucht gut 3 Minuten bis hierher – bis zur Erde braucht es 8 Minuten." }
       ],
       stations: {
         wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
-        waage:      { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
+        waage:      { label: "Schatten-Platz", hint: "Die Waage steht unter dem Sonnenschutz-Dach", action: "⚖️ Auf die Waage stellen" },
         temperatur: { label: "Schatten am Felsen", hint: "Stell dich in den Schatten des großen Felsens", again: "🌡️ Nochmal ansehen", reach: 5 },
-        sonne:      { label: "Sonnen-Fernrohr", hint: "Schau durch das Sonnen-Fernrohr", action: "🔭 Durchschauen" },
-        krater:     { label: "Einschlag-Versuch", hint: "Probier den Einschlag-Versuch aus", action: "☄️ Einschlag-Versuch starten" },
+        sonne:      { label: "Sonnenturm", hint: "Oben auf dem Sonnenturm steht ein Fernrohr mit Sonnenfilter", action: "🔭 Durchschauen" },
+        krater:     { label: "Einschlag-Messfeld", hint: "Probier den Einschlag-Versuch am Messpult aus", action: "☄️ Einschlag-Versuch starten" },
         jahr:       { label: "Planeten-Rennen", hint: "Geh zur Merkurstation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:    { label: "Größenvergleich", hint: "Geh zur Merkurstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
         eis:        { label: "Eis im Krater", hint: "Such ein ✨ im tiefen Krater hinter deiner Rakete", again: "🧊 Nochmal ansehen", small: true, auto: 2.8 },
-        sonde:      { label: "Raumsonde", hint: "Such ein ✨ hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
-        wegweiser:  { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        sonde:      { label: "Absturzstelle", hint: "Such ein ✨ hinter deiner Rakete – dort liegt eine abgestürzte Raumsonde", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        wegweiser:  { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -580,6 +607,16 @@ window.SPACE_DATA = {
       moveGravity: 1.2, // fürs Laufen und Springen stärker, sonst schwebt man ewig
       jump: 1.6,
       temp: { sun: -228, shade: -233, sunText: "☀️ Sonne – sie wärmt kaum!", shadeText: "❄️ Schatten – eisig!" },
+      npcs: [
+        { name: "Forscherin Yuki", color: "#8b5cf6", path: [[-40, 26], [-30, 24], [-34, 16], [-46, 20]],
+          hello: "Hallo {name}! Ich bin Yuki. Willkommen am kältesten Ort, den du je besucht hast!",
+          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
+          done: "Du hast alles entdeckt – bis zum Rand des Sonnensystems! Toll gemacht.",
+          facts: ["Unser Strom kommt aus Atom-Batterien. Das Sonnenlicht ist hier viel zu schwach – so hell wie bei euch in der Dämmerung.",
+            "Die Berge da hinten sind aus Wassereis. Bei −230 °C ist Eis so hart wie Stein – und die Berge sind über 3 Kilometer hoch.",
+            "Siehst du den blauen Dunst am Horizont? Pluto hat eine ganz dünne Lufthülle, die im Sonnenlicht blau schimmert.",
+            "Das Herz ist voller Zellen, wie Waben. Darin wird das Stickstoff-Eis ganz langsam umgewälzt – wie Suppe in einem Topf."] }
+      ],
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Riesensprung", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 160 Zentimeter", zeit: "über 3" },
           text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden lang geschwebt – und das im schweren Raumanzug! Pluto ist winzig und zieht nur ganz schwach an dir: etwa ein Sechzehntel so stark wie die Erde." },
@@ -598,21 +635,21 @@ window.SPACE_DATA = {
         { key: "eis", icon: "⛸️", title: "Rutschpartie auf Stickstoff-Eis",
           text: "Du rutschst! Das Herz ist eine glatte Fläche aus gefrorenem Stickstoff. Bei uns ist Stickstoff ein Gas in der Luft, die wir atmen. Hier ist es mit −230 °C so kalt, dass er zu Eis gefriert. Die Berge am Rand sind aus Wassereis – hart wie Stein." },
         { key: "sonde", icon: "🛰️", title: "Besuch von der Erde", gallery: ["pluto.jpg", "pluto-1.jpg"],
-          text: "Das ist ein Modell der Raumsonde New Horizons. Sie war 9½ Jahre unterwegs und flog 2015 ganz nah an Pluto vorbei. Erst durch ihre Fotos wissen wir, wie Pluto aussieht – vorher war er nur ein unscharfer Punkt." },
+          text: "Das ist ein Nachbau der Raumsonde New Horizons. Sie war 9½ Jahre unterwegs und flog 2015 ganz nah an Pluto vorbei. Erst durch ihre Fotos wissen wir, wie Pluto aussieht – vorher war er nur ein unscharfer Punkt." },
         { key: "wegweiser", icon: "🪧", title: "Am Rand des Sonnensystems",
           text: "Pluto ist fast 40-mal so weit von der Sonne entfernt wie die Erde: 5,9 Milliarden Kilometer. Darum ist es hier eiskalt – etwa −230 °C. Selbst am Mittag ist es nur so hell wie bei uns in der Dämmerung." }
       ],
       stations: {
         wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
-        waage:     { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
-        charon:    { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
-        herz:      { label: "Kameradrohne", hint: "Steig mit der Kameradrohne auf", action: "🚁 Mit der Drohne aufsteigen" },
-        funk:      { label: "Funk-Antenne", hint: "Schick einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
+        waage:     { label: "Wärme-Pavillon", hint: "Die Waage steht im beheizten Wärme-Pavillon", action: "⚖️ Auf die Waage stellen" },
+        charon:    { label: "Iglu-Sternwarte", hint: "Schau in der Iglu-Sternwarte durchs Fernrohr", action: "🔭 Durchschauen" },
+        herz:      { label: "Drohnen-Start", hint: "Steig am Drohnen-Landeplatz mit der Kameradrohne auf", action: "🚁 Mit der Drohne aufsteigen" },
+        funk:      { label: "Große Antenne", hint: "Schick an der großen Antenne einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
         jahr:      { label: "Planeten-Rennen", hint: "Geh zur Plutostation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:   { label: "Größenvergleich", hint: "Geh zur Plutostation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
         eis:       { label: "Eisfläche", hint: "Lauf geradeaus zur großen hellen Eisfläche", again: "⛸️ Nochmal ansehen", small: true, reach: 8 },
-        sonde:     { label: "Raumsonde", hint: "Such ein ✨ hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
-        wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        sonde:     { label: "New Horizons", hint: "Such ein ✨ hinter deiner Rakete – dort steht ein Denkmal", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        wegweiser: { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -689,7 +726,7 @@ window.SPACE_DATA = {
         { key: "abendstern", icon: "✨", title: "Der Abendstern",
           text: "Von der Venus aus wäre die Erde ein heller blauer Punkt. Und umgekehrt? Von der Erde aus ist die Venus der hellste Punkt am ganzen Himmel – heller als jeder Stern! Man sieht sie abends oder morgens und nennt sie deshalb Abendstern oder Morgenstern. Ihre Wolken werfen das Sonnenlicht besonders gut zurück." },
         { key: "venera", icon: "🛰️", title: "Zwei Stunden auf der Venus", photo: "venus-1.jpg",
-          text: "Das ist ein Modell einer Landesonde. 1982 landete die Sonde Venera 13 auf der Venus und funkte dieses Foto zur Erde – es zeigt wirklich den Boden der Venus! Nach etwa 2 Stunden gab die Sonde auf: Hitze und Druck waren zu stark." },
+          text: "Das ist die Landesonde Venera 13 aus Russland. 1982 landete sie auf der Venus und funkte dieses Foto zur Erde – es zeigt wirklich den Boden der Venus! Nach etwa 2 Stunden gab die Sonde auf: Hitze und Druck waren zu stark." },
         { key: "lava", icon: "🌋", title: "Land der Vulkane",
           text: "Glühende Lava! Auf der Venus gibt es mehr Vulkane als auf jedem anderen Planeten – viele Tausend. Fast der ganze Boden besteht aus erkalteter Lava. Forscher glauben, dass einige Vulkane heute noch ausbrechen." },
         { key: "wegweiser", icon: "🪧", title: "Der zweite Planet",
@@ -698,14 +735,14 @@ window.SPACE_DATA = {
       stations: {
         wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         waage:      { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
-        hitze:      { label: "Thermometer", hint: "Probier den Wolken-Versuch am großen Thermometer aus", action: "☁️ Wolken-Versuch starten" },
-        druck:      { label: "Druck-Versuch", hint: "Probier den Druck-Versuch mit der Blechdose aus", action: "🥫 Druck-Versuch starten" },
-        tag:        { label: "Dreh-Vergleich", hint: "Geh zur Venusstation und lass die Globen drehen", action: "🔄 Globen drehen lassen" },
-        groesse:    { label: "Größenvergleich", hint: "Geh zur Venusstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
-        abendstern: { label: "Spezial-Fernrohr", hint: "Schau durch das Spezial-Fernrohr", action: "🔭 Durchschauen" },
-        venera:     { label: "Landesonde", hint: "Such ein ✨ hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        hitze:      { label: "Klima-Messturm", hint: "Probier den Wolken-Versuch am Klima-Messturm aus", action: "☁️ Wolken-Versuch starten" },
+        druck:      { label: "Druck-Prüfstand", hint: "Probier den Druck-Versuch am Druck-Prüfstand aus", action: "🥫 Druck-Versuch starten" },
+        tag:        { label: "Dreh-Vergleich", hint: "Geh zum Außenposten und lass die Globen drehen", action: "🔄 Globen drehen lassen" },
+        groesse:    { label: "Größenvergleich", hint: "Geh zum Außenposten und schau dir die Kugeln an", action: "📏 Größe schätzen" },
+        abendstern: { label: "Radar & Infrarot", hint: "Schau durch das Spezial-Fernrohr neben der Radarschüssel", action: "🔭 Durchschauen" },
+        venera:     { label: "Venera 13", hint: "Such ein ✨ hinter deiner Rakete – dort steht eine alte Landesonde", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
         lava:       { label: "Lava-Spalte", hint: "Such das Glühen hinter deiner Rakete", again: "🌋 Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
-        wegweiser:  { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        wegweiser:  { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -748,7 +785,7 @@ window.SPACE_DATA = {
         done: "Fertig ✓"
       },
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf der Venus, {name}! Dein Spezialanzug schützt dich vor Hitze und Druck. Hier gibt es {anzahl} Dinge zu entdecken. Durch die dicken Wolken siehst du nicht weit – folge dem Pfeil oben! An der Wand der Venusstation erscheint alles, was du entdeckt hast.",
+        start: "Hier ist die Bodenstation! Willkommen auf der Venus, {name}! Dein Spezialanzug schützt dich vor Hitze und Druck. Hier gibt es {anzahl} Dinge zu entdecken. Durch die dicken Wolken siehst du nicht weit – folge dem Pfeil oben! Den Roboter-Außenposten siehst du vor dir – die Menschen wohnen oben in den Wolken, im Luftschiff. An seiner Wand erscheint alles, was du entdeckt hast.",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Willkommen zurück auf der Venus, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
@@ -790,11 +827,11 @@ window.SPACE_DATA = {
       stations: {
         wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         waage:     { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
-        luft:      { label: "Luft-Versuch", hint: "Probier den Luft-Versuch aus", action: "🌬️ Luft-Versuch starten" },
-        stern:     { label: "Sternschnuppen-Versuch", hint: "Probier den Sternschnuppen-Versuch aus", action: "🌠 Brocken aus dem All fallen lassen" },
-        tag:       { label: "Sonnenuhr", hint: "Geh zur Erdstation und spul an der Sonnenuhr die Zeit vor", action: "⏩ Einen Tag vorspulen" },
-        groesse:   { label: "Größenvergleich", hint: "Geh zur Erdstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
-        mond:      { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
+        luft:      { label: "Wetterstation", hint: "Probier an der Wetterstation den Luft-Versuch aus", action: "🌬️ Luft-Versuch starten" },
+        stern:     { label: "Meteoriten-Vitrine", hint: "An der Meteoriten-Vitrine wartet der Sternschnuppen-Versuch", action: "🌠 Brocken aus dem All fallen lassen" },
+        tag:       { label: "Sonnenuhr im Park", hint: "Spul im Park an der Sonnenuhr die Zeit vor", action: "⏩ Einen Tag vorspulen" },
+        groesse:   { label: "Größenvergleich", hint: "Geh zum Besucherzentrum und schau dir die Kugeln an", action: "📏 Größe schätzen" },
+        mond:      { label: "Volkssternwarte", hint: "In der Volkssternwarte rollt das Dach zur Seite – schau durchs Fernrohr", action: "🔭 Dach öffnen und durchschauen" },
         wasser:    { label: "See", hint: "Lauf zum See hinter deiner Rakete", again: "💧 Nochmal ansehen", small: true, reach: 6 },
         wald:      { label: "Wald", hint: "Lauf in den Wald hinter deiner Rakete", again: "🌳 Nochmal ansehen", small: true, auto: 5, reach: 6 },
         wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
