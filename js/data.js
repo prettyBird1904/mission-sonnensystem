@@ -374,7 +374,8 @@ window.SPACE_DATA = {
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Wow, du hast alles entdeckt! Du bist jetzt ein echter Mars-Profi!",
           facts: ["In unserem Gewächshaus ziehen wir Salat. Draußen würde er sofort erfrieren.",
-            "Unsere Luft zum Atmen machen wir selbst – die Marsluft besteht fast nur aus Kohlendioxid.",
+            "Unsere Luft zum Atmen macht die Sauerstoff-Anlage hinter der Kuppel – aus der Marsluft, die fast nur aus Kohlendioxid besteht.",
+            "Siehst du den Wall aus Marsboden um unsere Türme? Er schützt uns vor der Strahlung aus dem All.",
             "Ein Mars-Tag ist nur 37 Minuten länger als bei euch. Da gewöhnt man sich schnell dran!"] },
         { name: "Techniker Ben", color: "#3b82f6", path: [[14, 50], [19, 45], [12, 43]], work: true,
           hello: "Hi {name}, ich bin Ben! Ich halte hier alles in Schuss: Strom, Luft und Wasser.",
@@ -382,7 +383,8 @@ window.SPACE_DATA = {
           done: "Alles entdeckt? Klasse! Vergiss nicht, zur Rakete zurückzulaufen.",
           facts: ["Unseren Strom machen die Sonnenkollektoren. Nach einem Staubsturm muss ich sie putzen!",
             "Der Transporter da drüben bringt uns Nachschub – Essen, Werkzeug und Post von der Erde.",
-            "Wasser holen wir aus dem Eis im Boden. Das schmelzen wir und reinigen es."] }
+            "Wasser holen wir an der Wasser-Anlage aus dem Eis im Boden. Das schmelzen wir und reinigen es.",
+            "Im Gewächshaus bekommen die Pflanzen rosa-lila Licht von Lampen – das mögen sie am liebsten."] }
       ],
       temp: { sun: -50, shade: -75, sunText: "☀️ Sonne – trotzdem eiskalt!", shadeText: "❄️ Schatten – noch kälter!" },
       discoveries: [
@@ -409,15 +411,15 @@ window.SPACE_DATA = {
       ],
       stations: {
         wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
-        waage:     { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
-        rover:     { label: "Rover-Steuerpult", hint: "Steuere den Rover vom Steuerpult aus", action: "🤖 Rover fernsteuern" },
-        rost:      { label: "Magnet-Versuch", hint: "Geh zur Marsstation und probier den Magneten aus", action: "🧲 Magnet-Versuch starten" },
-        vulkan:    { label: "Hubschrauber", hint: "Steig mit dem Hubschrauber auf", action: "🚁 Mit dem Hubschrauber aufsteigen" },
-        monde:     { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
-        abend:     { label: "Himmelskamera", hint: "Geh zur Marsstation und probier die Himmelskamera aus", action: "⏩ Zeit vorspulen bis zum Abend" },
-        eis:       { label: "Bohrer", hint: "Such den Bohrer hinter deiner Rakete", action: "⛏️ Bohrer benutzen" },
-        teufel:    { label: "Staubteufel", hint: "Fang den Staubteufel – er wirbelt hinter deiner Rakete herum", again: "🌪️ Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
-        wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        waage:     { label: "Gesundheits-Check", hint: "Mach den Gesundheits-Check unter dem Vordach am Wohnturm", action: "⚖️ Auf die Waage stellen" },
+        rover:     { label: "Rover-Leitstand", hint: "Steuere den Rover vom Leitstand aus – er parkt in der Garage daneben", action: "🤖 Rover fernsteuern" },
+        rost:      { label: "Proben-Labor", hint: "Untersuch den Marsstaub im Proben-Labor am Labor-Turm", action: "🧲 Magnet-Versuch starten" },
+        vulkan:    { label: "Flugfeld", hint: "Am Flugfeld wartet der Hubschrauber auf dich", action: "🚁 Mit dem Hubschrauber aufsteigen" },
+        monde:     { label: "Sternwarte", hint: "Geh in die Sternwarte neben deiner Rakete", action: "🔭 Kuppel öffnen und durchschauen" },
+        abend:     { label: "Wetterstation", hint: "An der Wetterstation steht eine Himmelskamera", action: "⏩ Zeit vorspulen bis zum Abend" },
+        eis:       { label: "Wasser-Anlage", hint: "Bohr an der Wasser-Anlage nach Eis", action: "⛏️ Bohrer benutzen" },
+        teufel:    { label: "Staubteufel", hint: "Fang den Staubteufel – er wirbelt draußen hinter der Wetterstation herum", again: "🌪️ Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
+        wegweiser: { label: "Anzeigetafel", hint: "Such ein ✨ am Landeplatz deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -472,7 +474,7 @@ window.SPACE_DATA = {
         again: "⏩ Nochmal", done: "Fertig ✓"
       },
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf dem Mars, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. An der Wand der Marsstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
+        start: "Hier ist die Bodenstation! Willkommen auf dem Mars, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. Jede Aufgabe gehört zu einem Gebäude des Außenpostens, und an der Wand der Marsstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
         back: "Willkommen zurück auf dem Mars, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
