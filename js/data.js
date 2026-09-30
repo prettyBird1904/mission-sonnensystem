@@ -300,13 +300,13 @@ window.SPACE_DATA = {
         temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten des großen Felsens", again: "🌡️ Nochmal ansehen", reach: 5 },
         fallversuch: { label: "Experiment-Tisch", hint: "Probier den Versuch am Tisch aus", action: "🪶 Hammer & Feder fallen lassen" },
         waage:       { label: "Waage", hint: "Stell dich auf die Waage", action: "⚖️ Auf die Waage stellen" },
-        wegweiser:   { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        wegweiser:   { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         // Tafelwand der Mondstation: keine Entdeckung (info), öffnet die Liste „Meine Entdeckungen“
         wand:        { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         // Exponate auf dem Platz vor der Mondstation
         antenne:     { label: "Antenne", hint: "Geh zur Mondstation und probier die Antenne aus", action: "⏩ Zeit vorspulen" },
         spiegel:     { label: "Laser-Spiegel", hint: "Geh zur Mondstation und probier den Laser-Spiegel aus", action: "🔦 Laser-Messung starten" },
-        mondstein:   { label: "Mondstein im Krater", hint: "Such ein goldenes Licht im Krater hinter deiner Rakete", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
+        mondstein:   { label: "Mondstein im Krater", hint: "Such ein ✨ im Krater hinter deiner Rakete", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       // Fernrohr: Erde selbst suchen → Größe vergleichen → ausprobieren, was Luft mit dem Himmel macht
@@ -349,9 +349,9 @@ window.SPACE_DATA = {
       },
       // {anzahl} = Zahl der Entdeckungen, {fragen} = Zahl der Funk-Fragen am Ende
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Mondstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
+        start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. An der Wand der Mondstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
-        back: "Willkommen zurück auf dem Mond, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        back: "Willkommen zurück auf dem Mond, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
         quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
@@ -399,7 +399,7 @@ window.SPACE_DATA = {
         abend:     { label: "Himmelskamera", hint: "Geh zur Marsstation und probier die Himmelskamera aus", action: "⏩ Zeit vorspulen bis zum Abend" },
         eis:       { label: "Bohrer", hint: "Such den Bohrer hinter deiner Rakete", action: "⛏️ Bohrer benutzen" },
         teufel:    { label: "Staubteufel", hint: "Fang den Staubteufel – er wirbelt hinter deiner Rakete herum", again: "🌪️ Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
-        wegweiser: { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -407,8 +407,8 @@ window.SPACE_DATA = {
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
       rover: {
-        drive: "Steuere den Rover mit W, A, S, D zum hellen Stein mit dem goldenen Licht!",
-        driveTouch: "Steuere den Rover mit dem Joystick zum hellen Stein mit dem goldenen Licht!",
+        drive: "Steuere den Rover mit W, A, S, D zum hellen Stein mit dem gelben Ring!",
+        driveTouch: "Steuere den Rover mit dem Joystick zum hellen Stein mit dem gelben Ring!",
         found: "Geschafft! Der Rover untersucht den Stein mit seinem Roboterarm …",
         done: "Was hat er gefunden? ▶"
       },
@@ -454,9 +454,9 @@ window.SPACE_DATA = {
         again: "⏩ Nochmal", done: "Fertig ✓"
       },
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf dem Mars, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Marsstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
+        start: "Hier ist die Bodenstation! Willkommen auf dem Mars, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. An der Wand der Marsstation erscheint alles, was du entdeckt hast. Probier doch zuerst mal zu springen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
-        back: "Willkommen zurück auf dem Mars, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        back: "Willkommen zurück auf dem Mars, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
         quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
@@ -501,9 +501,9 @@ window.SPACE_DATA = {
         krater:     { label: "Einschlag-Versuch", hint: "Probier den Einschlag-Versuch aus", action: "☄️ Einschlag-Versuch starten" },
         jahr:       { label: "Planeten-Rennen", hint: "Geh zur Merkurstation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:    { label: "Größenvergleich", hint: "Geh zur Merkurstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
-        eis:        { label: "Eis im Krater", hint: "Such ein goldenes Licht im tiefen Krater hinter deiner Rakete", again: "🧊 Nochmal ansehen", small: true, auto: 2.8 },
-        sonde:      { label: "Raumsonde", hint: "Such ein goldenes Licht hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
-        wegweiser:  { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        eis:        { label: "Eis im Krater", hint: "Such ein ✨ im tiefen Krater hinter deiner Rakete", again: "🧊 Nochmal ansehen", small: true, auto: 2.8 },
+        sonde:      { label: "Raumsonde", hint: "Such ein ✨ hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        wegweiser:  { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -541,9 +541,9 @@ window.SPACE_DATA = {
         done: "Fertig ✓"
       },
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf dem Merkur, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Merkurstation erscheint alles, was du entdeckt hast. Schau mal, wie riesig die Sonne ist!",
+        start: "Hier ist die Bodenstation! Willkommen auf dem Merkur, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. An der Wand der Merkurstation erscheint alles, was du entdeckt hast. Schau mal, wie riesig die Sonne ist!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
-        back: "Willkommen zurück auf dem Merkur, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        back: "Willkommen zurück auf dem Merkur, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
         quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
@@ -591,8 +591,8 @@ window.SPACE_DATA = {
         jahr:      { label: "Planeten-Rennen", hint: "Geh zur Plutostation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:   { label: "Größenvergleich", hint: "Geh zur Plutostation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
         eis:       { label: "Eisfläche", hint: "Lauf geradeaus zur großen hellen Eisfläche", again: "⛸️ Nochmal ansehen", small: true, reach: 8 },
-        sonde:     { label: "Raumsonde", hint: "Such ein goldenes Licht hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
-        wegweiser: { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        sonde:     { label: "Raumsonde", hint: "Such ein ✨ hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -636,9 +636,9 @@ window.SPACE_DATA = {
         done: "Fertig ✓"
       },
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf Pluto, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke. An der Wand der Plutostation erscheint alles, was du entdeckt hast. Probier zuerst mal zu springen – du wirst staunen!",
+        start: "Hier ist die Bodenstation! Willkommen auf Pluto, {name}! Hier gibt es {anzahl} Dinge zu entdecken. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung. An der Wand der Plutostation erscheint alles, was du entdeckt hast. Probier zuerst mal zu springen – du wirst staunen!",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
-        back: "Willkommen zurück auf Pluto, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        back: "Willkommen zurück auf Pluto, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
         quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
@@ -683,9 +683,9 @@ window.SPACE_DATA = {
         tag:        { label: "Dreh-Vergleich", hint: "Geh zur Venusstation und lass die Globen drehen", action: "🔄 Globen drehen lassen" },
         groesse:    { label: "Größenvergleich", hint: "Geh zur Venusstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
         abendstern: { label: "Spezial-Fernrohr", hint: "Schau durch das Spezial-Fernrohr", action: "🔭 Durchschauen" },
-        venera:     { label: "Landesonde", hint: "Such ein goldenes Licht hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
+        venera:     { label: "Landesonde", hint: "Such ein ✨ hinter deiner Rakete", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
         lava:       { label: "Lava-Spalte", hint: "Such das Glühen hinter deiner Rakete", again: "🌋 Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
-        wegweiser:  { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        wegweiser:  { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -728,9 +728,9 @@ window.SPACE_DATA = {
         done: "Fertig ✓"
       },
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf der Venus, {name}! Dein Spezialanzug schützt dich vor Hitze und Druck. Hier gibt es {anzahl} Dinge zu entdecken. Durch die dicken Wolken siehst du nicht weit – folge den Lichtsäulen! An der Wand der Venusstation erscheint alles, was du entdeckt hast.",
+        start: "Hier ist die Bodenstation! Willkommen auf der Venus, {name}! Dein Spezialanzug schützt dich vor Hitze und Druck. Hier gibt es {anzahl} Dinge zu entdecken. Durch die dicken Wolken siehst du nicht weit – folge dem Pfeil oben! An der Wand der Venusstation erscheint alles, was du entdeckt hast.",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
-        back: "Willkommen zurück auf der Venus, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        back: "Willkommen zurück auf der Venus, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
         quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."
@@ -777,7 +777,7 @@ window.SPACE_DATA = {
         mond:      { label: "Fernrohr", hint: "Schau durch das Fernrohr", action: "🔭 Durchschauen" },
         wasser:    { label: "See", hint: "Lauf zum See hinter deiner Rakete", again: "💧 Nochmal ansehen", small: true, reach: 6 },
         wald:      { label: "Wald", hint: "Lauf in den Wald hinter deiner Rakete", again: "🌳 Nochmal ansehen", small: true, auto: 5, reach: 6 },
-        wegweiser: { label: "Wegweiser", hint: "Such ein goldenes Licht nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
+        wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
@@ -820,9 +820,9 @@ window.SPACE_DATA = {
         done: "Fertig ✓"
       },
       radio: {
-        start: "Hier ist die Bodenstation! Willkommen zu Hause, {name}! Auch auf der Erde gibt es {anzahl} Dinge zu entdecken – und du wirst staunen, wie besonders unser Planet ist. Die hohen Lichtsäulen zeigen dir die Stationen, die kleinen goldenen Lichter sind Fundstücke.",
+        start: "Hier ist die Bodenstation! Willkommen zu Hause, {name}! Auch auf der Erde gibt es {anzahl} Dinge zu entdecken – und du wirst staunen, wie besonders unser Planet ist. Die schwebenden Symbole zeigen dir die Stationen, ein ✨ ist ein Fundstück – und der Pfeil oben führt dich zur nächsten Entdeckung.",
         found: "Klasse Entdeckung! Noch {rest} übrig.",
-        back: "Willkommen zurück auf der Erde, {name}! Dir fehlen noch {rest} Entdeckungen – folge den Lichtern. Tipps findest du oben rechts bei der Lupe.",
+        back: "Willkommen zurück auf der Erde, {name}! Dir fehlen noch {rest} Entdeckungen – folge dem Pfeil oben. Tipps findest du oben rechts bei der Lupe.",
         allFound: "Fantastisch, {name}! Du hast alles entdeckt. Die Bodenstation hat noch {fragen} Fragen an dich.",
         tooFar: "Bodenstation an {name}: Bitte entferne dich nicht zu weit von der Rakete!",
         quizDone: "Mission erfüllt! Wenn du fertig bist, lauf zurück zu deiner Rakete und steig über die Leiter ein – oder erkunde noch ein bisschen."

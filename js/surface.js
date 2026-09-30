@@ -42,9 +42,11 @@ window.Surface = (function () {
   const SHADOW_DIR = new V(-SUN_DIR.x, 0, -SUN_DIR.z).normalize(); // Schatten fallen weg von der Sonne
 
   // Gelände: sanfte Hügel, Krater [x, z, Radius, Tiefe], ebene Plätze [x, z, Radius] für Rakete und Stationen
-  function makeHeight(craters, flats, seed = 0) {
+  // extra(x, z): zusätzliche Formen (z. B. Sanddünen) – die ebenen Plätze bleiben trotzdem eben
+  function makeHeight(craters, flats, seed = 0, extra = null) {
     return function height(x, z) {
       let h = (fbm2(x * 0.02 + seed, z * 0.02) - 0.5) * 6 + (fbm2(x * 0.12 + 7 + seed, z * 0.12) - 0.5) * 0.8;
+      if (extra) h += extra(x, z);
       for (const [cx, cz, r, d] of craters) {
         const q = Math.hypot(x - cx, z - cz) / r;
         if (q < 1.7) { if (q < 1) h -= d * (1 - q * q); h += d * 0.45 * Math.exp(-Math.pow((q - 1) / 0.22, 2)); }
@@ -545,23 +547,73 @@ window.Surface = (function () {
     const lines = wrapText(x, d.title, W2 - 40).slice(0, 2);
     lines.forEach((l, i) => x.fillText(l, W2 / 2, (lines.length > 1 ? 172 : 196) + i * 50));
   }
-  function makeStation(discoveries, name) {
+  // Mars-Forschungslager hinter der Tafelwand (lokal: Vorderseite = −Z): zwei Wohnmodule, ein Gewächshaus-Tunnel
+  // mit Pflanzen unter rosa Pflanzenlampen, Sonnenkollektoren und ein Funkmast mit blinkendem Licht
+  function buildMarsCamp(g, add, hull, dark, lit) {
+    const accent = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.5 });
+    const module = (x, z, r, h) => {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 28), hull), x, h / 2, z).receiveShadow = true;
+      add(new THREE.Mesh(new THREE.SphereGeometry(r, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), hull), x, h, z);
+      add(new THREE.Mesh(new THREE.CylinderGeometry(r + 0.03, r + 0.03, 0.25, 28), accent), x, h * 0.72, z, false);
+      for (const a of [-0.45, 0, 0.45]) { // Fenster auf der Vorderseite
+        const w = add(new THREE.Mesh(new THREE.CircleGeometry(0.32, 16), lit), x + Math.sin(a) * (r + 0.02), h * 0.45, z - Math.cos(a) * (r + 0.02), false);
+        w.rotation.y = Math.PI + a;
+      }
+    };
+    module(-1.5, 8.2, 3, 3.2);
+    module(4.4, 7.6, 2.2, 2.6);
+    add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 1.6), hull), 1.9, 0.9, 7.9);
+    const door = add(new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.9), dark), -1.5, 0.95, 5.18, false); door.rotation.y = Math.PI; // Luftschleuse
+    // Gewächshaus: halbe Glasröhre, innen Beete mit Pflanzen und rosa leuchtende Pflanzenlampen
+    const glass = new THREE.MeshStandardMaterial({ color: 0xcdeeff, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false });
+    const tunnel = add(new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 8, 24, 1, true, 0, Math.PI), glass), -10.5, 0, 6.5, false);
+    tunnel.rotation.z = Math.PI / 2;
+    for (const e of [-1, 1]) {
+      const cap = add(new THREE.Mesh(new THREE.CircleGeometry(2.2, 20, 0, Math.PI), glass), -10.5 + e * 4, 0, 6.5, false);
+      cap.rotation.y = Math.PI / 2;
+    }
+    const soil = new THREE.MeshStandardMaterial({ color: 0x3b2718, roughness: 1 }), leaf = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.8, flatShading: true });
+    const grow = new THREE.MeshBasicMaterial({ color: 0xf472b6, toneMapped: false });
+    for (const dz of [-0.8, 0.8]) {
+      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.35, 0.7), soil), -10.5, 0.18, 6.5 + dz, false);
+      for (let i = 0; i < 10; i++) add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 0), leaf), -13.8 + i * 0.73, 0.55, 6.5 + dz, false);
+      add(new THREE.Mesh(new THREE.BoxGeometry(7, 0.05, 0.08), grow), -10.5, 1.75, 6.5 + dz, false);
+    }
+    // Sonnenkollektoren
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 });
+    for (const [x, z] of [[9.5, 4.5], [11.5, 7], [13.5, 9.5]]) {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), dark), x, 0.7, z);
+      const p = add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 1.4), panelMat), x, 1.45, z); p.rotation.x = -0.7;
+    }
+    // Funkmast mit blinkendem Licht
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), dark), 7, 2.75, 11);
+    const dish = add(new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 6, 0, Math.PI * 2, 0, 0.9), hull), 7, 4.6, 10.6); dish.rotation.x = -1.1;
+    const red = add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff3b30, toneMapped: false })), 7, 5.6, 11, false);
+    const green = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0x4ade80, toneMapped: false })), -1.5, 4.9, 8.2, false);
+    g.userData.blink.push(red, green);
+  }
+
+  function makeStation(discoveries, name, style = "") {
     const g = new THREE.Group();
     const hull = new THREE.MeshStandardMaterial({ color: 0xe8eaee, roughness: 0.6, metalness: 0.1 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.5, metalness: 0.4 });
     const lit = new THREE.MeshStandardMaterial({ color: 0x0b1220, emissive: 0xfde68a, emissiveIntensity: 0.8 });
     const add = (m, x, y, z, shadow = true) => { m.position.set(x, y, z); m.castShadow = shadow; g.add(m); return m; };
-    // Kuppel hinter der Wand
-    add(new THREE.Mesh(new THREE.SphereGeometry(6, 32, 14, 0, Math.PI * 2, 0, Math.PI / 2), hull), 0, 0, 7.5).receiveShadow = true;
-    add(new THREE.Mesh(new THREE.CylinderGeometry(6.15, 6.3, 0.5, 32), dark), 0, 0.25, 7.5, false);
-    // Wohnmodul: liegende Röhre mit leuchtenden Fenstern
-    add(new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 8, 20), hull), -10.5, 2, 6.5).rotation.z = Math.PI / 2;
-    for (const e of [-1, 1]) add(new THREE.Mesh(new THREE.SphereGeometry(2, 20, 12), hull), -10.5 + e * 4, 2, 6.5);
-    for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.CircleGeometry(0.45, 16), lit), -13.2 + i * 1.8, 2.3, 4.49, false).rotation.y = Math.PI;
-    // Sonnensegel
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 8), dark), 11, 1.5, 6);
-    const sail = add(new THREE.Mesh(new THREE.BoxGeometry(5, 0.08, 2.4), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 })), 11, 3.1, 6);
-    sail.rotation.x = -0.9; // zur Sonne geneigt
+    g.userData.blink = [];
+    if (style === "mars") buildMarsCamp(g, add, hull, dark, lit);
+    else {
+      // Kuppel hinter der Wand
+      add(new THREE.Mesh(new THREE.SphereGeometry(6, 32, 14, 0, Math.PI * 2, 0, Math.PI / 2), hull), 0, 0, 7.5).receiveShadow = true;
+      add(new THREE.Mesh(new THREE.CylinderGeometry(6.15, 6.3, 0.5, 32), dark), 0, 0.25, 7.5, false);
+      // Wohnmodul: liegende Röhre mit leuchtenden Fenstern
+      add(new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 8, 20), hull), -10.5, 2, 6.5).rotation.z = Math.PI / 2;
+      for (const e of [-1, 1]) add(new THREE.Mesh(new THREE.SphereGeometry(2, 20, 12), hull), -10.5 + e * 4, 2, 6.5);
+      for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.CircleGeometry(0.45, 16), lit), -13.2 + i * 1.8, 2.3, 4.49, false).rotation.y = Math.PI;
+      // Sonnensegel
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 8), dark), 11, 1.5, 6);
+      const sail = add(new THREE.Mesh(new THREE.BoxGeometry(5, 0.08, 2.4), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 })), 11, 3.1, 6);
+      sail.rotation.x = -0.9; // zur Sonne geneigt
+    }
     // Wand mit Schild
     add(new THREE.Mesh(new THREE.BoxGeometry(15.6, 3.7, 0.3), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 })), 0, 1.85, 0).receiveShadow = true;
     for (const px of [-4.6, 4.6]) add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 8), dark), px, 4.2, 0);
@@ -620,16 +672,51 @@ window.Surface = (function () {
     return g;
   }
 
+  // Markierung einer Station: leuchtender Bodenring, ein sanfter Lichtkegel und darüber ein schwebendes Hologramm-Symbol
+  // (statt der früheren 30 m hohen Lichtsäulen). setIcon(symbol, farbe) zeichnet das Hologramm neu.
   function makeMarker() {
     const g = new THREE.Group();
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 30, 16, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    beam.position.y = 15; g.add(beam);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.8, 40),
-      new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const add = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false };
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.45, 40), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, opacity: 0.75, ...add }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; g.add(ring);
-    g.userData = { beam, ring };
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 1.05, 2.6, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, opacity: 0.16, ...add }));
+    beam.position.y = 1.3; g.add(beam);
+    const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+    const tex = new THREE.CanvasTexture(cv);
+    const holo = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, toneMapped: false, fog: false }));
+    holo.position.y = 2.9; g.add(holo);
+    let drawn = "";
+    const setIcon = (icon, color) => {
+      const k = icon + color; if (k === drawn) return; drawn = k;
+      const x = cv.getContext("2d"), c = "#" + new THREE.Color(color).getHexString();
+      x.clearRect(0, 0, 128, 128);
+      const gr = x.createRadialGradient(64, 64, 8, 64, 64, 60);
+      gr.addColorStop(0, "rgba(10,20,40,0.75)"); gr.addColorStop(0.8, "rgba(10,20,40,0.55)"); gr.addColorStop(1, "rgba(10,20,40,0)");
+      x.fillStyle = gr; x.beginPath(); x.arc(64, 64, 60, 0, 7); x.fill();
+      x.strokeStyle = c; x.lineWidth = 6; x.beginPath(); x.arc(64, 64, 54, 0, 7); x.stroke();
+      x.fillStyle = c; // für Zeichen wie ✓ (Emojis bringen ihre eigenen Farben mit)
+      x.font = "bold 64px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(icon, 64, 70);
+      tex.needsUpdate = true;
+    };
+    g.userData = { beam, ring, holo, setIcon, phase: Math.random() * 6 };
     return g;
+  }
+  // Hologramme schweben leicht auf und ab und werden in der Ferne etwas größer, damit man sie auch von weitem findet
+  function animateMarkers(elapsed) {
+    const c = world.camera;
+    for (const st of Object.values(world.stations)) {
+      const m = st.marker; if (!m.visible) continue;
+      const u = m.userData, d = c.position.distanceTo(m.position);
+      u.holo.position.y = 2.9 + Math.sin(elapsed * 2 + u.phase) * 0.15;
+      u.holo.scale.setScalar(Math.min(4, 1.3 + d * 0.022) / m.scale.x);
+    }
+  }
+  // Symbol für eine Station: Rakete, geheimnisvolles Fundstück oder das Symbol der Entdeckung
+  function stationIcon(key) {
+    const sc = cfg.stations[key], d = cfg.discoveries.find((x) => x.key === key);
+    if (sc.home) return "🚀";
+    if (sc.small && !foundMap()[key]) return "✨";
+    return d ? d.icon : "🔍";
   }
 
   // ---------- Gemeinsamer Aufbau für jeden Ort: Boden, Steine, Licht, Himmel, Rakete, Astronaut ----------
@@ -733,7 +820,7 @@ window.Surface = (function () {
     for (const [key, [x, z]] of Object.entries(stationPos)) {
       const [ox, oz] = offsets[key] || [0, 0];
       const mk = B.on(makeMarker(), x + ox, z + oz);
-      if (cfg.stations[key].small) mk.scale.set(0.45, 0.2, 0.45); // Fundstück: nur ein kleines Licht
+      if (cfg.stations[key].small) mk.scale.setScalar(0.7); // Fundstück: nur ein kleines Licht
       if (cfg.stations[key].info) mk.visible = false;              // Tafelwand: keine Entdeckung, also kein Licht
       stations[key] = { marker: mk, x: mk.position.x, z: mk.position.z };
     }
@@ -878,8 +965,7 @@ window.Surface = (function () {
       const color = home ? 0xfbbf24 : done ? 0x4ade80 : cfg.stations[key].small ? 0xfcd34d : 0x7dd3fc;
       st.marker.userData.beam.material.color.set(color);
       st.marker.userData.ring.material.color.set(color);
-      st.marker.userData.beam.scale.y = done || home ? 0.25 : 1;
-      st.marker.userData.beam.position.y = done || home ? 3.75 : 15;
+      st.marker.userData.setIcon(done && !home ? "✓" : stationIcon(key), color);
     }
   }
 
@@ -1078,7 +1164,8 @@ window.Surface = (function () {
   function exit() {
     if (!S.active) return;
     S.active = false; probe = null;
-    Sound.engine(0);
+    Sound.engine(0); Sound.wind(0);
+    compassShown = ""; $("surfCompass").classList.add("hidden");
     $("surfaceHud").classList.add("hidden");
     $("surfLabels").innerHTML = "";
     if (onExit) onExit();
@@ -1270,6 +1357,8 @@ window.Surface = (function () {
 
     updateCamera(dt);
     updateLabels();
+    animateMarkers(elapsed);
+    updateCompass();
   };
 
   function updateCamera(dt) {
@@ -1682,6 +1771,25 @@ window.Surface = (function () {
     }
   }
 
+  // Kompass oben in der Mitte: zeigt zur nächsten Station, an der es noch etwas zu entdecken gibt
+  let compassShown = "";
+  function updateCompass() {
+    const el = $("surfCompass");
+    let best = null, bestD = Infinity;
+    for (const [key, st] of Object.entries(world.stations)) {
+      const sc = cfg.stations[key];
+      if (sc.info || sc.home || foundMap()[key] || !cfg.discoveries.some((d) => d.key === key)) continue;
+      const d = Math.hypot(st.x - ast.pos.x, st.z - ast.pos.z);
+      if (d < bestD) { bestD = d; best = st; }
+    }
+    if (!best || bestD < 5 || view.special || boarding || experiment) { if (compassShown) { compassShown = ""; el.classList.add("hidden"); } return; }
+    const dx = best.x - ast.pos.x, dz = best.z - ast.pos.z, sy = Math.sin(view.yaw), cy = Math.cos(view.yaw);
+    const ang = Math.atan2(-dx * cy + dz * sy, dx * sy + dz * cy); // 0 = geradeaus, positiv = rechts
+    $("compassArrow").style.transform = `rotate(${ang}rad)`;
+    const text = `${Math.round(bestD)} m`;
+    if (text !== compassShown) { compassShown = text; $("compassText").textContent = text; el.classList.remove("hidden"); }
+  }
+
   function updateLabels() {
     const c = world.camera, w = innerWidth, h = innerHeight;
     for (const [key, st] of Object.entries(world.stations)) {
@@ -1692,7 +1800,8 @@ window.Surface = (function () {
       // Fundstücke verraten sich erst aus der Nähe – und ihren Namen erst, wenn man sie entdeckt hat
       const secret = sc.small && !done;
       if (sc.info) { el.style.display = "none"; continue; }
-      if (secret && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) > 40) { el.style.display = "none"; continue; }
+      // Namensschilder nur in der Nähe (die Rakete immer) – aus der Ferne helfen Hologramm und Kompass
+      if (!home && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) > (secret ? 25 : 32)) { el.style.display = "none"; continue; }
       const text = secret ? "✨ Fundstück" : `${home ? "🚀" : done ? "✓" : "🔍"} ${sc.label}`;
       if (el.textContent !== text) el.textContent = text;
       el.classList.toggle("done", done);
@@ -1811,17 +1920,126 @@ window.Surface = (function () {
     return g;
   }
 
+  // ---------- Gestaltung: Himmel mit Farbverlauf, Tafelberge, Felsgruppen, Staubschleier, weiche Schatten unter Objekten ----------
+  // Himmelskuppel: am Horizont heller und staubiger, oben dunkler. Die Grundfarbe kommt aus material.color.
+  function makeSkyDome(horizon = 1.15, zenith = 0.72) {
+    const geo = new THREE.SphereGeometry(2400, 32, 16), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i) / 2400, k = y <= 0 ? horizon : horizon + (zenith - horizon) * Math.pow(y, 0.6);
+      col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = k;
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+    m.renderOrder = -1;
+    return m;
+  }
+  // Streifen-Muster für Gesteinsschichten (von unten nach oben)
+  function bandTexture(colors, seed) {
+    const cv = document.createElement("canvas"); cv.width = 4; cv.height = 256;
+    const x = cv.getContext("2d");
+    for (let y = 0, i = 0; y < 256; i++) { const h = 8 + hash2(i, seed) * 26; x.fillStyle = colors[i % colors.length]; x.fillRect(0, y, 4, h + 1); y += h; }
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+    return t;
+  }
+  // Tafelberg: zerklüftete Säule mit waagerechten Gesteinsschichten
+  function makeButte(r, h, tex, seed) {
+    const geo = new THREE.CylinderGeometry(r * 0.78, r, h, 11, 6), p = geo.attributes.position, v = new V();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const a = Math.atan2(v.z, v.x), k = 0.82 + 0.36 * hash2(Math.round(a * 3) + seed, Math.round(v.y / h * 5) + seed);
+      p.setXYZ(i, v.x * k, v.y, v.z * k);
+    }
+    geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 1, flatShading: true }));
+    m.castShadow = m.receiveShadow = true;
+    return m;
+  }
+  // Gruppe unterschiedlich großer Felsen als Blickfang im Vordergrund
+  function rockCluster(B, x, z, n, mat, seed) {
+    const geo = rockCluster.geo || (rockCluster.geo = new THREE.DodecahedronGeometry(1, 0));
+    for (let i = 0; i < n; i++) {
+      const a = hash2(i, seed) * Math.PI * 2, r = hash2(i, seed + 1) * 3.2, s = 0.25 + Math.pow(hash2(i, seed + 2), 2) * 1.6;
+      const m = new THREE.Mesh(geo, mat);
+      m.scale.set(s * (0.8 + hash2(i, seed + 3) * 0.6), s * (0.5 + hash2(i, seed + 4) * 0.5), s);
+      m.rotation.set(hash2(i, seed + 5) * 3, hash2(i, seed + 6) * 3, 0);
+      m.castShadow = m.receiveShadow = true;
+      B.on(m, x + Math.cos(a) * r, z + Math.sin(a) * r, s * 0.25);
+    }
+  }
+  // Weicher dunkler Fleck unter einem Objekt – dann steht es auf dem Boden, statt zu schweben
+  function addBlob(B, x, z, r) {
+    if (!addBlob.mat) {
+      const cv = document.createElement("canvas"); cv.width = cv.height = 64;
+      const c = cv.getContext("2d"), g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, "rgba(0,0,0,0.5)"); g.addColorStop(0.6, "rgba(0,0,0,0.25)"); g.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+      addBlob.mat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+      addBlob.geo = new THREE.CircleGeometry(1, 24); addBlob.geo.rotateX(-Math.PI / 2);
+    }
+    const m = new THREE.Mesh(addBlob.geo, addBlob.mat); m.scale.setScalar(r);
+    B.on(m, x, z, 0.03);
+  }
+  // Staubschleier tief am Horizont, die langsam vorbeiziehen
+  function makeDustVeils(color, n) {
+    const g = new THREE.Group(), mat = new THREE.SpriteMaterial({ map: glowTexture(color, "rgba(0,0,0,0)"), transparent: true, opacity: 0.28, depthWrite: false });
+    for (let i = 0; i < n; i++) {
+      const s = new THREE.Sprite(mat), a = (i / n) * Math.PI * 2 + hash2(i, 9);
+      s.position.set(Math.cos(a) * 235, 9 + hash2(i, 4) * 10, Math.sin(a) * 235); s.scale.set(150 + hash2(i, 5) * 90, 26, 1);
+      g.add(s);
+    }
+    return g;
+  }
+  // Steuerpult: schräges Pult mit leuchtendem Bildschirm
+  function makeConsole() {
+    const g = new THREE.Group();
+    const metal = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.5, roughness: 0.45 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.95, 0.7), metal); base.position.y = 0.48; base.castShadow = true; g.add(base);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.08, 0.8), metal); top.position.set(0, 1.0, -0.05); top.rotation.x = -0.45; g.add(top);
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.45), new THREE.MeshBasicMaterial({ color: 0x38bdf8, toneMapped: false }));
+    screen.position.set(0, 1.05, -0.09); screen.rotation.x = -Math.PI / 2 + 0.45 + Math.PI; g.add(screen);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({ color: 0x4ade80, toneMapped: false })); lamp.position.set(0.5, 1.1, 0.3); g.add(lamp);
+    g.userData.blink = [lamp];
+    return g;
+  }
+  // Landeplatz für den Hubschrauber: Scheibe mit großem „H“
+  function makeHeliPad() {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+    const x = cv.getContext("2d");
+    x.fillStyle = "#3a3f47"; x.beginPath(); x.arc(64, 64, 62, 0, 7); x.fill();
+    x.strokeStyle = "#fcd34d"; x.lineWidth = 6; x.beginPath(); x.arc(64, 64, 52, 0, 7); x.stroke();
+    x.fillStyle = "#f8fafc"; x.font = "bold 70px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("H", 64, 68);
+    const m = new THREE.Mesh(new THREE.CircleGeometry(2.2, 32), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(cv), roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
+    m.rotation.x = -Math.PI / 2; m.receiveShadow = true;
+    return m;
+  }
+
+  // Sanddünen im Westen: lange, geschwungene Kämme
+  const DUNE_AT = [-72, 12];
+  function duneMask(x, z) { return 1 - smooth(38, 78, Math.hypot(x - DUNE_AT[0], z - DUNE_AT[1])); }
+  function marsDunes(x, z) {
+    const m = duneMask(x, z); if (m <= 0) return 0;
+    const ridge = 0.5 + 0.5 * Math.sin(x * 0.2 + z * 0.07 + fbm2(x * 0.03, z * 0.03) * 4);
+    return Math.pow(ridge, 2.4) * 2.4 * m;
+  }
+
   function buildMars() {
     const L = { ...MARS_LAYOUT };
+    const rich = !W.fast; // „⚡ Flüssig“: weniger Zierrat
     const craters = [[60, -40, 16, 2], [-75, 65, 14, 1.8], [90, 50, 10, 1.2], [-45, -75, 18, 2.4], [45, 100, 12, 1.6], [70, 5, 6, 0.8]];
     const flats = [[0, 0, 11], [...L.station, 16], [...L.waage, 3], [...L.monde, 4], [...L.vulkan, 4], [...L.rover, 6], [...L.eis, 4]];
     const dustColors = ["rgba(190,110,70,1)", "rgba(170,95,60,0.9)"];
     const B = buildBase({
-      height: makeHeight(craters, flats, 40),
+      height: makeHeight(craters, flats, 40, marsDunes),
       // dünne, staubige Luft: gelbbrauner Himmel, Dunst in der Ferne, keine Sterne am Tag, die Sonne wirkt kleiner als auf der Erde
       sky: MARS_SKY.getHex(), fog: [90, 430], stars: false, sunSize: 105,
       ground: 0xb8623a, rock: 0x7d4a35,
-      tint: (x, z) => { const m = 0.75 + 0.25 * fbm2(x * 0.015 + 9, z * 0.015); return [m, m * 0.95, m * 0.9]; },
+      tint: (x, z) => {
+        let m = 0.75 + 0.25 * fbm2(x * 0.015 + 9, z * 0.015), r = m, g = m * 0.95, b = m * 0.9;
+        const d = duneMask(x, z); // in den Dünen: feiner, hellerer Sand
+        if (d > 0) { r += (1.08 - r) * d; g += (0.86 - g) * d; b += (0.62 - b) * d; }
+        m = 0.9 + 0.1 * hash2(Math.floor(x * 2), Math.floor(z * 2)); // feine Körnung
+        return [r * m, g * m, b * m];
+      },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.monde, 4], [...L.vulkan, 4], [...L.rover, 7],
         [...L.roverZiel, 3], [...L.eis, 4], [...L.wegweiser, 3]],
       ambient: [0xffd2a8, 0.5], hemi: [0xe8b98a, 0x6b3a22, 0.35], sun: [0xfff0dc, 1.45],
@@ -1853,21 +2071,37 @@ window.Surface = (function () {
     const scale = on(makeScale(), ...L.waage);
     scale.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
     const heli = on(makeHeli(), ...L.vulkan);
-    on(makeTable(), ...L.rover); // Steuerpult für den Rover
+    on(makeHeliPad(), ...L.vulkan, 0.04);
+    const console_ = on(makeConsole(), ...L.rover); // Steuerpult für den Rover
+    console_.rotation.y = Math.atan2(L.roverZiel[0] - L.rover[0], L.roverZiel[1] - L.rover[1]) + Math.PI;
     const rover = on(makeRover(), ...L.roverStart);
     const roverGoal = new THREE.Group();
     const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({ color: 0xe3cba5, roughness: 1, flatShading: true }));
     stone.scale.y = 0.6; stone.position.y = 0.3; stone.castShadow = true;
-    const goalMark = makeMarker(); goalMark.scale.set(0.6, 0.35, 0.6);
+    const goalMark = makeMarker(); goalMark.scale.setScalar(0.9);
     goalMark.userData.beam.material.color.set(0xfcd34d); goalMark.userData.ring.material.color.set(0xfcd34d);
+    goalMark.userData.setIcon("🎯", 0xfcd34d);
     roverGoal.add(goalMark); roverGoal.visible = false;
     on(stone, ...L.roverZiel, 0.3); on(roverGoal, ...L.roverZiel);
     const drill = on(makeDrill(), ...L.eis);
     on(makeSignpost("SONNE", "228 Mio. km"), ...L.wegweiser).rotation.y = Math.atan2(L.wegweiser[0], L.wegweiser[1]) + Math.PI;
     const devil = on(makeDevil(dustColors), ...L.teufel);
-    const station = on(makeStation(cfg.discoveries, "Marsstation"), ...L.station);
+    const station = on(makeStation(cfg.discoveries, "Marsstation", "mars"), ...L.station);
     on(makeTelescope(new V(SUN_DIR.x, 0.12, SUN_DIR.z).normalize()), ...L.abend); // Himmelskamera, schaut zum Sonnenuntergang
     const magnetTable = on(makeMagnetTable(), ...L.rost);
+
+    // Landschaft mit Charakter: Himmelsverlauf, Tafelberge am Horizont, Felsgruppen, Staubschleier, ein Rover auf Patrouille
+    const skyDome = makeSkyDome(1.12, 0.74); skyDome.material.color.copy(MARS_SKY); scene.add(skyDome);
+    const bands = bandTexture(["#8a4a33", "#9b5a3f", "#7a3f2b", "#a8694a", "#8f5038", "#b37757"], 3); // gedämpfte Rottöne, die im Dunst verschwimmen
+    const buttes = [[-150, 120, 34, 42], [175, 95, 26, 30], [135, -165, 40, 36], [-185, -105, 30, 48], [60, 215, 44, 28], [-60, -205, 24, 26]];
+    buttes.slice(0, rich ? 6 : 3).forEach(([x, z, r, h], i) => on(makeButte(r, h, bands, i * 7 + 1), x, z, h / 2 - 3));
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x86503a, roughness: 0.95, flatShading: true });
+    const clusters = [[18, 26, 6], [33, 24, 5], [9, -9, 5], [-14, 42, 6], [22, 62, 5], [-24, 60, 6], [-4, 30, 4], [-38, 10, 5], [28, -30, 6], [-18, -12, 4]];
+    clusters.slice(0, rich ? 10 : 5).forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 13 + 2));
+    const veils = rich ? makeDustVeils("rgba(210,150,100,1)", 9) : new THREE.Group(); scene.add(veils);
+    const patrol = on(makeRover(), 48, 62);
+    const patrolCol = [48, 62, 1.8];
+    for (const [x, z, r] of [[...L.monde, 1.1], [...L.vulkan, 2.3], [...L.rover, 1.1], [...L.eis, 1.3], [...L.wegweiser, 0.6], [...L.rost, 1.3], [...L.abend, 1], [...L.waage, 1.2]]) addBlob(B, x, z, r);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, rover: L.rover, rost: L.rost, vulkan: L.vulkan, monde: L.monde, abend: L.abend, eis: L.eis, teufel: L.teufel,
@@ -1875,10 +2109,12 @@ window.Surface = (function () {
 
     const colliders = [[0, 0, 1.8], [...L.monde, 0.6], [...L.vulkan, 0.7], [...L.rover, 1], [...L.eis, 0.9], [...L.wegweiser, 0.3],
       [...L.rost, 1], [...L.abend, 0.6], [...L.roverZiel, 0.7], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25],
-      ...stationColliders(L.station)];
+      ...stationColliders(L.station), patrolCol];
+    for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
     return { ...B, L, station, scale, telescope, phobos, deimos, volcano, everest, zugspitze, heli, heliY: heli.position.y, rover, roverGoal, drill,
-      devil, magnetTable, stations, colliders, shadowCasters: [rocket, station] };
+      devil, magnetTable, skyDome, veils, patrol, patrolCol, blink: [...station.userData.blink, ...console_.userData.blink],
+      stations, colliders, shadowCasters: [rocket, station] };
   }
 
   // Himmel und Licht zwischen Mittag (f = 0) und Sonnenuntergang (f = 1): Auf dem Mars wird es abends BLAU um die Sonne
@@ -1887,6 +2123,7 @@ window.Surface = (function () {
     sunNow.copy(SUN_DIR).applyAxisAngle(SUN_AXIS, -0.2 * f); // Sonne sinkt bis hinter die Hügel am Horizont
     world.scene.background.copy(MARS_SKY).lerp(MARS_DUSK, f);
     world.scene.fog.color.copy(world.scene.background);
+    world.skyDome.material.color.copy(world.scene.background);
     world.sunGlow.position.copy(sunNow).multiplyScalar(1200);
     world.sunGlow.material.color.copy(WHITE).lerp(DUSK_GLOW, f);
     world.sunGlow.scale.setScalar(105 * (1 + 2.4 * f));
@@ -2067,6 +2304,19 @@ window.Surface = (function () {
     }
   }
   function endAbend() { marsSky(0); leaveExhibit(); }
+
+  // --- Ein zweiter Rover fährt von allein seine Runden neben der Station ---
+  function updatePatrol(dt) {
+    const r = world.patrol, u = r.userData, cx = 48, cz = 62;
+    u.a = (u.a || 0) + dt * 0.1; // etwa 1,3 m/s
+    const x = cx + Math.cos(u.a) * 16, z = cz + Math.sin(u.a) * 10;
+    const hx = -Math.sin(u.a) * 16, hz = Math.cos(u.a) * 10; // Fahrtrichtung
+    r.position.set(x, world.height(x, z), z); r.rotation.y = Math.atan2(hx, hz);
+    for (const w of u.wheels) w.rotation.x += dt * 4.5;
+    world.patrolCol[0] = x; world.patrolCol[1] = z;
+    u.puff = (u.puff || 0) - dt;
+    if (u.puff <= 0 && world.camera.position.distanceTo(r.position) < 60) { u.puff = 0.35; grains(r.position, 1, 0.4); }
+  }
 
   // --- Staubteufel: wandert über die Ebene, man muss ihn einholen ---
   function updateDevil(elapsed) {
@@ -3162,6 +3412,10 @@ window.Surface = (function () {
       },
       update(dt, busy, elapsed) {
         updateDevil(elapsed);
+        updatePatrol(dt);
+        world.blink.forEach((m, i) => { m.visible = ((elapsed * 0.9 + i * 0.37) % 1) < 0.45; });
+        world.veils.rotation.y += dt * 0.004;
+        Sound.wind(0.35 + 0.18 * Math.sin(elapsed * 0.37) + 0.12 * Math.sin(elapsed * 1.3 + 1)); // leises Heulen mit Böen
         world.phobos.rotation.y += dt * 0.05; world.deimos.rotation.y += dt * 0.03;
       },
       actions: { rover: startRover, vulkan: startHeli, monde: startMoons, eis: startEis, rost: startRost, abend: startAbend }

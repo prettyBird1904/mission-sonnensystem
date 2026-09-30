@@ -3,7 +3,7 @@
    ========================================================= */
 window.Sound = (function () {
   let ctx = null, master = null, engineOsc = null, engineGain = null, engineFilter = null;
-  let enabled = true, engineLevel = -1;
+  let enabled = true, engineLevel = -1, windGain = null, windFilter = null, windLevel = -1;
 
   function ensure() {
     if (ctx) return true;
@@ -23,6 +23,12 @@ window.Sound = (function () {
       engineGain = ctx.createGain(); engineGain.gain.value = 0;
       engineOsc.connect(engineFilter).connect(engineGain).connect(master);
       engineOsc.start();
+      // Wind (z. B. auf dem Mars): dasselbe Rauschen, aber hell gefiltert und leise
+      const windSrc = ctx.createBufferSource(); windSrc.buffer = buf; windSrc.loop = true; windSrc.playbackRate.value = 0.7;
+      windFilter = ctx.createBiquadFilter(); windFilter.type = "bandpass"; windFilter.frequency.value = 500; windFilter.Q.value = 0.8;
+      windGain = ctx.createGain(); windGain.gain.value = 0;
+      windSrc.connect(windFilter).connect(windGain).connect(master);
+      windSrc.start();
       return true;
     } catch (e) { return false; }
   }
@@ -46,6 +52,7 @@ window.Sound = (function () {
     toggle() {
       enabled = !enabled;
       if (!enabled && engineGain) { engineGain.gain.cancelScheduledValues(0); engineGain.gain.value = 0; engineLevel = -1; }
+      if (!enabled && windGain) { windGain.gain.cancelScheduledValues(0); windGain.gain.value = 0; windLevel = -1; }
       return enabled;
     },
     engine(level) {
@@ -58,6 +65,16 @@ window.Sound = (function () {
       engineFilter.frequency.cancelScheduledValues(t);
       engineGain.gain.setTargetAtTime(level * 0.35, t, 0.15);
       engineFilter.frequency.setTargetAtTime(200 + level * 700, t, 0.2);
+    },
+    // Windrauschen 0 … 1 (Böen: einfach öfter mit anderem Wert aufrufen)
+    wind(level) {
+      if (!ctx || !enabled) return;
+      if (Math.abs(level - windLevel) < 0.02) return;
+      windLevel = level;
+      const t = ctx.currentTime;
+      windGain.gain.cancelScheduledValues(t); windFilter.frequency.cancelScheduledValues(t);
+      windGain.gain.setTargetAtTime(level * 0.22, t, 0.6);
+      windFilter.frequency.setTargetAtTime(350 + level * 500, t, 0.8);
     },
     click() { tone(660, 0.08, "triangle", 0.15); },
     collect() { tone(988, 0.12, "sine", 0.2); tone(1319, 0.2, "sine", 0.2, 0.07); },
