@@ -1,6 +1,8 @@
 /* =========================================================
    Mission Sonnensystem – Stylesheet
    ========================================================= */
+/* Scrollleisten passend zum dunklen Weltall statt grellweiß */
+* { scrollbar-width: thin; scrollbar-color: rgba(160, 190, 255, 0.35) transparent; }
 :root {
   --bg: #050816;
   --glass: rgba(16, 22, 48, 0.62);
