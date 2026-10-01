@@ -1654,6 +1654,7 @@ window.Surface = (function () {
       UI.closeModal();
       if (known) return;
       const rest = cfg.discoveries.length - foundCount();
+      if (rest === 0 && G.onPlanetDone) G.onPlanetDone(bodyId); // Mission erst jetzt geschafft: alles entdeckt
       if (rest > 0) radio(cfg.radio.found, { rest });
       else if (!quizDone && !(guide && guide.on)) { radio(cfg.radio.allFound); setTimeout(startQuiz, 2500); }
       // mit Führung: Die Begleitperson bringt das Kind zur Wand, dort startet die Bodenstation die Fragen (siehe updateGuide)
@@ -1722,11 +1723,13 @@ window.Surface = (function () {
       if (!S.active || e.target.tagName === "INPUT") return;
       const k = e.key.toLowerCase();
       if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k)) e.preventDefault();
+      // Leertaste = springen – nicht aus Versehen den zuletzt getippten Knopf (z. B. „Allein erkunden“) auslösen
+      if (k === " " && document.activeElement && document.activeElement.tagName === "BUTTON") document.activeElement.blur();
       keys[k] = true;
       if (k === " " && !e.repeat) jumpPressed = true;
       if (k === "e" && !e.repeat) actionPressed = true;
     });
-    window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
+    window.addEventListener("keyup", (e) => { if (S.active && e.key === " " && e.target.tagName !== "INPUT") e.preventDefault(); keys[e.key.toLowerCase()] = false; });
     window.addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
 
     // Joystick
@@ -1780,10 +1783,11 @@ window.Surface = (function () {
     // Mitbewohner der Station (je ein eigenes Astronauten-Modell)
     npcModels = [];
     for (let i = 0; i < ((D.surfaces[id].npcs || []).length); i++) npcModels.push(await loadExtraAstronaut());
+    noraModel = D.surfaces[id].guide ? await loadExtraAstronaut() : null; // Nora steigt mit aus
     bodyId = id; cfg = D.surfaces[id];
     worlds[id] = SITES[id].build();
   };
-  let npcModels = [];
+  let npcModels = [], noraModel = null;
 
   S.enter = function (id, exitCb) {
     bodyId = id; cfg = D.surfaces[id]; onExit = exitCb; site = SITES[id];
@@ -1855,7 +1859,7 @@ window.Surface = (function () {
       host.appendChild(el); labelEls[key] = el;
     }
     for (const n of world.npcs || []) { // Sprechblasen der Mitbewohner
-      n.el = document.createElement("div"); n.el.className = "label npc-bubble"; n.el.style.display = "none";
+      n.el = document.createElement("div"); n.el.className = "label npc-bubble" + (n.isNora ? " nora-bubble" : ""); n.el.style.display = "none";
       host.appendChild(n.el);
     }
   }
@@ -1944,9 +1948,10 @@ window.Surface = (function () {
           grains(ast.pos, 14, 0.8);
           footprint(0.17); footprint(-0.17);
           Sound.land();
-          const h = Math.max(0, ast.maxY - ast.jumpBase);
-          const jump = { hoehe: `${Math.round(h * 100)} Zentimeter`, zeit: ast.airT.toFixed(1).replace(".", ",") };
-          const real = h > cfg.jump * 0.67; // an einem Hang zählt ein Sprung nicht
+          // Höhe aus dem Absprung berechnen (gemessen wäre sie auf langsamen Geräten zu klein – die Erde springt nur 11 cm)
+          const h = Math.max(ast.maxY - ast.jumpBase, cfg.jump);
+          const jump = { hoehe: `${Math.round(h * 100)} Zentimeter`, zeit: Math.max(ast.airT, ast.airDur).toFixed(1).replace(".", ",") };
+          const real = Math.abs(ast.pos.y - ast.jumpBase) < Math.max(0.25, cfg.jump * 0.6); // an einem steilen Hang zählt ein Sprung nicht
           if (real && foundMap().sprung) UI.toast(`🦘 ${jump.hoehe} hoch · ${jump.zeit} Sekunden in der Luft`, "gold");
           else if (real) discover("sprung", jump);
         }
@@ -2380,12 +2385,20 @@ window.Surface = (function () {
   // Einsteigen: zur Leiter gehen, hochklettern, durch die Luke in die Kabine – dann startet die Rakete zurück ins All
   function startBoarding() {
     boarding = { phase: "walk", t: 0, y: ast.pos.y };
+    if (guide) guide.n.talk = 0; // alte Sprechblase weg, Nora steigt mit ein
     ast.speed = ast.vy = 0; ast.onGround = true; ast.jumping = ast.hopping = false;
     radioTimer = 0; $("radio").classList.add("hidden");
     world.stations.rakete.marker.visible = false;
   }
   function updateBoarding(dt) {
     const b = boarding, R = 2.05; b.t += dt;
+    const nora = guide && guide.n;
+    if (nora && nora.obj.visible) { // Nora steigt zuerst ein
+      const np = nora.obj.position, ex = HATCH.x * 2.6 - np.x, ez = HATCH.z * 2.6 - np.z, ed = Math.hypot(ex, ez);
+      if (ed > 0.2) { const st = Math.min(ed, 2 * dt); np.x += (ex / ed) * st; np.z += (ez / ed) * st; nora.heading = Math.atan2(ex, ez); nora.moving = true; }
+      else nora.moving = false;
+      if (b.phase !== "walk") nora.obj.visible = false;
+    }
     if (b.phase === "walk") {
       const dx = HATCH.x * R - ast.pos.x, dz = HATCH.z * R - ast.pos.z, d = Math.hypot(dx, dz), step = 1.3 * dt;
       if (d <= step) { ast.pos.x = HATCH.x * R; ast.pos.z = HATCH.z * R; b.phase = "climb"; b.t = 0; }
@@ -2505,7 +2518,7 @@ window.Surface = (function () {
   // =========================================================
   // cfg.npcs = [{ name, color, path: [[x, z], …], work, hello, hint, done, facts: […] }]
   function addNpcs(B) {
-    return (cfg.npcs || []).map((c, i) => {
+    const list = (cfg.npcs || []).map((c, i) => {
       if (!npcModels[i]) return null;
       const obj = makeModelAstronaut(npcModels[i], c.color);
       const [x, z] = c.path[0];
@@ -2513,6 +2526,13 @@ window.Surface = (function () {
       B.scene.add(obj);
       return { c, obj, rig: obj.userData.rig, i: 0, wait: 1 + i * 2, heading: 0, phase: 0, col: [x, z, 0.7], talk: 0, cool: 0, waveT: 0, said: 0, el: null };
     }).filter(Boolean);
+    if (noraModel) { // Nora, die Co-Pilotin: steht zuerst an der Leiter der Rakete
+      const obj = makeModelAstronaut(noraModel, D.nora.color), x = HATCH.x * 2.6, z = HATCH.z * 2.6;
+      obj.position.set(x, B.height(x, z), z); B.scene.add(obj);
+      list.push({ c: { name: D.nora.name, color: D.nora.color, path: [[x, z]] }, isNora: true, obj, rig: obj.userData.rig, i: 0, wait: 0, heading: 0, phase: 0,
+        col: [x, z, 0.7], talk: 0, cool: 0, waveT: 0, said: 0, el: null, climbY: null });
+    }
+    return list;
   }
   function npcSay(n) {
     const c = n.c, open = cfg.discoveries.filter((d) => !foundMap()[d.key] && world.stations[d.key]);
@@ -2536,6 +2556,7 @@ window.Surface = (function () {
       let moving = false;
       n.talk -= dt; n.cool -= dt; n.waveT -= dt;
       if (n.guide) moving = !!n.moving;
+      else if (n.isNora) { if (dist < 6) n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5)); }
       else if (dist < 5.5 && !busy) { // stehen bleiben, zum Kind drehen und etwas sagen
         n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5));
         if (n.cool <= 0 && !UI.modalOpen()) npcSay(n);
@@ -2550,17 +2571,25 @@ window.Surface = (function () {
           n.heading = angleLerp(n.heading, Math.atan2(ex, ez), 1 - Math.exp(-dt * 6));
         }
       }
-      p.y = world.height(p.x, p.z);
+      const climbing = n.climbY != null;
+      p.y = climbing ? n.climbY : world.height(p.x, p.z);
       n.obj.rotation.y = n.heading;
-      n.phase += dt * (moving ? 5 : 1.5);
-      poseRig(n.rig, { mode: moving ? "walk" : "stand", speed: moving ? 0.55 : 0, phase: n.phase, t: elapsed + n.c.path.length,
+      n.phase += dt * (moving ? 5 : climbing ? 6 : 1.5);
+      poseRig(n.rig, { mode: climbing ? "climb" : moving ? "walk" : "stand", speed: moving ? 0.55 : 0, phase: n.phase, t: elapsed + n.c.path.length,
         air: false, airP: 0, contact: 0, wave: n.waveT > 0, work: !moving && n.c.work && dist > 5.5 });
       n.col[0] = p.x; n.col[1] = p.z;
-      // Sprechblase über dem Kopf
-      if (n.talk > 0 && !view.special) {
+      // Sprechblase über dem Kopf (Noras Blase bleibt am Bildrand, wenn sie gerade nicht im Bild ist)
+      if (n.talk > 0 && !view.special && n.obj.visible) {
         tmp.set(p.x, p.y + 2.35, p.z).project(c);
-        if (tmp.z < 1) { n.el.style.display = ""; n.el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h}px) translate(-50%, -100%)`; }
-        else n.el.style.display = "none";
+        if (tmp.z < 1 || n.isNora) {
+          let x = (tmp.x * 0.5 + 0.5) * w, y = (-tmp.y * 0.5 + 0.5) * h;
+          if (n.isNora) {
+            if (tmp.z >= 1) { x = w - x; y = h * 0.3; } // hinter der Kamera: gespiegelt an den Rand
+            const bw = Math.min(n.el.offsetWidth || 300, w - 20), bh = n.el.offsetHeight || 80;
+            x = Math.max(bw / 2 + 10, Math.min(w - bw / 2 - 10, x)); y = Math.max(bh + 70, Math.min(h - 150, y));
+          }
+          n.el.style.display = ""; n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+        } else n.el.style.display = "none";
       } else n.el.style.display = "none";
     }
   }
@@ -2577,21 +2606,22 @@ window.Surface = (function () {
   function setupGuide() {
     guide = null; $("guideBtn").onclick = guideAlone; $("guideBtn").classList.add("hidden");
     const GC = cfg.guide; if (!GC || !world.npcs) return;
-    const n = world.npcs.find((x) => x.c === cfg.npcs[GC.npc]); if (!n) return;
+    const n = world.npcs.find((x) => x.isNora); if (!n) return;
     const allDone = foundCount() >= cfg.discoveries.length && quizDone;
     guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0 };
-    n.guide = guide.on;
-    if (guide.on) { // Sie kommt von der Station her auf die Rakete zu
-      const [sx, sz] = world.L.spawn, [m0x, m0z] = world.L.meet || [sx + 10, sz + 14];
-      const md = Math.hypot(m0x - sx, m0z - sz), mk = Math.min(1, 15 / (md || 1)); // höchstens 15 m entfernt loslaufen
-      const mx = sx + (m0x - sx) * mk, mz = sz + (m0z - sz) * mk;
-      n.obj.position.set(mx, world.height(mx, mz), mz); n.heading = Math.atan2(sx - mx, sz - mz);
-      // Das Kind schaut nach der Landung in ihre Richtung, damit es sie kommen sieht
+    n.guide = guide.on; n.obj.visible = true; n.talk = 0; n.climbY = null;
+    const lx = HATCH.x * 2.05, lz = HATCH.z * 2.05; // Fuß der Leiter
+    n.obj.position.set(HATCH.x * 2.6, world.height(HATCH.x * 2.6, HATCH.z * 2.6), HATCH.z * 2.6);
+    n.heading = Math.atan2(world.L.spawn[0] - n.obj.position.x, world.L.spawn[1] - n.obj.position.z);
+    if (guide.on) { // Sie klettert hinter dem Kind die Leiter herunter
+      const [sx, sz] = world.L.spawn, mx = lx, mz = lz;
+      n.obj.position.set(lx, world.hatchY + HATCH.y, lz); n.climbY = world.hatchY + HATCH.y; n.heading = Math.atan2(-HATCH.x, -HATCH.z);
+      // Das Kind schaut zur Rakete, damit es sie herunterklettern sieht
       ast.heading = view.yaw = Math.atan2(mx - sx, mz - sz);
       const cp = world.camera.position.set(sx - Math.sin(view.yaw) * 7, ast.pos.y + 3.2, sz - Math.cos(view.yaw) * 7), cr = Math.hypot(cp.x, cp.z);
       if (cr < 2.6) { cp.x *= 2.6 / (cr || 0.01); cp.z *= 2.6 / (cr || 0.01); }
       view.look.set(sx + Math.sin(view.yaw) * 3, ast.pos.y + 1.3, sz + Math.cos(view.yaw) * 3);
-      setTimeout(() => { if (S.active && guide && guide.on) guideSay(GC.hello); }, 900);
+      setTimeout(() => { if (S.active && guide && guide.on) guideSay(GC.hello); }, 600);
     }
     updateGuideBtn();
   }
@@ -2610,12 +2640,16 @@ window.Surface = (function () {
     if (!guide || !text) return;
     const n = guide.n, msg = fmtVars(text, vars);
     n.cool = 20;
-    radio(msg, null, `🧑‍🚀 ${n.c.name}`);
+    n.el.textContent = "";
+    const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, msg);
+    n.talk = Math.min(10, 3 + msg.split(" ").length * 0.38); // lange Sätze bleiben etwas länger stehen
+    n.el.classList.remove("pop"); void n.el.offsetWidth; n.el.classList.add("pop");
+    Sound.click();
   }
   function updateGuideBtn() {
     const b = $("guideBtn");
     if (!guide || !guide.on || probe) { b.classList.add("hidden"); return; }
-    b.innerHTML = `🧭 ${guide.n.c.name.split(" ").pop()} führt dich · <b>Allein erkunden ✕</b>`;
+    b.innerHTML = `🧭 ${guide.n.c.name} führt dich · <b>Allein erkunden ✕</b>`;
     b.classList.remove("hidden");
   }
   function guideAlone() {
@@ -2654,6 +2688,12 @@ window.Surface = (function () {
     if (!guide) return;
     const n = guide.n, GC = cfg.guide, p = n.obj.position;
     guide.waitCd -= dt;
+    if (n.climbY != null) { // erst die Leiter herunter
+      n.climbY -= 1.5 * dt;
+      const g = world.height(p.x, p.z);
+      if (n.climbY <= g) { n.climbY = null; p.y = g; }
+      return;
+    }
     // Im Gespräch: freie Person, die man ansprechen kann
     if (!guide.on) return;
     n.moving = false;

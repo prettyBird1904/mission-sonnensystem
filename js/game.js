@@ -79,16 +79,28 @@
       s.visited[id] = true;
       UI.toast(`📘 Neuer Stempel im Forscherpass: ${Game.bodyById[id].name}!`, "gold");
     }
+    // Die Mission gilt erst, wenn dort alles entdeckt ist (wer schon alles kennt, hat sie sofort geschafft)
     const m = Game.currentMission();
-    if (m && m.target === id) completeMission();
+    if (m && m.target === id && Game.planetDone(id)) completeMission();
     Game.save();
     UI.updateHUD();
   }
+  Game.planetFound = (id) => {
+    const sf = D.surfaces[id], f = (Game.state.found && Game.state.found[id]) || {};
+    return sf ? [Object.keys(f).length, sf.discoveries.length] : null;
+  };
+  Game.planetDone = (id) => { const p = Game.planetFound(id); return !p || p[0] >= p[1]; };
+  Game.onPlanetDone = (id) => {
+    const m = Game.currentMission();
+    if (m && m.target === id) completeMission();
+    UI.updateHUD();
+  };
 
   function completeMission() {
     const s = Game.state;
     s.mission++;
     s.hint = false;
+    nora.justDone = true;
     Game.save();
     Sound.fanfare();
     UI.confetti();
@@ -97,6 +109,71 @@
     UI.updateHUD(true);
   }
   Game.completeMission = completeMission;
+
+  // ---------- Nora, die Co-Pilotin: erteilt Missionen, hilft beim Feststecken, meldet sich an wichtigen Stellen ----------
+  // t = Sekunden seit der Mission (nur im Flug gezählt) · quiet = Pause, bevor sie wieder etwas Nebensächliches sagt
+  const nora = { t: 0, quiet: 0, mission: -1, hint: 0, told: {}, justDone: false, back: null, queue: null, pending: [] };
+  const ART = { sonne: "die Sonne", erde: "die Erde", mond: "der Mond", venus: "die Venus" };
+  const nameOf = (id) => ART[id] || Game.bodyById[id].name;
+  const touchUI = () => document.documentElement.classList.contains("touch-ui");
+  function noraFill(t) {
+    return t.replace(/\{name\}/g, Game.state.name)
+      .replace("{steer}", touchUI() ? "Links lenkst du, rechts gibst du GAS." : "Mit W gibst du Gas, mit A und D lenkst du.");
+  }
+  function noraSay(text, important) {
+    if (!important && (nora.quiet > 0 || UI.noraVisible() || nora.pending.length)) return false;
+    // Wichtiges überschreibt nichts, was das Kind gerade liest – es kommt direkt danach
+    if (UI.noraVisible()) { if (nora.pending.length < 3) nora.pending.push(noraFill(text)); return true; }
+    UI.nora(noraFill(text)); nora.quiet = 20;
+    return true;
+  }
+  function noraMission(prefix) {
+    const m = Game.currentMission(), i = Game.state.mission;
+    nora.mission = i; nora.t = 0; nora.hint = Game.state.hint ? 2 : 0;
+    if (!m) { noraSay((prefix ? prefix + " " : "") + "Du hast ALLE Missionen geschafft, {name}! Hol dir deine Urkunde im Forscherpass 📘 – und flieg, wohin du willst.", true); return; }
+    noraSay((prefix ? prefix + " " : "") + `Mission ${i + 1}: ${m.brief || m.text}`, true);
+  }
+  Game.noraStart = (first) => { nora.queue = { at: first ? 0.6 : 1.2, prefix: first ? "Ich fliege mit dir, {name}!" : "Willkommen zurück, {name}! Ich bin wieder dabei." }; };
+  function noraUpdate(dt) {
+    nora.quiet -= dt;
+    if (UI.modalOpen()) return;
+    if (nora.pending.length && !UI.noraVisible()) { UI.nora(nora.pending.shift()); nora.quiet = 20; }
+    if (nora.queue) { nora.queue.at -= dt; if (nora.queue.at <= 0) { const q = nora.queue; nora.queue = null; noraMission(q.prefix); } return; }
+    if (nora.justDone) { nora.justDone = false; nora.back = null; noraMission(Game.currentMission() ? "Mission geschafft – super, {name}! ⭐ Weiter geht's!" : ""); return; }
+    const m = Game.currentMission();
+    if (nora.back) { // zurück im All, aber woanders gewesen als bei der Mission
+      const b = nora.back; nora.back = null;
+      if (!m) return;
+      if (b.same) { const p = Game.planetFound(b.id); noraSay(`Dort gibt es noch etwas zu entdecken (${p[0]} von ${p[1]}). Lande nochmal – erst dann ist die Mission geschafft!`, true); }
+      else noraSay(`Zurück im All! Unsere Mission wartet noch: ${m.text}`, true);
+      return;
+    }
+    if (!m || nora.mission !== Game.state.mission) return;
+    nora.t += dt;
+    if (m.target !== "#order") {
+      // Ziel in Sicht
+      const P = bodyPos(m.target, tmpA), r = Game.bodyById[m.target].radius, d = ship.pos.distanceTo(P), key = "ziel" + Game.state.mission;
+      if (!nora.told[key] && d < r * 2.2 + 16) {
+        nora.told[key] = true; nora.t = Math.min(nora.t, 20);
+        noraSay(`Da ist ${nameOf(m.target)}! Flieg ganz nah ran und ${touchUI() ? "tippe auf „erforschen“" : "drück E"}.`, true);
+      }
+      // an einem anderen Himmelskörper vorbei (sparsam: je Himmelskörper nur einmal)
+      const n = UI.nearId;
+      if (n && n !== m.target && !nora.told["nah" + n]) {
+        if (noraSay(`Das ist ${nameOf(n)}. Du kannst hier gern landen – unsere Mission ist aber: ${m.text}`)) nora.told["nah" + n] = true;
+      }
+    }
+    // Feststecken: erst ein Hinweis, dann schaltet Nora den gelben Pfeil ein
+    if (nora.hint === 0 && nora.t > 40) { nora.hint = 1; noraSay("Kleiner Tipp: " + m.hint, true); }
+    else if (nora.hint === 1 && nora.t > 80) {
+      nora.hint = 2;
+      if (m.target === "#order") noraSay("Tippe oben rechts auf 🧩 „Ordnen“ – das schaffst du!", true);
+      else {
+        if (!Game.state.hint) { Game.state.hint = true; Game.save(); UI.updateHUD(); }
+        noraSay("Ich schalte dir den gelben Pfeil ein – folge ihm einfach!", true);
+      }
+    }
+  }
 
   Game.onQuizFinished = function (id, stars) {
     const s = Game.state;
@@ -276,6 +353,8 @@
     ship.pitch = THREE.MathUtils.clamp(ship.pitch, -1.0, 1.0);
     ship.bank = 0;
     ship.speed = 12;
+    const m = Game.currentMission();
+    if (!nora.justDone && m && m.target !== "#order") nora.back = { id: seq.id, same: m.target === seq.id };
     seq = null;
     Game.exploring = null;
     Game.mode = "fly";
@@ -687,10 +766,12 @@
 
     if (Game.mode === "fly") {
       UI.nearId = findNear();
+      noraUpdate(dt);
       UI.frame(ship, W.camera);
       Sound.engine(Math.min(1, Math.abs(ship.speed) / 70));
     }
     UI.warp(Math.max(0, (ship.speed - 45) / 60) * (Game.mode === "explore" ? 0 : 1));
+    UI.noraFrame(Game.mode === "fly" ? dt : 1e9, W.camera); // außerhalb des Flugs verschwindet die Blase
 
     W.renderer.render(W.scene, W.camera);
     requestAnimationFrame(loop);
@@ -719,7 +800,8 @@
       Game.mode = "fly";
       cam.look.copy(lookTo);
       UI.showHUD();
-      UI.toast(document.documentElement.classList.contains("touch-ui")
+      Game.noraStart(!!quick);
+      if (!quick) UI.toast(document.documentElement.classList.contains("touch-ui")
         ? "🎮 Links lenken, rechts GAS geben! Tippe unten einen Planeten an – der Pfeil zeigt dir den Weg."
         : "🎮 W = Gas, A/D = Lenken, Leertaste = Turbo! Tippe unten einen Planeten an – der Pfeil zeigt dir den Weg.");
     };

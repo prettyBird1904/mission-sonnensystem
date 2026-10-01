@@ -238,21 +238,50 @@ window.SPACE_DATA = {
     }
   ],
 
-  /* Missionen: Rätsel, die zu einem Ziel führen */
+  /* Missionen: Rätsel, die zu einem Ziel führen.
+     brief = so erteilt Flugleiterin Nora die Mission per Funk ({steer} = Steuerung, passend zu Tastatur oder Tablet)
+     hint  = ihr Tipp, wenn ein Kind nach einer Weile noch nicht weiterkommt (danach schaltet sie den gelben Pfeil ein) */
   missions: [
-    { target: "sonne",   text: "Fliege zu dem Stern, der uns Licht und Wärme schenkt!" },
-    { target: "erde",    text: "Finde unseren Heimatplaneten – den blauen Planeten!" },
-    { target: "mond",    text: "Besuche den treuen Begleiter der Erde." },
-    { target: "mars",    text: "Finde den Roten Planeten." },
-    { target: "venus",   text: "Finde den heißesten Planeten im Sonnensystem." },
-    { target: "merkur",  text: "Welcher Planet ist der Sonne am allernächsten? Fliege hin!" },
-    { target: "jupiter", text: "Fliege zum größten Planeten – dem Riesen mit dem roten Fleck." },
-    { target: "saturn",  text: "Finde den Planeten mit den schönsten Ringen." },
-    { target: "uranus",  text: "Finde den eisblauen Planeten, der auf der Seite liegt." },
-    { target: "neptun",  text: "Fliege zum stürmischen blauen Planeten ganz außen." },
-    { target: "pluto",   text: "Suche den kleinen Zwergplaneten mit dem Herz." },
-    { target: "#order",  text: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge!" }
+    { target: "sonne",   text: "Fliege zu dem Stern, der uns Licht und Wärme schenkt!",
+      brief: "Fliege zu dem Stern, der uns Licht und Wärme schenkt! {steer}",
+      hint: "Er ist riesig, gelb und leuchtet heller als alles andere – genau in der Mitte des Sonnensystems!" },
+    { target: "erde",    text: "Finde unseren Heimatplaneten – den blauen Planeten!",
+      brief: "Finde unseren Heimatplaneten – den blauen Planeten! Dort bist du zu Hause.",
+      hint: "Er ist der dritte Planet von der Sonne aus: blau und grün, mit einem kleinen grauen Begleiter." },
+    { target: "mond",    text: "Besuche den treuen Begleiter der Erde.",
+      brief: "Besuche den treuen Begleiter der Erde. Dort waren schon echte Astronauten!",
+      hint: "Er ist grau, voller Krater und kreist ganz nah um die Erde. Flieg zur Erde und schau dich dort um!" },
+    { target: "mars",    text: "Finde den Roten Planeten.",
+      brief: "Finde den Roten Planeten. Unsere Forscherin Mia wartet dort schon auf dich!",
+      hint: "Er ist rot wie Rost und kommt direkt nach der Erde – ein Stück weiter weg von der Sonne." },
+    { target: "venus",   text: "Finde den heißesten Planeten im Sonnensystem.",
+      brief: "Finde den heißesten Planeten im Sonnensystem. Pass auf – dort ist es heißer als in einem Backofen!",
+      hint: "Sie hat dicke, gelbliche Wolken und liegt zwischen Merkur und Erde." },
+    { target: "merkur",  text: "Welcher Planet ist der Sonne am allernächsten? Fliege hin!",
+      brief: "Welcher Planet ist der Sonne am allernächsten? Fliege hin!",
+      hint: "Er ist klein, grau und voller Krater – und kreist ganz dicht um die Sonne." },
+    { target: "jupiter", text: "Fliege zum größten Planeten – dem Riesen mit dem roten Fleck.",
+      brief: "Fliege zum größten Planeten – dem Riesen mit dem roten Fleck. Auf ihm kann man nicht landen, aber deine Sonde schafft das!",
+      hint: "Nach dem Mars kommt ein Gürtel aus Felsbrocken – und dahinter der gestreifte Riese." },
+    { target: "saturn",  text: "Finde den Planeten mit den schönsten Ringen.",
+      brief: "Finde den Planeten mit den schönsten Ringen. Deine Sonde fliegt mitten hindurch!",
+      hint: "Achte auf die großen Ringe! Er kommt direkt nach Jupiter." },
+    { target: "uranus",  text: "Finde den eisblauen Planeten, der auf der Seite liegt.",
+      brief: "Finde den eisblauen Planeten, der auf der Seite liegt. Jetzt wird es richtig kalt!",
+      hint: "Er ist türkis und kommt nach Saturn. Flieg weiter nach außen!" },
+    { target: "neptun",  text: "Fliege zum stürmischen blauen Planeten ganz außen.",
+      brief: "Fliege zum stürmischen blauen Planeten ganz außen. Halt dich fest – dort weht der stärkste Wind!",
+      hint: "Er ist tiefblau und der letzte Planet. Flieg ganz weit nach außen, noch hinter Uranus!" },
+    { target: "pluto",   text: "Suche den kleinen Zwergplaneten mit dem Herz.",
+      brief: "Suche den kleinen Zwergplaneten mit dem Herz. Er liegt ganz am Rand unseres Sonnensystems.",
+      hint: "Er ist winzig und liegt noch hinter Neptun – ganz weit draußen." },
+    { target: "#order",  text: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge!",
+      brief: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge! Tippe oben rechts auf 🧩 „Ordnen“.",
+      hint: "Denk an den Merksatz: Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten!" }
   ],
+
+  // Nora: Flugleiterin und Co-Pilotin – fliegt mit in der Rakete und steigt bei jeder Landung mit aus
+  nora: { name: "Nora", color: "#06b6d4" },
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
@@ -269,31 +298,31 @@ window.SPACE_DATA = {
       jump: 0.45,       // Sprunghöhe in Metern (mit schwerem Raumanzug)
       // Thermometer am Raumanzug: in der Sonne / im Schatten
       temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
-      // Lea empfängt das Kind: erst die Landestelle von 1969, dann hinauf auf den Kraterrand, hinab in den Krater und zur Basis
+      // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        npc: 0, order: ["sprung", "wegweiser", "waage", "apollo", "fallversuch", "spiegel", "temperatur", "himmel", "mondstein", "antenne"],
-        hello: "Hallo {name}! Bleib kurz bei deiner Rakete, ich komme zu dir!",
-        welcome: "Willkommen auf dem Mond! Ich bin Lea und leite die Mondbasis. Heute zeige ich dir einen ganzen Rundgang: alte Spuren, einen riesigen Krater und unsere Basis. Spring zuerst mal – aber vorsichtig!",
+        order: ["sprung", "wegweiser", "waage", "apollo", "fallversuch", "spiegel", "temperatur", "himmel", "mondstein", "antenne"],
+        hello: "Da sind wir, {name}! Warte, ich klettere auch runter.",
+        welcome: "Wir sind auf dem Mond! Ich bleibe die ganze Zeit bei dir. Heute machen wir einen Rundgang: alte Spuren, einen riesigen Krater und die Mondbasis von Lea und Tom. Spring zuerst mal – aber vorsichtig!",
         jump: "Na los, spring! Hier wiegst du fast nichts.",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Toll! Komm mit – als Nächstes: {ziel}.",
         arrive: {
           wegweiser: "Siehst du den Wegweiser? Lauf ganz nah heran – er verrät dir, wie weit es nach Hause ist.",
-          waage: "Hier wird die Fracht gewogen, die der Frachtlander bringt. Stell dich mal selbst auf die Waage!",
+          waage: "Hier wiegt die Mondbasis die Fracht vom Frachtlander. Stell dich mal selbst auf die Waage!",
           apollo: "Psst – das ist ein besonderer Ort. Hier sind 1969 zum ersten Mal Menschen auf dem Mond gelandet. Lauf an der Absperrung entlang!",
           fallversuch: "Hier hat ein Astronaut einen berühmten Versuch gemacht: Was fällt schneller – ein Hammer oder eine Feder? Probier es aus!",
           spiegel: "Diesen Spiegel haben die Apollo-Astronauten aufgestellt. Gleich schickt die Erde einen Laserstrahl – stopp die Zeit mit!",
           temperatur: "Stell dich mal in den Schatten von dem großen Felsen und schau auf dein Thermometer!",
-          himmel: "Willkommen auf dem Kraterrand! Von der Plattform „Erdblick“ aus siehst du unsere Erde. Schau durchs Fernrohr!",
+          himmel: "Wir sind auf dem Kraterrand! Von der Plattform „Erdblick“ aus siehst du unsere Erde. Schau durchs Fernrohr!",
           mondstein: "Wir sind unten im Krater. Hier liegt etwas Besonderes im Staub – such das glitzernde Fundstück!",
-          antenne: "Das ist unsere Funkstation. Ihre Schüssel zeigt immer zur Erde. Spul mal die Zeit vor – was macht die Erde?",
-          wand: "Das ist unsere Mondbasis! An der Wand siehst du alles, was du entdeckt hast.",
-          rakete: "Hier ist deine Rakete. Steig über die Leiter ein, wenn du weiterfliegen willst. Gute Reise, {name}!"
+          antenne: "Das ist die Funkstation der Basis. Ihre Schüssel zeigt immer zur Erde. Spul mal die Zeit vor – was macht die Erde?",
+          wand: "Das ist die Mondbasis! An der Wand siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist unsere Rakete. Steig über die Leiter ein – ich komme mit. Auf zum nächsten Abenteuer, {name}!"
         },
         quiz: "Du hast alles entdeckt! Komm mit zur Mondbasis – die Bodenstation funkt dir ein paar Fragen.",
-        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        home: "Super gemacht, {name}! Komm, wir gehen zurück zur Rakete.",
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
-        again: "🧭 Lea, zeig mir den Weg"
+        again: "🧭 Nora, zeig mir den Weg"
       },
       // Bewohner der Mondbasis (Ideen von ESA und NASA für eine echte Basis am Südpol des Mondes)
       npcs: [
@@ -429,31 +458,31 @@ window.SPACE_DATA = {
             "Wasser holen wir an der Wasser-Anlage aus dem Eis im Boden. Das schmelzen wir und reinigen es.",
             "Im Gewächshaus bekommen die Pflanzen rosa-lila Licht von Lampen – das mögen sie am liebsten."] }
       ],
-      // Mia empfängt das Kind an der Rakete und führt es über die Hochebene hinab ins Tal zum Außenposten
+      // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        npc: 0, order: ["sprung", "wegweiser", "vulkan", "monde", "abend", "rover", "teufel", "waage", "rost", "eis"],
-        hello: "Hallo {name}! Warte, ich komme zu dir!",
-        welcome: "Willkommen auf dem Mars! Ich bin Mia und zeige dir alles. Du stehst auf einer Hochebene – unten im Tal liegt unser Außenposten. Spring doch zuerst mal in die Luft!",
+        order: ["sprung", "wegweiser", "vulkan", "monde", "abend", "rover", "teufel", "waage", "rost", "eis"],
+        hello: "Da sind wir, {name}! Warte, ich komme auch runter.",
+        welcome: "Willkommen auf dem Mars! Wir stehen auf einer Hochebene – unten im Tal liegt der Außenposten von Mia und Ben. Ich zeige dir alles. Spring doch zuerst mal in die Luft!",
         jump: "Na los, spring! Du wirst staunen, wie leicht das hier geht.",
         wait: "Hier lang, {name}! Ich warte auf dich.",
-        next: "Klasse! Komm mit – als Nächstes zeige ich dir: {ziel}.",
+        next: "Klasse! Komm mit – als Nächstes: {ziel}.",
         arrive: {
-          wegweiser: "Das ist unsere Anzeigetafel. Lauf mal ganz nah heran!",
-          vulkan: "Hier steht unser Hubschrauber. Steig mit ihm auf – von oben siehst du etwas Riesiges!",
-          monde: "Unsere Sternwarte steht direkt an der Kante. Die Kuppel klappt auf. Der Mars hat zwei Monde – findest du sie?",
-          abend: "Das ist unsere Wetterstation. Mit der Himmelskamera spulen wir bis zum Abend vor. Was meinst du: Welche Farbe hat der Sonnenuntergang?",
+          wegweiser: "Das ist eine Anzeigetafel. Lauf mal ganz nah heran!",
+          vulkan: "Hier steht ein Hubschrauber. Steig mit ihm auf – von oben siehst du etwas Riesiges!",
+          monde: "Die Sternwarte steht direkt an der Kante. Die Kuppel klappt auf. Der Mars hat zwei Monde – findest du sie?",
+          abend: "Das ist die Wetterstation. Mit der Himmelskamera spulen wir bis zum Abend vor. Was meinst du: Welche Farbe hat der Sonnenuntergang?",
           rover: "Wir sind unten im Tal! Das ist der Rover-Leitstand. Steuere den Rover zum hellen Stein im alten Flussdelta – dort war früher Wasser!",
           teufel: "Siehst du den Wirbel da draußen? Ein Staubteufel! Lauf hin und fang ihn ein!",
-          waage: "Hier ist unser Gesundheits-Check. Stell dich mal auf die Waage!",
-          rost: "Willkommen im Proben-Labor! Warum ist der Mars eigentlich rot? Halte den Magneten in den Staub!",
-          eis: "Das ist unsere Wasser-Anlage. Bohr mal nach – was liegt unter dem Staub?",
+          waage: "Hier ist der Gesundheits-Check der Forscher. Stell dich mal auf die Waage!",
+          rost: "Das ist das Proben-Labor. Warum ist der Mars eigentlich rot? Halte den Magneten in den Staub!",
+          eis: "Das ist die Wasser-Anlage. Bohr mal nach – was liegt unter dem Staub?",
           wand: "An dieser Wand siehst du alles, was du entdeckt hast.",
-          rakete: "Hier ist deine Rakete. Steig über die Leiter ein, wenn du weiterfliegen willst. Tschüss, {name} – komm bald wieder!"
+          rakete: "Hier ist unsere Rakete. Steig über die Leiter ein – ich komme mit. Tschüss, Mars!"
         },
         quiz: "Du hast alles entdeckt! Die Bodenstation funkt dir gleich ein paar Fragen – komm mit zur Wand!",
-        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        home: "Super gemacht, {name}! Komm, wir gehen zurück zur Rakete.",
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
-        again: "🧭 Mia, zeig mir den Weg"
+        again: "🧭 Nora, zeig mir den Weg"
       },
       temp: { sun: -50, shade: -75, sunText: "☀️ Sonne – trotzdem eiskalt!", shadeText: "❄️ Schatten – noch kälter!" },
       discoveries: [
@@ -560,31 +589,31 @@ window.SPACE_DATA = {
     merkur: {
       gravity: 3.7, jump: 0.3,
       temp: { sun: 430, shade: -180, sunText: "☀️ Sonne – heißer als ein Backofen!", shadeText: "❄️ Schatten – eiskalt!" },
-      // Kofi führt erst durch die glühende Sonne oben, dann hinab in den Krater, in dem die Station im Schatten liegt
+      // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        npc: 0, order: ["sprung", "wegweiser", "sonde", "waage", "sonne", "temperatur", "eis", "jahr", "groesse", "krater"],
-        hello: "Hallo {name}! Schnell aus der Sonne – ich hole dich ab!",
-        welcome: "Willkommen auf dem Merkur! Ich bin Kofi. Unsere Station liegt unten in einem Krater, wo nie die Sonne hinkommt. Vorher zeige ich dir, wie heiß es oben ist. Spring erst mal!",
+        order: ["sprung", "wegweiser", "sonde", "waage", "sonne", "temperatur", "eis", "jahr", "groesse", "krater"],
+        hello: "Da sind wir, {name}! Schnell aus der Sonne – ich komme!",
+        welcome: "Willkommen auf dem Merkur! Hier oben in der Sonne ist es glühend heiß. Die Station von Kofi liegt unten in einem Krater, wo nie die Sonne hinkommt. Vorher zeige ich dir, wie heiß es oben ist. Spring erst mal!",
         jump: "Na los, spring! Der Merkur ist klein, aber er zieht trotzdem ganz ordentlich.",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Klasse! Weiter geht's – als Nächstes: {ziel}.",
         arrive: {
           wegweiser: "Lauf mal zur Anzeigetafel – wie weit ist die Sonne wohl weg?",
           sonde: "Hier liegen die Reste einer Raumsonde. Lauf ganz nah heran!",
-          waage: "Im Schatten-Platz steht unsere Waage. Ohne das Dach wäre sie in der Sonne glühend heiß. Stell dich drauf!",
+          waage: "Im Schatten-Platz steht eine Waage. Ohne das Dach wäre sie in der Sonne glühend heiß. Stell dich drauf!",
           sonne: "Oben auf dem Sonnenturm steht ein Fernrohr mit dunklem Filter. Schau, wie riesig die Sonne von hier aus ist!",
           temperatur: "Stell dich in den Schatten von dem großen Felsen und schau auf dein Thermometer!",
           eis: "Wir sind unten im Krater. Hierhin kommt nie ein Sonnenstrahl. Siehst du das Glitzern? Lauf hin!",
           jahr: "Hier kannst du ein Rennen um die Sonne starten: Merkur gegen Erde. Wer gewinnt?",
           groesse: "Schau dir die Kugeln an: Wie groß ist der Merkur eigentlich?",
           krater: "Zum Schluss das Einschlag-Messfeld! Lass einen Brocken aus dem All fallen und schau, was passiert.",
-          wand: "An der Wand unserer Station siehst du alles, was du entdeckt hast.",
-          rakete: "Hier ist deine Rakete. Steig über die Leiter ein, wenn du weiterfliegen willst. Gute Reise, {name}!"
+          wand: "An der Wand der Station siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist unsere Rakete. Steig über die Leiter ein – ich komme mit. Raus aus der Hitze!"
         },
         quiz: "Du hast alles entdeckt! Komm mit zur Station – die Bodenstation hat ein paar Fragen an dich.",
-        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        home: "Super gemacht, {name}! Komm, wir gehen zurück zur Rakete.",
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
-        again: "🧭 Kofi, zeig mir den Weg"
+        again: "🧭 Nora, zeig mir den Weg"
       },
       npcs: [
         { name: "Forscher Kofi", color: "#b45309", path: [[-6, 58], [6, 56], [2, 52]],
@@ -685,30 +714,31 @@ window.SPACE_DATA = {
       moveGravity: 1.2, // fürs Laufen und Springen stärker, sonst schwebt man ewig
       jump: 1.6,
       temp: { sun: -228, shade: -233, sunText: "☀️ Sonne – sie wärmt kaum!", shadeText: "❄️ Schatten – eisig!" },
+      // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        npc: 0, order: ["sprung", "wegweiser", "waage", "charon", "herz", "eis", "jahr", "groesse", "funk", "sonde"],
-        hello: "Hallo {name}! Willkommen am Rand des Sonnensystems! Bleib stehen, ich komme zu dir.",
-        welcome: "Ich bin Yuki. Hier auf Pluto ist es so kalt, dass sogar die Luft gefroren ist! Ich zeige dir die Eisberge, das riesige Herz und unsere Station. Spring zuerst mal – aber halt dich fest!",
+        order: ["sprung", "wegweiser", "waage", "charon", "herz", "eis", "jahr", "groesse", "funk", "sonde"],
+        hello: "Da sind wir – am Rand des Sonnensystems! Warte, ich komme.",
+        welcome: "Brr, {name}! Hier auf Pluto ist es so kalt, dass sogar die Luft gefroren ist. Ich zeige dir die Eisberge, das riesige Herz und die Station von Yuki. Spring zuerst mal – aber halt dich fest!",
         jump: "Na los, spring! Pluto ist so klein, dass du richtig hoch fliegst.",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Toll! Weiter geht's – als Nächstes: {ziel}.",
         arrive: {
           wegweiser: "Lauf zur Anzeigetafel – wie weit sind wir wohl von der Sonne weg?",
-          waage: "Im Wärme-Pavillon steht unsere Waage. Stell dich drauf – du wirst lachen!",
-          charon: "Unsere Iglu-Sternwarte ist aus Eisblöcken gebaut. Schau durchs Fernrohr: Da hängt ein großer Mond am Himmel!",
-          herz: "Am Drohnen-Start wartet unsere Kameradrohne. Flieg hoch und schau dir die Eisfläche von oben an!",
+          waage: "Im Wärme-Pavillon steht eine Waage. Stell dich drauf – du wirst lachen!",
+          charon: "Die Iglu-Sternwarte ist aus Eisblöcken gebaut. Schau durchs Fernrohr: Da hängt ein großer Mond am Himmel!",
+          herz: "Am Drohnen-Start wartet eine Kameradrohne. Flieg hoch und schau dir die Eisfläche von oben an!",
           eis: "Jetzt du! Lauf auf das glatte Eis – aber pass auf, es ist rutschig!",
           jahr: "Hier kannst du ein Rennen um die Sonne starten: Pluto gegen Erde. Rate mal, wer gewinnt!",
           groesse: "Schau dir die Kugeln an: Wie groß ist Pluto im Vergleich?",
-          funk: "Mit der großen Antenne funken wir zur Erde. Schick einen Funkspruch – und miss, wie lange er braucht!",
+          funk: "Mit der großen Antenne funkt die Station zur Erde. Schick einen Funkspruch – und miss, wie lange er braucht!",
           sonde: "Hier steht ein Denkmal für eine berühmte Raumsonde. Lauf ganz nah heran!",
-          wand: "An der Wand unserer Station siehst du alles, was du entdeckt hast.",
-          rakete: "Hier ist deine Rakete. Gute Reise, {name} – der Weg nach Hause ist lang!"
+          wand: "An der Wand der Station siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist unsere Rakete. Steig ein – ich komme mit. Der Weg nach Hause ist lang!"
         },
         quiz: "Du hast alles entdeckt! Komm mit zur Station – die Bodenstation hat Fragen an dich.",
-        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        home: "Super gemacht, {name}! Komm, wir gehen zurück zur Rakete.",
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
-        again: "🧭 Yuki, zeig mir den Weg"
+        again: "🧭 Nora, zeig mir den Weg"
       },
       npcs: [
         { name: "Forscherin Yuki", color: "#8b5cf6", path: [[-40, 44], [-30, 44], [-34, 38]],
@@ -816,17 +846,18 @@ window.SPACE_DATA = {
       // Sara kommt (wie das Kind) im Panzeranzug aus dem Luftschiff herunter und führt entlang der Leitlichter
       npcs: [
         { name: "Pilotin Sara", color: "#f97316", path: [[-20, 64], [-8, 64], [-14, 60]],
-          hello: "Hallo {name}! Hier ist Sara. Ich sehe dich kaum im Dunst – bleib stehen, ich komme!",
+          hello: "Hallo {name}! Ich bin Sara und fliege das Luftschiff oben in den Wolken. Schön, dass du da bist!",
           hint: "Warst du schon bei „{ziel}“? Folge den Leitlichtern!",
           done: "Du hast alles entdeckt! Jetzt kennst du den heißesten Planeten.",
           facts: ["Wir wohnen oben im Luftschiff, 50 Kilometer hoch in den Wolken. Dort ist es so warm wie in einem Zimmer!",
             "Unsere Anzüge sind wie kleine Panzer. Ohne sie würde uns die dicke Luft zerquetschen.",
             "Die Lichter am Weg brauchen wir, weil man im Dunst kaum 100 Meter weit sieht."] }
       ],
+      // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        npc: 0, order: ["sprung", "wegweiser", "venera", "waage", "hitze", "druck", "lava", "abendstern", "tag", "groesse"],
-        hello: "Hallo {name}! Hier ist Sara. Ich sehe dich kaum im Dunst – bleib stehen, ich komme!",
-        welcome: "Willkommen auf der Venus! Ich bin Sara und wie du im Spezialanzug unterwegs. Siehst du die Leitlichter? Sie führen uns durch den Dunst bis zum Außenposten auf dem Vulkan. Spring erst mal – merkst du was?",
+        order: ["sprung", "wegweiser", "venera", "waage", "hitze", "druck", "lava", "abendstern", "tag", "groesse"],
+        hello: "Da sind wir, {name}! Man sieht kaum etwas im Dunst – bleib stehen, ich komme!",
+        welcome: "Willkommen auf der Venus! Zum Glück tragen wir beide Spezialanzüge. Siehst du die Leitlichter? Sie führen uns durch den Dunst bis zum Außenposten auf dem Vulkan. Spring erst mal – merkst du was?",
         jump: "Spring mal! Mit dem schweren Anzug kommst du kaum vom Boden weg.",
         wait: "Hier lang, {name}! Folge den Lichtern zu mir.",
         next: "Gut gemacht! Weiter an den Leitlichtern entlang – als Nächstes: {ziel}.",
@@ -837,16 +868,16 @@ window.SPACE_DATA = {
           hitze: "Das ist der Klima-Messturm. Was passiert wohl, wenn wir die Wolken wegschieben?",
           druck: "Am Druck-Prüfstand siehst du, wie stark die Venusluft drückt. Achtung, gleich knirscht es!",
           lava: "Vorsicht – ein Lavafluss! Wir gehen über die Brücke. Schau dir das Glühen an!",
-          abendstern: "Mit Radar und Infrarot schauen wir durch die Wolken. Such die Erde am Himmel!",
+          abendstern: "Mit Radar und Infrarot kann man durch die Wolken schauen. Such die Erde am Himmel!",
           tag: "Hier drehen sich zwei Globen: Erde und Venus. Wer ist schneller?",
           groesse: "Schau dir die Kugeln an: Ist die Venus größer oder kleiner als die Erde?",
-          wand: "Das ist unser Außenposten auf dem Vulkan. An der Wand siehst du alles, was du entdeckt hast.",
-          rakete: "Hier ist deine Rakete. Gute Reise, {name} – und raus aus der Hitze!"
+          wand: "Das ist der Außenposten auf dem Vulkan. An der Wand siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist unsere Rakete. Steig ein – ich komme mit. Raus aus der Hitze!"
         },
         quiz: "Du hast alles entdeckt! Komm zur Wand vom Außenposten – die Bodenstation hat Fragen an dich.",
-        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        home: "Super gemacht, {name}! Komm, wir gehen zurück zur Rakete.",
         alone: "Alles klar, erkunde allein! Folge einfach den Leitlichtern. Wenn du mich brauchst, komm zu mir.",
-        again: "🧭 Sara, zeig mir den Weg"
+        again: "🧭 Nora, zeig mir den Weg"
       },
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Fast wie zu Hause", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 13 Zentimeter", zeit: "0,3" },
@@ -943,37 +974,38 @@ window.SPACE_DATA = {
       // Jana arbeitet im Besucherzentrum und trainiert selbst für einen Flug ins All – darum trägt sie einen Trainingsanzug
       npcs: [
         { name: "Astronautin Jana", color: "#2563eb", path: [[-6, 74], [8, 74], [2, 70]],
-          hello: "Hallo {name}! Willkommen zu Hause! Warte, ich komme zu dir.",
+          hello: "Hallo {name}! Ich bin Jana und trainiere hier für meinen ersten Flug ins All.",
           hint: "Warst du schon bei „{ziel}“? Folge dem Weg um den See!",
           done: "Du hast alles entdeckt! Siehst du jetzt, wie besonders unsere Erde ist?",
           facts: ["Ich trainiere gerade für einen Flug ins All. Das Training dauert mehrere Jahre!",
             "Die Erde ist der einzige Planet, den wir kennen, auf dem es Leben gibt.",
             "Im Besucherzentrum lernen Kinder alles über die Raumfahrt – so wie du heute."] }
       ],
+      // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        npc: 0, order: ["sprung", "wegweiser", "waage", "wasser", "wald", "mond", "groesse", "tag", "stern", "luft"],
-        hello: "Hallo {name}! Willkommen zu Hause! Warte, ich komme zu dir.",
-        welcome: "Ich bin Jana und trainiere hier für meinen ersten Flug ins All. Heute machen wir einen Rundweg um den See. Du wirst staunen, wie besonders unsere Erde ist! Spring zuerst mal – wie hoch kommst du?",
+        order: ["sprung", "wegweiser", "waage", "wasser", "wald", "mond", "groesse", "tag", "stern", "luft"],
+        hello: "Da sind wir, {name} – zu Hause! Warte, ich komme.",
+        welcome: "Willkommen auf der Erde! Heute machen wir einen Rundweg um den See. Hier trainiert Jana für ihren ersten Flug ins All. Du wirst staunen, wie besonders unsere Erde ist! Spring zuerst mal – wie hoch kommst du?",
         jump: "Spring mal! Und vergleich das mit dem Mond oder dem Mars.",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Prima! Weiter auf dem Rundweg – als Nächstes: {ziel}.",
         arrive: {
           wegweiser: "Siehst du den Wegweiser? Lauf mal ganz nah heran!",
           waage: "Hier ist eine Waage. Was zeigt sie dir auf der Erde an?",
-          wasser: "Das ist unser See. Geh bis ans Ufer!",
+          wasser: "Das ist der See. Geh bis ans Ufer!",
           wald: "Jetzt geht's in den Wald. Hörst du die Vögel? Lauf zwischen die Bäume!",
-          mond: "Hier oben auf dem Hügel steht die Volkssternwarte. Das Dach rollt zur Seite – such den Mond!",
+          mond: "Auf dem Hügel steht die Volkssternwarte. Das Dach rollt zur Seite – such den Mond!",
           groesse: "Vor dem Besucherzentrum stehen Planetenkugeln. Welche ist am größten?",
           tag: "Willkommen im Park! An der Sonnenuhr spulen wir einen ganzen Tag vor.",
           stern: "In dieser Vitrine liegt ein echter Brocken aus dem All. Was passiert, wenn so einer auf die Erde fällt?",
-          luft: "Das ist unsere Wetterstation. Was wäre, wenn die Erde keine Luft hätte? Probier es aus!",
+          luft: "Das ist die Wetterstation. Was wäre, wenn die Erde keine Luft hätte? Probier es aus!",
           wand: "Im Besucherzentrum siehst du an der Wand alles, was du entdeckt hast.",
-          rakete: "Hier ist deine Rakete. Gute Reise, {name}! Und komm heil wieder nach Hause."
+          rakete: "Hier ist unsere Rakete. Steig ein – ich komme mit. Auf zu neuen Welten!"
         },
         quiz: "Du hast alles entdeckt! Komm mit zum Besucherzentrum – die Bodenstation hat Fragen an dich.",
-        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        home: "Super gemacht, {name}! Komm, wir gehen zurück zur Rakete.",
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
-        again: "🧭 Jana, zeig mir den Weg"
+        again: "🧭 Nora, zeig mir den Weg"
       },
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Hier bist du am schwersten", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 11 Zentimeter", zeit: "0,3" },

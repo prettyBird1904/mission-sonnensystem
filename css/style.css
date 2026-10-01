@@ -496,6 +496,16 @@ kbd {
 .npc-bubble { display: block; white-space: normal; max-width: 280px; font-family: var(--font-body, inherit); font-size: 15px; line-height: 1.35; padding: 8px 12px; border-radius: 16px;
   background: rgba(255, 255, 255, .94); color: #1e293b; border: 2px solid #fcd34d; pointer-events: none; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .npc-bubble b { color: #b45309; }
+/* Noras Sprechblase: größer, mit türkisem Rand und Zipfel nach unten */
+.nora-bubble { max-width: min(360px, calc(100vw - 24px)); font-family: var(--font-head); font-size: 17px; border-color: #06b6d4; box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 18px rgba(6,182,212,.35); }
+.nora-bubble b { color: #0e7490; }
+.nora-bubble::after { content: ""; position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); border: 9px solid transparent; border-top-color: #06b6d4; border-bottom: 0; }
+.nora-bubble.pop { animation: bubblePop .35s cubic-bezier(.2,.9,.3,1.4); }
+/* im Weltall: Sprechblase an der Rakete (Position setzt js/ui.js) */
+.space-bubble { position: absolute; left: 0; top: 0; z-index: 6; display: block; white-space: normal; padding: 9px 13px; border-radius: 16px; line-height: 1.35;
+  background: rgba(255, 255, 255, .95); color: #1e293b; border: 2px solid #06b6d4; pointer-events: auto; cursor: pointer; will-change: transform; }
+.space-bubble.hidden { display: none; }
+@keyframes bubblePop { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: none; } }
 /* Kompass zur nächsten Entdeckung (oben in der Mitte) */
 .surf-compass { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 10px; border-radius: 999px; font-family: var(--font-head); font-size: 17px; }
 .compass-arrow { display: inline-block; color: #fcd34d; font-size: 20px; text-shadow: 0 0 8px rgba(252, 211, 77, .7); transition: transform .15s linear; }
@@ -580,3 +590,4 @@ kbd {
   font-size: 15px; font-weight: 600; color: #c7d2fe; background: rgba(15,20,50,.6); border: 1px solid rgba(160,190,255,.3); }
 #intro .in-skip:hover { color: #fff; background: rgba(40,50,110,.75); }
 html.cinema body > *:not(#intro):not(#scene):not(script) { visibility: hidden !important; }
+.mission-progress { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 99px; font-size: 13px; color: #a5f3fc; background: rgba(6, 182, 212, .15); border: 1px solid rgba(6, 182, 212, .4); white-space: nowrap; }

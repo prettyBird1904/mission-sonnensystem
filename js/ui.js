@@ -29,6 +29,8 @@ window.UI = (function () {
     setTimeout(() => t.remove(), 3100);
   }
   function celebrate(icon, title, text) {
+    // nie über einem offenen Fenster (z. B. dem Text einer Entdeckung) – erst danach
+    if (modalOpen()) { setTimeout(() => celebrate(icon, title, text), 700); return; }
     const c = el("div", "celebrate", `<div class="celebrate-card glass"><div class="big">${icon}</div><h3>${title}</h3><p>${text}</p></div>`);
     document.body.appendChild(c);
     setTimeout(() => c.remove(), 3200);
@@ -184,6 +186,9 @@ window.UI = (function () {
     const total = D.missions.length;
     $("missionTag").textContent = m ? `Mission ${s.mission + 1}/${total}` : "Alle Missionen geschafft 🎉";
     $("missionText").textContent = m ? m.text : "Super! Fliege frei herum, mache die Quizze oder hol dir deine Urkunde im Forscherpass 📘";
+    // Fortschritt am Missionsziel: geschafft ist die Mission erst, wenn dort alles entdeckt ist
+    const pf = m && m.target !== "#order" ? G.planetFound(m.target) : null;
+    if (pf && s.visited[m.target]) { const sm = document.createElement("small"); sm.className = "mission-progress"; sm.textContent = `🔍 ${pf[0]}/${pf[1]} entdeckt`; $("missionText").append(" ", sm); }
     $("btnHint").classList.toggle("active", !!s.hint);
     $("btnHint").classList.toggle("hidden", !m);
     $("missionCard").classList.toggle("done", !m);
@@ -220,6 +225,31 @@ window.UI = (function () {
     }
     return false;
   }
+  // ---------- Nora im Weltall: Sprechblase an der Rakete ----------
+  let noraT = 0, noraTimer = null;
+  function nora(text) {
+    const el = $("noraBubble"), t = $("noraText"), words = text.split(" ");
+    clearInterval(noraTimer);
+    t.textContent = ""; el.classList.remove("hidden", "pop"); void el.offsetWidth; el.classList.add("pop");
+    let i = 0;
+    noraTimer = setInterval(() => { i++; t.textContent = words.slice(0, i).join(" "); if (i >= words.length) clearInterval(noraTimer); }, 110);
+    noraT = Math.min(9, 2.5 + words.length * 0.33); // so lange bleibt sie stehen (inkl. Schreiben) – tippen schließt sie sofort
+    el.onclick = () => { noraT = 0; };
+    Sound.click();
+  }
+  function noraFrame(dt, camera) {
+    const el = $("noraBubble");
+    if (noraT <= 0) { if (!el.classList.contains("hidden")) el.classList.add("hidden"); return; }
+    noraT -= dt;
+    // an die Rakete heften: schräg über der Rakete, aber immer ganz im Bild
+    v3.copy(World.ship.position); v3.y += 0.9; v3.project(camera);
+    const w = innerWidth, h = innerHeight, bw = el.offsetWidth || 320, bh = el.offsetHeight || 80;
+    let x = (v3.x * 0.5 + 0.5) * w, y = (-v3.y * 0.5 + 0.5) * h - 18;
+    x = Math.max(bw / 2 + 10, Math.min(w - bw / 2 - 10, x)); y = Math.max(bh + 110, Math.min(h - 40, y));
+    el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+  }
+  const noraVisible = () => noraT > 0;
+
   function frame(ship, camera) {
     const w = innerWidth, h = innerHeight;
     const m = G.currentMission();
@@ -757,7 +787,7 @@ window.UI = (function () {
 
   return {
     nearId: null,
-    init, onStateReady, showStart, countdown, showHUD, updateHUD, frame, warp,
+    init, onStateReady, showStart, countdown, showHUD, updateHUD, frame, warp, nora, noraFrame, noraVisible,
     openPanel, closePanel, toast, celebrate, confetti, renderGallery, openModal, closeModal, modalOpen
   };
 })();
