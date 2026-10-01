@@ -415,7 +415,7 @@ window.Intro = (function () {
     const name = st.name, ui = st.ui;
     const cap = CAPTIONS.findIndex(([a, b]) => t >= a && t < b);
     if (cap !== st.captionOn) {
-      if (cap >= 0) showCaption(CAPTIONS[cap][2].replace("{name}", name), CAPTIONS[cap][3] === "big"); else hideCaption();
+      if (cap >= 0) { const txt = CAPTIONS[cap][2].replace("{name}", name); showCaption(txt, CAPTIONS[cap][3] === "big"); Voice.say(txt, "narrator", { queue: true }); } else hideCaption();
       st.captionOn = cap;
     }
     if (cap >= 0 && t > CAPTIONS[cap][1] - 0.6) hideCaption();
@@ -427,7 +427,7 @@ window.Intro = (function () {
       const shown = txt.slice(0, n);
       if (ui.radioText.textContent !== shown) ui.radioText.textContent = shown;
       ui.radio.classList.toggle("talking", n < txt.length);
-      if (ni !== st.noraI) { st.noraI = ni; Sound.click(); }
+      if (ni !== st.noraI) { st.noraI = ni; Sound.click(); Voice.say(txt, "nora", { queue: true }); }
     }
     // Countdown
     let cd = "", ph = 0; // ph = wie weit die aktuelle Zahl schon ist (0 … 1)
@@ -453,6 +453,7 @@ window.Intro = (function () {
     if (!st || st.ended) return;
     st.ended = true;
     window.removeEventListener("keydown", st.key);
+    if (skipped) Voice.stop();
     if (st.music) st.music.stop(skipped ? 0.5 : 1.2);
     const ui = st.ui, done = st.done;
     ui.fade.style.transition = "opacity .45s"; ui.fade.style.opacity = "1";

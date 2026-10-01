@@ -78,6 +78,18 @@ window.Sound = (function () {
       windFilter.frequency.setTargetAtTime(350 + level * 500, t, 0.8);
     },
     click() { tone(660, 0.08, "triangle", 0.15); },
+    ping(f = 880) { tone(f, 0.11, "sine", 0.16); }, // Radar-Piepen
+    // Kamera-Auslöser: zwei kurze, helle Rauschklicks
+    shutter() {
+      if (!enabled || !ensure()) return;
+      const t = ctx.currentTime;
+      for (const [d, v] of [[0, 0.5], [0.08, 0.32]]) {
+        const n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+        n.buffer = noiseBuf; f.type = "highpass"; f.frequency.value = 2400;
+        g.gain.setValueAtTime(v, t + d); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.05);
+        n.connect(f).connect(g).connect(master); n.start(t + d, Math.random()); n.stop(t + d + 0.07);
+      }
+    },
     collect() { tone(988, 0.12, "sine", 0.2); tone(1319, 0.2, "sine", 0.2, 0.07); },
     correct() { [523, 659, 784].forEach((f, i) => tone(f, 0.25, "triangle", 0.22, i * 0.09)); },
     wrong() { tone(220, 0.3, "sawtooth", 0.12, 0, 150); },

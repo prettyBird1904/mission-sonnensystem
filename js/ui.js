@@ -82,7 +82,7 @@ window.UI = (function () {
       profiles.forEach((p) => {
         const visited = Object.keys(p.visited || {}).length;
         const btn = el("button", "pilot-pick", `<span class="pp-rocket" style="--c:${p.color}">🚀</span><span class="pp-name">${escapeHtml(p.name)}</span><small>${visited}/${D.bodies.length} besucht</small>`);
-        btn.onclick = () => { $("start").classList.add("hidden"); onGo(p.name, p.color); };
+        btn.onclick = () => { Voice.unlock(); $("start").classList.add("hidden"); onGo(p.name, p.color); };
         list.appendChild(btn);
       });
       $("btnNewPilot").onclick = () => { $("continueBox").classList.add("hidden"); $("newBox").classList.remove("hidden"); $("pilotName").focus(); };
@@ -93,7 +93,7 @@ window.UI = (function () {
     const go = () => {
       const name = $("pilotName").value.trim();
       if (!name) { $("pilotName").focus(); $("pilotName").style.borderColor = "#fb7185"; toast("✏️ Schreib zuerst deinen Namen hinein!"); return; }
-      $("pilotName").blur();
+      $("pilotName").blur(); Voice.unlock();
       $("start").classList.add("hidden");
       onGo(name, color);
     };
@@ -151,7 +151,12 @@ window.UI = (function () {
     $("btnSound").onclick = (e) => {
       const on = Sound.toggle();
       e.currentTarget.innerHTML = (on ? "🔊" : "🔇") + "<span>Ton</span>";
+      if (!on) Voice.stop();
     };
+    const voiceToggle = () => { Voice.unlock(); const on = Voice.toggle(); voiceBtns(); toast(on ? "🗣️ Vorlesen ist an – Nora und die Bodenstation lesen dir alles vor." : "🤐 Vorlesen ist aus."); };
+    $("btnVoice").onclick = voiceToggle; $("btnVoice2").onclick = voiceToggle;
+    if (!Voice.supported) { $("btnVoice").classList.add("hidden"); $("btnVoice2").classList.add("hidden"); }
+    voiceBtns();
     $("explorePrompt").onclick = () => { if (UI.nearId) G.explore(UI.nearId); };
     $("pClose").onclick = () => { Sound.click(); G.leaveExplore(); };
     $("modalClose").onclick = closeModal;
@@ -226,7 +231,13 @@ window.UI = (function () {
     return false;
   }
   // ---------- Nora im Weltall: Sprechblase an der Rakete ----------
-  let noraT = 0, noraTimer = null;
+  let noraT = 0, noraTimer = null, noraVoice = 0;
+  // Schalter „Vorlesen“ (im All und auf der Oberfläche) zeigen, ob es an ist
+  function voiceBtns() {
+    const on = Voice.enabled;
+    $("btnVoice").innerHTML = (on ? "🗣️" : "🤐") + "<span>Vorlesen</span>"; $("btnVoice").classList.toggle("off", !on);
+    $("btnVoice2").textContent = on ? "🗣️" : "🤐"; $("btnVoice2").classList.toggle("off", !on);
+  }
   function nora(text) {
     const el = $("noraBubble"), t = $("noraText"), words = text.split(" ");
     clearInterval(noraTimer);
@@ -234,11 +245,15 @@ window.UI = (function () {
     let i = 0;
     noraTimer = setInterval(() => { i++; t.textContent = words.slice(0, i).join(" "); if (i >= words.length) clearInterval(noraTimer); }, 110);
     noraT = Math.min(9, 2.5 + words.length * 0.33); // so lange bleibt sie stehen (inkl. Schreiben) – tippen schließt sie sofort
-    el.onclick = () => { noraT = 0; };
+    noraVoice = Voice.say(text, "nora");
+    el.onclick = () => { noraT = 0; Voice.stop(noraVoice); };
     Sound.click();
   }
   function noraFrame(dt, camera) {
     const el = $("noraBubble");
+    const talking = Voice.speaking(noraVoice);
+    if (talking && noraT < 0.6 && dt < 1e8) noraT = 0.6; // solange sie noch spricht, bleibt die Blase
+    el.classList.toggle("talking", talking);
     if (noraT <= 0) { if (!el.classList.contains("hidden")) el.classList.add("hidden"); return; }
     noraT -= dt;
     // an die Rakete heften: schräg über der Rakete, aber immer ganz im Bild
@@ -628,6 +643,7 @@ window.UI = (function () {
   }
   function closeModal() {
     $("modal").classList.add("hidden");
+    Voice.stopModal();
   }
   function modalOpen() { return !$("modal").classList.contains("hidden"); }
 
@@ -653,8 +669,8 @@ window.UI = (function () {
             ${s.visited[b.id] ? '<span class="seal">BESUCHT</span>' : ""}
             ${ball(b.id, 52)}
             <div class="nm">${b.name}</div>
-            <div class="st">${[1, 2, 3].map((k) => (k <= (s.quiz[b.id] || 0) ? "⭐" : "☆")).join("")}</div>
-            ${D.surfaces && D.surfaces[b.id] ? `<div class="st" style="font-size:12px">🔍 ${Object.keys((s.found && s.found[b.id]) || {}).length}/${D.surfaces[b.id].discoveries.length} entdeckt</div>` : ""}
+            <div class="st">${[1, 2, 3].map((k) => (k <= Math.max(s.quiz[b.id] || 0, (s.surfaceQuiz || {})[b.id] || 0) ? "⭐" : "☆")).join("")}</div>
+            ${D.surfaces && D.surfaces[b.id] ? `<div class="st" style="font-size:12px">🔍 ${G.planetFound(b.id).join("/")} entdeckt</div>` : ""}
           </div>`).join("")}
       </div>
       <div class="row-gap" style="margin-top:22px">
@@ -761,6 +777,16 @@ window.UI = (function () {
         <button class="btn primary" id="btnSwitch">👋 Astronaut/in wechseln</button>
         <button class="btn ghost" id="btnReset">🗑️ Meinen Spielstand löschen</button>
       </div>
+      ${Voice.supported ? `<div class="box" style="margin-top:18px">
+        <h3>🗣️ Vorlesen (für Lehrkräfte)</h3>
+        <p>Nora und die Bodenstation lesen alle Texte vor. Am natürlichsten klingen die Stimmen in <b>Microsoft Edge</b> (Name mit „Natural“). Auf dem iPad: Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen → Deutsch → eine Stimme mit „Premium“ oder „Erweitert“ laden.</p>
+        <div class="settings-row">
+          <button class="btn ghost small ${Voice.enabled ? "selected" : ""}" id="voiceOn">🗣️ An</button>
+          <button class="btn ghost small ${Voice.enabled ? "" : "selected"}" id="voiceOff">🤐 Aus</button>
+          <select class="voice-pick" id="voicePick">${Voice.list().map((v) => `<option value="${escapeHtml(v.name)}" ${v.nora ? "selected" : ""}>${v.q >= 90 ? "⭐ " : ""}${escapeHtml(v.name)}</option>`).join("") || "<option>Keine deutsche Stimme gefunden</option>"}</select>
+          <button class="btn ghost small" id="voiceTest">▶ Probe hören</button>
+        </div>
+      </div>` : ""}
       <div class="box" style="margin-top:18px">
         <h3>⚙️ Grafik (für Lehrkräfte)</h3>
         <p>Ruckelt das Spiel, stelle auf <b>⚡ Flüssig</b>. Das Spiel lädt dann neu.</p>
@@ -778,6 +804,14 @@ window.UI = (function () {
     $("gfxFps").onclick = (e) => { const on = !G.fpsVisible(); G.setFpsVisible(on); e.currentTarget.classList.toggle("selected", on); };
     $("btnSwitch").onclick = () => location.reload();
     $("btnIntro").onclick = () => { closeModal(); G.replayIntro(); };
+    if (Voice.supported) {
+      const sample = () => Voice.say(`Hallo ${G.state.name}! Ich bin Nora, deine Flugleiterin. Bist du bereit für das nächste Abenteuer?`, "nora");
+      const setOn = (on) => { if (Voice.enabled !== on) Voice.toggle(); $("voiceOn").classList.toggle("selected", on); $("voiceOff").classList.toggle("selected", !on); voiceBtns(); };
+      $("voiceOn").onclick = () => { setOn(true); sample(); };
+      $("voiceOff").onclick = () => setOn(false);
+      $("voicePick").onchange = (e) => { Voice.setVoice(e.target.value); sample(); };
+      $("voiceTest").onclick = sample;
+    }
     let armed = false;
     $("btnReset").onclick = (e) => {
       if (!armed) { armed = true; e.currentTarget.textContent = "⚠️ Wirklich alles löschen? Nochmal tippen!"; return; }

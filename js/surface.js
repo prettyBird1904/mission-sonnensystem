@@ -1032,11 +1032,12 @@ window.Surface = (function () {
     add(new THREE.Mesh(new THREE.BoxGeometry(10.4, 2.2, 0.12), dark), 0, 5.4, 0);
     add(new THREE.Mesh(new THREE.PlaneGeometry(10.2, 2), new THREE.MeshBasicMaterial({ map: signTex, toneMapped: false })), 0, 5.4, -0.07, false).rotation.y = Math.PI;
     // Tafeln: obere Reihe die ersten fünf, untere Reihe die nächsten fünf (von vorn gelesen: links → rechts)
+    const one = discoveries.length <= 5; // eine Reihe: größer und mittig
     const panels = discoveries.map((d, i) => {
       const cv = document.createElement("canvas"); cv.width = 512; cv.height = 256;
       const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
-      add(new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.4), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })),
-        (2 - (i % 5)) * 3, i < 5 ? 2.75 : 1.15, -0.16, false).rotation.y = Math.PI;
+      add(new THREE.Mesh(new THREE.PlaneGeometry(one ? 2.9 : 2.8, one ? 1.45 : 1.4), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })),
+        (one ? (discoveries.length - 1) / 2 - i : 2 - (i % 5)) * 3, one ? 1.95 : i < 5 ? 2.75 : 1.15, -0.16, false).rotation.y = Math.PI;
       return { d, cv, tex, state: null };
     });
     g.userData.refresh = (found) => {
@@ -1231,6 +1232,7 @@ window.Surface = (function () {
   function addMarkers(B, stationPos, offsets = {}) {
     const stations = {};
     for (const [key, [x, z]] of Object.entries(stationPos)) {
+      if (!cfg.stations[key]) continue; // keine Station mehr – das Ausstellungsstück bleibt als Kulisse stehen
       const [ox, oz] = offsets[key] || [0, 0];
       const mk = B.on(makeMarker(), x + ox, z + oz);
       if (cfg.stations[key].small) mk.scale.setScalar(0.7); // Fundstück: nur ein kleines Licht
@@ -1622,9 +1624,9 @@ window.Surface = (function () {
   const keys = {}, joy = { x: 0, y: 0 };
   let jumpPressed = false, actionPressed = false;
   let temp = { shown: 120, inShadow: false, shadowTime: 0, sunSeen: false, check: 0 };
-  let radioTimer = 0, farWarned = 0, experiment = null, quizDone = false, boarding = null;
+  let radioTimer = 0, radioVoice = 0, farWarned = 0, experiment = null, quizDone = false, boarding = null;
 
-  function allQuestions() { return cfg.quiz.map((q) => ({ ...q, own: true })).concat(G.bodyById[bodyId].quiz || []); }
+  function allQuestions() { return cfg.quiz.map((q) => ({ ...q, own: true })); }
   function fmtVars(t, vars) {
     const std = { name: G.state.name, anzahl: cfg.discoveries.length, fragen: allQuestions().length };
     return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : ""));
@@ -1636,10 +1638,11 @@ window.Surface = (function () {
     $("radioHead").textContent = who || "📻 Bodenstation";
     const r = $("radio"); r.classList.remove("hidden"); r.classList.remove("ping"); void r.offsetWidth; r.classList.add("ping");
     radioTimer = 14;
+    radioVoice = Voice.say(msg, who && /Nora/.test(who) ? "nora" : "radio");
   }
 
   function foundMap() { return (G.state.found && G.state.found[bodyId]) || {}; }
-  function foundCount() { return Object.keys(foundMap()).length; }
+  function foundCount() { const f = foundMap(); return cfg.discoveries.filter((d) => f[d.key]).length; }
 
   function updateCounter() {
     $("discCount").textContent = `${foundCount()}/${cfg.discoveries.length}`;
@@ -1660,6 +1663,7 @@ window.Surface = (function () {
     const saved = foundMap()[key], known = !!saved;
     if (known && !replay) return;
     const d = cfg.discoveries.find((x) => x.key === key);
+    if (!d) return;
     if (known) vars = vars || (typeof saved === "object" ? saved : d.fallback);
     else {
       G.discover(bodyId, key, vars);
@@ -1672,20 +1676,21 @@ window.Surface = (function () {
         <div class="disc-icon">${d.icon}</div>
         <div class="disc-kicker">${known ? "✓ Schon entdeckt – nochmal angesehen" : "Neue Entdeckung! +1 ⭐"}</div>
         <h2>${d.title}</h2>
-        ${d.gallery ? `<div class="gallery" id="discGallery"></div>` : d.photo ? `<img src="img/${d.photo}" alt="" class="disc-photo">` : ""}
+        ${cardExtra && cardExtra.key === key ? cardExtra.html : d.gallery ? `<div class="gallery" id="discGallery"></div>` : d.photo ? `<img src="img/${d.photo}" alt="" class="disc-photo">` : ""}
         <p>${text}</p>
         <div class="row-gap"><button class="btn primary" id="discOk">Weiter erkunden ▶</button></div>
       </div>`);
+    const extra = cardExtra && cardExtra.key === key; cardExtra = null;
+    Voice.say(`${d.title}. ${text}`, "card", { modal: true });
     // Echte Fotos zum Durchblättern (aus der früheren Steckbrief-Galerie)
-    if (d.gallery) UI.renderGallery($("discGallery"), (D.photos[bodyId] || []).filter((p) => d.gallery.includes(p.file)), 0, false, true);
+    if (d.gallery && !extra) UI.renderGallery($("discGallery"), (D.photos[bodyId] || []).filter((p) => d.gallery.includes(p.file)), 0, false, true);
     $("discOk").onclick = () => {
       UI.closeModal();
       if (known) return;
       const rest = cfg.discoveries.length - foundCount();
       if (rest === 0 && G.onPlanetDone) G.onPlanetDone(bodyId); // Mission erst jetzt geschafft: alles entdeckt
-      if (rest > 0) radio(cfg.radio.found, { rest });
-      else if (!quizDone && !(guide && guide.on)) { radio(cfg.radio.allFound); setTimeout(startQuiz, 2500); }
-      // mit Führung: Die Begleitperson bringt das Kind zur Wand, dort startet die Bodenstation die Fragen (siehe updateGuide)
+      if (rest > 0) { if (!(guide && guide.on)) radio(cfg.radio.found, { rest }); } // mit Führung sagt Nora, wohin es weitergeht
+      else if (!quizDone) quizSoon();
     };
   }
 
@@ -1708,8 +1713,14 @@ window.Surface = (function () {
     if (all) $("foundQuiz").onclick = () => { UI.closeModal(); startQuiz(); };
   }
 
-  function startQuiz() {
-    if (!S.active || UI.modalOpen()) { if (S.active) setTimeout(startQuiz, 1500); return; }
+  // Alles entdeckt: Funk-Fragen ansagen (Nora oder Bodenstation) und kurz danach stellen – erst wenn „Mission geschafft“ vorbei ist
+  function quizSoon() {
+    if (guide && guide.on && guide.n.obj.visible) guideSay(cfg.guide.quiz); else radio(cfg.radio.allFound);
+    setTimeout(() => startQuiz(true), 3600);
+  }
+  // auto = die Fragen kommen direkt nach der letzten Entdeckung → danach automatisch einsteigen und losfliegen
+  function startQuiz(auto) {
+    if (!S.active || UI.modalOpen()) { if (S.active) setTimeout(() => startQuiz(auto), 1500); return; }
     // Erst die Fragen zum Erkunden, dann die Fragen aus dem früheren Steckbrief-Quiz – alles per Funk
     const qs = allQuestions(); let i = 0, right = 0, rightOwn = 0;
     const show = () => {
@@ -1721,10 +1732,12 @@ window.Surface = (function () {
           <div class="answers">${q.a.map((t, k) => `<button class="answer" data-k="${k}">${t}</button>`).join("")}</div>
           <div id="sqAfter"></div>
         </div>`);
+      Voice.say(`${q.q} ${q.a.slice(0, -1).join("? ")}? Oder: ${q.a[q.a.length - 1]}?`, "radio", { modal: true });
       document.querySelectorAll("#modalContent .answer").forEach((b) => b.onclick = () => {
         const ok = +b.dataset.k === q.c; if (ok) { right++; if (q.own) rightOwn++; Sound.correct(); } else Sound.wrong();
         document.querySelectorAll("#modalContent .answer").forEach((x) => { x.disabled = true; if (+x.dataset.k === q.c) x.classList.add("right"); });
         if (!ok) b.classList.add("wrong");
+        Voice.say(`${ok ? "Richtig! " : "Nicht ganz. "}${q.why}`, "radio", { modal: true });
         $("sqAfter").innerHTML = `<div class="why">${ok ? "✅ Richtig! " : "❌ Nicht ganz. "}${q.why}</div><div class="row-gap"><button class="btn primary" id="sqNext">${i < qs.length - 1 ? "Nächste Frage ▶" : "Ergebnis 🏆"}</button></div>`;
         $("sqNext").onclick = () => { i++; if (i < qs.length) show(); else finish(); };
       });
@@ -1736,11 +1749,36 @@ window.Surface = (function () {
       UI.openModal(`<div class="discovery center">
         <div class="stars-row">${qs.map((_, k) => `<span class="${k < right ? "" : "off"}">⭐</span>`).join("")}</div>
         <h2>${right} von ${qs.length} richtig</h2><p class="intro">Die Bodenstation ist beeindruckt!</p>
-        <div class="row-gap"><button class="btn primary" id="sqClose">👍 Super</button></div></div>`);
+        <div class="row-gap"><button class="btn primary" id="sqClose">${auto ? "🚀 Weiterfliegen" : "👍 Super"}</button></div></div>`);
       if (right === qs.length) { Sound.fanfare(); UI.confetti(); }
-      $("sqClose").onclick = () => { UI.closeModal(); radio(cfg.radio.quizDone); };
+      Voice.say(`${right} von ${qs.length} richtig! Die Bodenstation ist beeindruckt!`, "radio", { modal: true });
+      $("sqClose").onclick = () => { UI.closeModal(); if (auto) flyHome(); else radio(cfg.radio.quizDone); };
     };
     show();
+  }
+
+  function flyHome() {
+    if (!S.active || boarding) return;
+    if (probe) { exit(); return; }
+    $("fade").classList.add("on");
+    setTimeout(() => {
+      if (!S.active || boarding) { $("fade").classList.remove("on"); return; }
+      if (chal) endChallenge();
+      if (view.special) { view.special = null; $("scope").classList.add("hidden"); $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping", "driving"); }
+      experiment = null; world.astronaut.visible = true; resetJoy();
+      const R = 3.4, x = HATCH.x * R, z = HATCH.z * R;
+      ast.pos.set(x, world.height(x, z), z); ast.vy = ast.speed = 0; ast.onGround = true; ast.jumping = ast.hopping = false;
+      ast.heading = view.yaw = Math.atan2(-HATCH.x, -HATCH.z);
+      if (guide) { // Nora steht neben dem Kind und steigt zuerst ein
+        const n = guide.n, a = HATCH.a + 0.55, nx = Math.sin(a) * 3.1, nz = Math.cos(a) * 3.1;
+        n.obj.visible = true; n.climbY = null; n.talk = 0; n.obj.position.set(nx, world.height(nx, nz), nz);
+      }
+      const ca = HATCH.a + 0.45;
+      world.camera.position.set(Math.sin(ca) * 9.5, world.hatchY + 2.6, Math.cos(ca) * 9.5);
+      view.look.set(HATCH.x * 1.6, world.hatchY + 3.3, HATCH.z * 1.6); world.camera.lookAt(view.look);
+      startBoarding();
+      $("fade").classList.remove("on");
+    }, 520);
   }
 
   // ---------- Eingabe ----------
@@ -1857,14 +1895,15 @@ window.Surface = (function () {
     const rest = cfg.discoveries.length - foundCount();
     const first = foundCount() === 0;
     setupGuide();
-    if (!guide || !guide.on) setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : first ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
+    if (rest === 0 && !quizDone) setTimeout(() => { if (S.active) quizSoon(); }, 2500);
+    else if (!guide || !guide.on) setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : first ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
   };
 
   function exit() {
     $("guideBtn").classList.add("hidden"); guide = null;
     if (!S.active) return;
     S.active = false; probe = null;
-    Sound.engine(0); Sound.wind(0);
+    Sound.engine(0); Sound.wind(0); Voice.stop();
     if (chal) endChallenge();
     compassShown = ""; $("surfCompass").classList.add("hidden");
     $("surfaceHud").classList.add("hidden");
@@ -1989,7 +2028,7 @@ window.Surface = (function () {
             const msg = `🦘 Über den Graben: ${far.toFixed(1).replace(".", ",")} m weit! Auf der Erde wären es nur ${(far * cfg.gravity / 9.81).toFixed(1).replace(".", ",")} m gewesen.`;
             const show = () => (UI.modalOpen() ? setTimeout(show, 500) : UI.toast(msg, "gold")); setTimeout(show, 700); // erst nach der Entdeckungskarte
             Sound.correct();
-          } else if (real && foundMap().sprung) UI.toast(`🦘 ${jump.hoehe} hoch · ${jump.zeit} Sekunden in der Luft`, "gold");
+          } else if (real && (foundMap().sprung || !cfg.discoveries.some((d) => d.key === "sprung"))) UI.toast(`🦘 ${jump.hoehe} hoch · ${jump.zeit} Sekunden in der Luft`, "gold");
           else if (real) discover("sprung", jump);
         }
       }
@@ -2056,6 +2095,7 @@ window.Surface = (function () {
       const text = sc.action || (sc.again && foundMap()[key] ? sc.again : "");
       if (text && d < st.zone) { near = key; nearText = text; }
     }
+    if (!near && chal && chal.kind === "safari" && !chal.done) { near = "photo"; nearText = cfg.safari.btn; }
     if (guide && !guide.on && !near && Math.hypot(ast.pos.x - guide.n.obj.position.x, ast.pos.z - guide.n.obj.position.z) < 3.2) { near = "guide"; nearText = cfg.guide.again; }
     const act = $("surfAction");
     if (near && !experiment && !view.special && !busy) {
@@ -2076,6 +2116,7 @@ window.Surface = (function () {
     world.sun.target.position.copy(ast.pos);
     world.sun.position.copy(ast.pos).addScaledVector(sunNow, 120);
 
+    if (radioTimer < 1 && Voice.speaking(radioVoice)) radioTimer = 1; // Funkspruch bleibt, solange er vorgelesen wird
     updateCamera(dt);
     updateLabels();
     // Raketen-Markierung erst zeigen, wenn man sich entfernt hat (oder heim soll) – direkt nach der Landung stört sie nur
@@ -2087,17 +2128,138 @@ window.Surface = (function () {
 
   // ---------- Spielaufgaben, bei denen man frei herumläuft (Anzeige oben: #chalHud) ----------
   let chal = null;
-  function chalHud(label, f, info, hot) {
-    const h = $("chalHud"); h.classList.remove("hidden"); h.classList.toggle("hot", !!hot);
+  // good = viel ist gut (Batterie, Signal, Fotos: rot → grün); sonst viel ist schlecht (Hitze: grün → rot)
+  function chalHud(label, f, info, hot, good) {
+    const h = $("chalHud"); h.classList.remove("hidden"); h.classList.toggle("hot", !!hot); h.classList.toggle("good", !!good);
     if ($("chalLabel").textContent !== label) $("chalLabel").textContent = label;
     $("chalFill").style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + "%";
     if ($("chalInfo").textContent !== (info || "")) $("chalInfo").textContent = info || "";
   }
-  function endChallenge() { chal = null; $("chalHud").classList.add("hidden"); }
+  function endChallenge() { if (chal && chal.kind === "safari") safariUi(false); chal = null; $("chalHud").classList.add("hidden"); }
   function chalSay(text) { if (guide && guide.on && guide.n.obj.visible) guideSay(text); else radio(text); }
+  // Erde: Foto-Safari – Lebewesen in die Bildmitte nehmen und fotografieren; fünf verschiedene Arten sind das Ziel
+  let cardExtra = null; // Zusatz für die nächste Entdeckungskarte (die Safari-Fotos)
+  function startSafari() {
+    chal = { kind: "safari", got: {}, list: [], cool: 0, t: 0, lastPhoto: 0, tipped: false, done: false };
+    world.stations.wald.marker.visible = false;
+    safariUi(true); chalSay(cfg.safari.start); Sound.click();
+  }
+  function safariUi(on) {
+    let vf = $("viewfinder"), pol = $("polaroids");
+    if (on && !vf) {
+      vf = document.createElement("div"); vf.id = "viewfinder"; vf.className = "viewfinder"; vf.innerHTML = "<i></i><i></i><i></i><i></i><b></b>"; document.body.appendChild(vf);
+      pol = document.createElement("div"); pol.id = "polaroids"; pol.className = "polaroids"; document.body.appendChild(pol);
+    }
+    if (vf) vf.classList.toggle("hidden", !on);
+    if (pol) { pol.classList.toggle("hidden", !on); if (on) pol.innerHTML = ""; }
+  }
+  // Welches Lebewesen ist gerade in der Bildmitte? Noch nicht Fotografiertes hat Vorrang.
+  const inside = (o, root) => { for (; o; o = o.parent) if (o === root) return true; return false; };
+  function safariAim() {
+    const cam = world.camera, p = new V(); let best = null, bs = Infinity, blocked = false;
+    const walls = [world.trees, world.station, world.rollRoof, world.jetty].filter(Boolean);
+    for (const L of world.life) {
+      if (!L.obj.visible) continue;
+      L.obj.getWorldPosition(p); p.y += L.h;
+      const dist = p.distanceTo(ast.pos); if (dist > (L.far || 18)) continue;
+      tmp.copy(p).project(cam); if (tmp.z > 1 || Math.abs(tmp.x) > 0.4 || tmp.y < -0.6 || tmp.y > 0.8) continue;
+      const s = Math.hypot(tmp.x, tmp.y * 0.8) + (chal.got[L.kind] ? 2 : 0) + dist * 0.004 + (L.kind === "baum" ? 0.3 : L.kind === "blume" ? 0.12 : 0);
+      if (s >= bs) continue;
+      // steht etwas davor? (vom Helm des Astronauten aus gesehen; der eigene Baum zählt natürlich nicht)
+      const eye = safariEye(), d = p.distanceTo(eye); ray.set(eye, tmp2.copy(p).sub(eye).normalize()); ray.far = d - L.size * 0.4;
+      const hit = ray.intersectObjects(walls, true).find((h) => !inside(h.object, L.obj));
+      if (hit) { blocked = true; continue; }
+      bs = s; best = L;
+    }
+    return best || (blocked ? "blocked" : null);
+  }
+  // Bild aus der Szene (Mitte, 4:3) als kleines Foto
+  const safariEye = () => new V(ast.pos.x, ast.pos.y + 1.65, ast.pos.z); // Helmkamera
+  function snapshot(L) {
+    const cam = world.camera, fov = cam.fov, q = cam.quaternion.clone(), at = cam.position.clone(), p = new V();
+    L.obj.getWorldPosition(p); p.y += L.h;
+    cam.position.copy(safariEye());
+    const d = cam.position.distanceTo(p);
+    cam.lookAt(p); cam.fov = Math.max(6, Math.min(50, 2 * Math.atan((L.size * 0.75) / d) * 57.3)); cam.updateProjectionMatrix();
+    const astro = world.astronaut.visible; world.astronaut.visible = false;
+    W.renderer.render(world.scene, cam);
+    const src = W.renderer.domElement, cw = src.width, ch = src.height, s = Math.min(cw / 4, ch / 3);
+    const cv = document.createElement("canvas"); cv.width = 240; cv.height = 180;
+    cv.getContext("2d").drawImage(src, cw / 2 - 2 * s, ch / 2 - 1.5 * s, 4 * s, 3 * s, 0, 0, 240, 180);
+    world.astronaut.visible = astro; cam.position.copy(at); cam.fov = fov; cam.quaternion.copy(q); cam.updateProjectionMatrix();
+    try { return cv.toDataURL("image/jpeg", 0.82); } catch (e) { return ""; }
+  }
+  function polaroidHtml(url, text, r) { return `<div class="polaroid" style="--r:${r}deg">${url ? `<img src="${url}" alt="">` : ""}<span>${text}</span></div>`; }
+  function takePhoto() {
+    const T = cfg.safari, c = chal;
+    if (!c || c.kind !== "safari" || c.cool > 0 || c.done) return;
+    c.cool = 0.7; Sound.shutter();
+    const fl = document.createElement("div"); fl.className = "snap-flash"; document.body.appendChild(fl); setTimeout(() => fl.remove(), 500);
+    const hit = safariAim();
+    if (!hit || hit === "blocked") { UI.toast(hit ? T.blocked : T.none); return; }
+    const [icon, name] = T.kinds[hit.kind];
+    if (c.got[hit.kind]) { UI.toast(fmtVars(T.twice, { name: `${icon} ${name}` })); return; }
+    const url = snapshot(hit);
+    c.got[hit.kind] = url || true; c.list.push(hit.kind); c.lastPhoto = c.t;
+    const r = [-4, 3, -2, 4, -3][(c.list.length - 1) % 5];
+    $("polaroids").insertAdjacentHTML("beforeend", polaroidHtml(url, `${icon} ${name}`, r));
+    Sound.collect(); chalSay(T.says[hit.kind]);
+    if (c.list.length >= 5) { // geschafft: kurz die Fotos zeigen, dann die Entdeckung – mit allen fünf Polaroids
+      c.done = true; Sound.correct(); UI.confetti(80);
+      cardExtra = { key: "wald", html: `<div class="disc-polaroids">${c.list.map((k, i) => polaroidHtml(typeof c.got[k] === "string" ? c.got[k] : "", `${T.kinds[k][0]} ${T.kinds[k][1]}`, [-4, 3, -2, 4, -3][i])).join("")}</div>` };
+      setTimeout(() => { if (chal === c) { endChallenge(); world.stations.wald.marker.visible = true; discover("wald"); } }, 1100);
+    }
+  }
+  function updateSafari(dt, busy) {
+    const T = cfg.safari, c = chal, n = c.list.length;
+    c.cool -= dt; if (!busy) c.t += dt;
+    $("viewfinder").classList.toggle("hidden", !!(view.special || experiment || boarding || UI.modalOpen() || c.done));
+    chalHud(fmtVars(T.label, { n }), n / 5, [...c.list.map((k) => T.kinds[k][0]), ...Array(Math.max(0, 5 - n)).fill("❓")].join(" "), false, true);
+    if (!c.tipped && c.t - c.lastPhoto > 40) { c.tipped = true; chalSay(T.tip); }
+  }
   function updateChallenge(dt, busy) {
     if (!chal) return;
-    if (chal.kind === "shadow") updateShadowRun(dt, busy);
+    if (chal.kind === "safari") updateSafari(dt, busy);
+    else if (chal.kind === "shadow") updateShadowRun(dt, busy);
+    else if (chal.kind === "radar") updateRadar(dt, busy);
+  }
+  // Venus: Radar-Suche nach Venera 13. Signal = wie nah; alle paar Sekunden „wärmer“/„kälter“; nach einer Weile ein Richtungstipp.
+  function startRadar() {
+    chal = { kind: "radar", cool: 1, beep: 0, last: null, lastAt: 0, t: 0, hint: "" };
+    world.stations.venera.marker.visible = false;
+    chalSay(cfg.radar.start); Sound.click();
+  }
+  function updateRadar(dt, busy) {
+    const T = cfg.radar, c = chal, [vx, vz] = world.L.venera;
+    if (busy) return;
+    c.t += dt;
+    const d = Math.hypot(ast.pos.x - vx, ast.pos.z - vz), sig = Math.max(0, Math.min(1, 1 - (d - 4) / 55));
+    c.cool = Math.max(0, c.cool - dt / 100); // gut anderthalb Minuten Kühlung
+    if (c.t > 24) { // Richtungstipp: von wo kommt das Signal (vom Blick der Kamera aus)?
+      const rel = angleLerp(0, Math.atan2(vx - ast.pos.x, vz - ast.pos.z) - view.yaw, 1);
+      c.hint = fmtVars(T.hint, { dir: T.dirs[((Math.round(-rel / (Math.PI / 4)) % 8) + 8) % 8] });
+    }
+    chalHud(T.label, sig, fmtVars(T.cool, { n: Math.round(c.cool * 100) }) + (c.hint ? " · " + c.hint : ""), c.cool < 0.25, true);
+    c.beep -= dt;
+    if (c.beep <= 0) { c.beep = 0.16 + (1 - sig) * 1.3; Sound.ping(520 + sig * 760); } // je näher, desto schneller und höher
+    if (c.t - c.lastAt > 5) { // wärmer oder kälter?
+      if (c.last != null) { if (d < c.last - 3) UI.toast(T.warmer); else if (d > c.last + 3) UI.toast(T.colder); }
+      c.last = d; c.lastAt = c.t;
+    }
+    if (d < 4.4) { endRadar(true); return; }
+    const [rx, rz] = world.L.radar;
+    if (c.cool <= 0) { // Kühlung leer: zurück zum Peiler
+      Sound.wrong(); chalSay(T.hot);
+      const st = world.stations.venera; ast.pos.set(st.x - 1.5, world.height(st.x - 1.5, st.z + 1.5), st.z + 1.5); ast.speed = 0;
+      c.cool = 1; c.last = null; c.lastAt = c.t;
+      return;
+    }
+    if (Math.hypot(ast.pos.x - rx, ast.pos.z - rz) > 95) { endRadar(false); chalSay(T.quit); }
+  }
+  function endRadar(found) {
+    endChallenge();
+    world.stations.venera.marker.visible = true;
+    if (found) { Sound.correct(); UI.confetti(80); UI.toast(cfg.radar.found, "gold"); discover("venera"); }
   }
   // Merkur: Schattenlauf – in der Sonne wird der Anzug heiß, im Schatten kühlt er ab
   function startShadowRun() {
@@ -2173,6 +2335,7 @@ window.Surface = (function () {
     if (key === "rakete") { startBoarding(); return; }
     if (key === "wand") { showFound(); return; }
     if (key === "guide") { guideResume(); return; }
+    if (key === "photo") { takePhoto(); return; }
     if (!cfg.stations[key].action) { discover(key, null, true); return; }
     if (key === "waage") startWeigh();
     else site.actions[key]();
@@ -2238,6 +2401,7 @@ window.Surface = (function () {
   }
   function scopeSay(text, buttons) {
     $("scopeText").textContent = text;
+    if (text) Voice.say(text, "nora");
     const host = $("scopeBtns"); host.innerHTML = "";
     for (const [label, fn, primary] of buttons || []) {
       const b = document.createElement("button");
@@ -2355,7 +2519,7 @@ window.Surface = (function () {
   // Die Anzeige reagiert wie eine echte Waage: Sie zeigt nur etwas an, solange der Astronaut auf der Platte steht
   let scaleKg = 30, scaleShown = "", scaleGuessing = false;
   function updateScaleDisplay() {
-    const st = world.stations.waage;
+    const st = world.stations.waage || (world.scale && world.scale.position); if (!st || !world.scale) return;
     const onPlate = ast.onGround && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) < 0.6;
     const text = scaleGuessing ? "?? kg" : `${onPlate ? moonKg(scaleKg) : "0,0"} kg`;
     if (text !== scaleShown) { scaleShown = text; world.scale.userData.show(text); }
@@ -2609,7 +2773,7 @@ window.Surface = (function () {
       const d = Math.hypot(st.x - ast.pos.x, st.z - ast.pos.z);
       if (d < bestD) { bestD = d; best = st; }
     }
-    if (!best || bestD < 5 || view.special || boarding || experiment) { if (compassShown) { compassShown = ""; el.classList.add("hidden"); } return; }
+    if (!best || bestD < 5 || view.special || boarding || experiment || chal) { if (compassShown) { compassShown = ""; el.classList.add("hidden"); } return; }
     const dx = best.x - ast.pos.x, dz = best.z - ast.pos.z, sy = Math.sin(view.yaw), cy = Math.cos(view.yaw);
     const ang = Math.atan2(-dx * cy + dz * sy, dx * sy + dz * cy); // 0 = geradeaus, positiv = rechts
     $("compassArrow").style.transform = `rotate(${ang}rad)`;
@@ -2672,6 +2836,7 @@ window.Surface = (function () {
     n.said++;
     n.el.innerHTML = `<b>${c.name}:</b> ${fmtVars(text)}`;
     n.talk = 7; n.cool = 16; n.waveT = n.greeted && n.said > 1 ? 0 : 2.4;
+    n.voice = Voice.say(fmtVars(text), /^(Forscherin|Kommandantin|Pilotin|Astronautin|Technikerin|Ingenieurin)\b/.test(c.name) ? "npcF" : "npcM");
     Sound.click();
   }
   function updateNpcs(dt, elapsed, busy) {
@@ -2681,6 +2846,8 @@ window.Surface = (function () {
       let moving = false;
       const modal = UI.modalOpen();
       if (!modal || !n.isNora) n.talk -= dt;
+      if (n.voice && n.talk < 0.5 && Voice.speaking(n.voice)) n.talk = 0.5; // Blase bleibt, solange gesprochen wird
+      if (n.el) n.el.classList.toggle("talking", !!(n.voice && Voice.speaking(n.voice)));
       n.cool -= dt; n.waveT -= dt;
       if (n.guide) moving = !!n.moving;
       else if (n.isNora) { if (dist < 6) n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5)); }
@@ -2792,6 +2959,7 @@ window.Surface = (function () {
     const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, msg);
     n.talk = Math.min(10, 3 + msg.split(" ").length * 0.38); // lange Sätze bleiben etwas länger stehen
     n.el.classList.remove("pop"); void n.el.offsetWidth; n.el.classList.add("pop");
+    n.voice = Voice.say(msg, "nora");
     Sound.click();
   }
   function updateGuideBtn() {
@@ -2814,7 +2982,7 @@ window.Surface = (function () {
   function guideNextKey() {
     const f = foundMap();
     for (const k of cfg.guide.order) if (!f[k]) return k;
-    return quizDone ? "rakete" : "wand";
+    return "rakete";
   }
   // Wo sie neben der Station stehen bleibt (Ende des Weges oder 2,5 m seitlich vor der Markierung)
   function guideStand(key) {
@@ -2945,8 +3113,7 @@ window.Surface = (function () {
     if (guide.met && key !== guide.key) { // neues Ziel: Bescheid sagen und losgehen
       const first = guide.key === undefined;
       guide.key = key; guide.pts = guideRoute(key); guide.said[key] = false;
-      if (key === "wand") guideSay(GC.quiz);
-      else if (key === "rakete") guideSay(GC.home);
+      if (key === "rakete") { if (quizDone) guideSay(GC.home); }
       else if (key !== "sprung" && !first) guideSay(GC.next, { ziel: cfg.stations[key].label });
     }
     const face = (x, z) => { n.heading = angleLerp(n.heading, Math.atan2(x - p.x, z - p.z), 1 - Math.exp(-dt * 5)); };
@@ -3425,6 +3592,54 @@ window.Surface = (function () {
     g.userData.blink = [lamp];
     return g;
   }
+  // Solar-Rover wie „Spirit“ und „Opportunity“ (2004 – 2018): breites Solarzellen-Deck, Kameramast, sechs Räder, Roboterarm (vorn = +Z).
+  // userData.cells = Material der Solarzellen (färbt sich bei Staub rotbraun)
+  function makeSolarRover(M) {
+    const g = new THREE.Group(), cells = marsCellMat(M).clone();
+    const gold = new THREE.MeshStandardMaterial({ map: foilTex(), roughness: 0.35, metalness: 0.7 });
+    const white = M.std({ color: srgb(0xeef0f2), roughness: 0.5 }), dark = M.std({ color: srgb(0x2b2e34), roughness: 0.75, metalness: 0.3 });
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.44, 1.3), gold), 0, 0.78, 0); // Elektronik-Kasten in Goldfolie
+    const deck = new THREE.Group(); deck.position.y = 1.03; g.add(deck); // Solarzellen-Deck: Mittelteil und fünf Flügel
+    for (const [w, d, x, z, rz] of [[1.25, 1.45, 0, 0, 0], [0.8, 1.15, -1.02, 0.1, 0.06], [0.8, 1.15, 1.02, 0.1, -0.06], [1.15, 0.5, 0, -0.97, 0], [0.55, 0.45, -0.8, -0.78, 0.04], [0.55, 0.45, 0.8, -0.78, -0.04]])
+      put(deck, new THREE.Mesh(new THREE.BoxGeometry(w, 0.035, d), [white, white, cells, white, white, white]), x, 0, z).rotation.z = rz;
+    const wheels = [];
+    for (const x of [-0.78, 0.78]) {
+      for (const z of [-0.62, 0.02, 0.62]) {
+        const w = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.2, 16), dark), x, 0.25, z); w.rotation.z = Math.PI / 2; wheels.push(w);
+        put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.21, 10), white), x, 0.25, z, false).rotation.z = Math.PI / 2;
+      }
+      pipeSeg(g, M, new V(x * 0.8, 0.62, -0.62), new V(x * 0.8, 0.7, 0.62), 0.03, M.steel); // Schwinge (Rocker-Bogie)
+      pipeSeg(g, M, new V(x * 0.8, 0.7, 0), new V(x * 0.62, 0.78, 0), 0.03, M.steel);
+    }
+    // Kameramast vorn links mit „Augen“ (Panoramakamera), Antenne, Roboterarm
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.95, 8), white), -0.32, 1.5, 0.58);
+    const head = put(g, new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.16, 0.18), white), -0.32, 2.0, 0.6);
+    for (const x of [-0.09, 0.09]) put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.06, 12), dark), x, 0, 0.1, false).rotation.x = Math.PI / 2;
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), M.steel), 0.35, 1.3, -0.3);
+    put(g, dishCap(M, 0.2, 0.9), 0.35, 1.56, -0.3).rotation.x = -0.7;
+    pipeSeg(g, M, new V(0.3, 0.75, 0.68), new V(0.3, 0.55, 1.05), 0.035, M.steel);
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.16), M.metal), 0.3, 0.5, 1.12);
+    g.userData = { wheels, heading: 0, speed: 0, cells, clean: cells.color.clone() };
+    return g;
+  }
+  // Fundstellen der Rover-Expedition: 0 = Kügelchen („Blaubeeren“, entstehen im Wasser), 1 = Schichtgestein (Grund eines Sees), 2 = Gestein für ein Proben-Röhrchen
+  function makeSampleRock(i) {
+    const g = new THREE.Group();
+    if (i === 0) {
+      put(g, new THREE.Mesh(naturalRockGeo(61, 3), new THREE.MeshStandardMaterial({ color: 0xc98b5e, roughness: 1, vertexColors: true })), 0, 0.12, 0).scale.set(0.9, 0.25, 0.8);
+      const berry = new THREE.MeshStandardMaterial({ color: srgb(0x3e4a5c), roughness: 0.35, metalness: 0.3 });
+      for (let k = 0; k < 16; k++) { const a = hash2(k, 3) * 6.3, r = 0.15 + hash2(k, 4) * 0.55; put(g, new THREE.Mesh(new THREE.SphereGeometry(0.06 + hash2(k, 5) * 0.04, 10, 8), berry), Math.cos(a) * r, 0.16 + hash2(k, 6) * 0.05, Math.sin(a) * r); }
+    } else if (i === 1) {
+      const cols = [0xd9a46c, 0xb8693e, 0xe7c08c, 0xa95a34, 0xd59a63];
+      cols.forEach((c, k) => { const s = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.62 - k * 0.07, 0.68 - k * 0.07, 0.17, 9), new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 1, flatShading: true })), 0, 0.085 + k * 0.17, 0); s.rotation.y = k * 0.5; s.rotation.z = 0.05 * (k % 2 ? 1 : -1); });
+    } else {
+      put(g, new THREE.Mesh(naturalRockGeo(67, 3), new THREE.MeshStandardMaterial({ color: 0x8a5a3c, roughness: 1, vertexColors: true })), 0, 0.3, 0).scale.set(0.8, 0.6, 0.7);
+      const tube = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.32, 10), new THREE.MeshStandardMaterial({ color: srgb(0xf4f4f5), roughness: 0.25, metalness: 0.6 })), 0.75, 0.05, 0.2); tube.rotation.z = Math.PI / 2;
+    }
+    return g;
+  }
+  // die Fundstellen im alten Flussdelta (rund um den hellen Fächer)
+  const roverSamples = (L) => [[L.roverZiel[0] + 10, L.roverZiel[1] - 8], [L.roverZiel[0] - 4, L.roverZiel[1] + 9], [L.roverZiel[0] - 10, L.roverZiel[1] - 6]];
   // Rover: fertiges Modell (Kenney), sonst das selbstgebaute
   function makeMarsRover(nasa = true) {
     const real = nasa && nasaModel(["perseverance"], 3.0); // der echte Rover Perseverance
@@ -3816,15 +4031,16 @@ window.Surface = (function () {
     const hut = on(makeRoverHut(M), L.rover[0] + Math.cos(toGoal) * 3.8, L.rover[1] - Math.sin(toGoal) * 3.8); // neben dem Pult (nicht hinter dem Rover, sonst verdeckt er die Kamera), Fenster und Schild zur Rakete hin
     hut.rotation.y = Math.atan2(L.spawn[0] - hut.position.x, L.spawn[1] - hut.position.z);
     const carport = on(makeCarport(M), ...L.roverStart); carport.rotation.y = MARS_ROVER_PARK;
-    const rover = on(makeMarsRover(), ...L.roverStart);
-    const roverGoal = new THREE.Group();
-    const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({ color: 0xe3cba5, roughness: 1, flatShading: true }));
-    stone.scale.y = 0.6; stone.position.y = 0.3; stone.castShadow = true;
-    const goalMark = makeMarker(); goalMark.scale.setScalar(0.9);
-    goalMark.userData.beam.material.color.set(0xfcd34d); goalMark.userData.ring.material.color.set(0xfcd34d);
-    goalMark.userData.setIcon("🎯", 0xfcd34d);
-    roverGoal.add(goalMark); roverGoal.visible = false;
-    on(stone, ...L.roverZiel, 0.3); on(roverGoal, ...L.roverZiel);
+    const rover = on(makeSolarRover(M), ...L.roverStart); // Solar-Rover wie Spirit und Opportunity
+    const samples = roverSamples(L).map(([x, z], i) => {
+      on(makeSampleRock(i), x, z);
+      const mk = makeMarker(); mk.scale.setScalar(0.9);
+      mk.userData.beam.material.color.set(0xfcd34d); mk.userData.ring.material.color.set(0xfcd34d); mk.userData.pad.material.color.set(0xfcd34d);
+      mk.userData.setIcon("🪨", 0xfcd34d);
+      on(mk, x, z); mk.visible = false;
+      return { i, x, z, mk, done: false };
+    });
+    const patrolRover = makeMarsRover(); // der große Rover Perseverance fährt selbst seine Runden (siehe updatePatrol)
     const drill = on(makeDrill(), ...L.eis);
     on(makeWaterPlant(M), ...L.eis);
     const [ex, ez] = L.eis, pipe = new THREE.Group(); scene.add(pipe); // Wasserleitung vom Tank zum Labor-Turm
@@ -3856,7 +4072,7 @@ window.Surface = (function () {
     const clusters = [[38, 14, 6], [34, 30, 5], [9, -9, 5], [-10, 36, 6], [38, 64, 5], [-46, 58, 6], [12, 30, 4], [-50, 8, 5], [28, -30, 6], [-18, -12, 4]];
     clusters.slice(0, rich ? 10 : 5).forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 13 + 2));
     const veils = rich ? makeDustVeils("rgba(210,150,100,1)", 9) : new THREE.Group(); scene.add(veils);
-    const patrol = on(makeMarsRover(), 48, 62);
+    const patrol = on(patrolRover, 48, 62);
     const patrolCol = [48, 62, 1.8];
     // Leben: zwei Mitbewohner und ein Raumtransporter mit eigenem Landeplatz
     const npcs = addNpcs(B);
@@ -3877,7 +4093,7 @@ window.Surface = (function () {
       ...marsCampColliders(L.station), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
     for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
-    return { ...B, L, station, scale, telescope, phobos, deimos, volcano, volcanoLabel, everest, zugspitze, heli, heliY: heli.position.y, rover, roverGoal, drill,
+    return { ...B, L, station, scale, telescope, phobos, deimos, volcano, volcanoLabel, everest, zugspitze, heli, heliY: heli.position.y, rover, samples, drill,
       devil, magnetTable, skyDome, veils, patrol, patrolCol, npcs, shuttle, observatory, weather, blink: [...station.userData.blink, ...console_.userData.blink, ...field.userData.lights, weather.userData.lamp],
       stations, colliders, shadowCasters: [rocket, station] };
   }
@@ -3896,39 +4112,109 @@ window.Surface = (function () {
     world.ambient.intensity = 0.5 * (1 - 0.45 * f);
   }
 
-  // --- Rover fernsteuern: zum hellen Stein fahren und ihn untersuchen ---
+  // --- Rover-Expedition: drei Proben im alten Flussdelta. Die Batterie hält nicht ewig – und nach der ersten Probe legt sich Staub
+  //     auf die Solarzellen. Ein Staubteufel pustet sie sauber (genau das hat den echten Rovern Spirit und Opportunity oft geholfen).
+  const ROVER_SPEED = 2.8;
   function startRover() {
-    enterExhibit("rover", { update: updateRover, done: false, puff: 0 }, "driving");
-    const r = world.rover, [x, z] = world.L.roverStart, [gx, gz] = world.L.roverZiel;
+    const T = cfg.rover;
+    enterExhibit("rover", { update: updateRover, phase: "drive", puff: 0, bat: 1, dust: 0, dusty: false, dustAt: -1, got: 0, t: 0, st: 0, ct: 0, farAt: -9, last: null }, "driving");
+    const r = world.rover, [x, z] = world.L.roverStart;
     r.position.set(x, world.height(x, z), z);
     r.userData.heading = MARS_ROVER_PARK; // steht schräg in der Garage – das Kind muss selbst lenken
-    r.userData.speed = 0;
-    world.roverGoal.visible = true;
-    scopeSay(isTouch() ? cfg.rover.driveTouch : cfg.rover.drive);
+    r.userData.speed = 0; r.userData.cells.color.copy(r.userData.clean);
+    for (const s of world.samples) { s.done = false; s.mk.visible = true; }
+    world.devil.userData.goal = null;
+    scopeSay(`${T.start} (${isTouch() ? T.keysTouch : T.keys})`);
+    roverHud();
+  }
+  function roverHud() {
+    const sp = view.special, T = cfg.rover;
+    chalHud(T.label, sp.bat, fmtVars(T.samples, { n: sp.got }) + (sp.dusty ? " · ☀️ Solarzellen staubig!" : ""), sp.bat < 0.25, true);
+  }
+  function roverSample(s) {
+    const sp = view.special, r = world.rover, T = cfg.rover;
+    s.done = true; s.mk.visible = false; sp.got++; sp.last = s;
+    sp.phase = "scan"; sp.st = 0; r.userData.speed = 0;
+    Sound.collect(); grains(tmp.set(s.x, world.height(s.x, s.z) + 0.3, s.z), 10, 0.6);
+    if (sp.got >= 3) { sp.phase = "done"; Sound.correct(); UI.confetti(80); endChallengeHud(); scopeSay(`${T.sample[s.i]}\n\n🎉 ${T.done}`, [[T.doneBtn, endRover, true]]); return; }
+    scopeSay(T.sample[s.i]);
+    if (sp.got === 1 && sp.dustAt < 0) sp.dustAt = sp.t + 5; // kurz danach: Staub!
+  }
+  function roverDust() { // Staub auf den Solarzellen – ein Staubteufel zieht heran
+    const sp = view.special, r = world.rover, u = r.userData;
+    sp.dusty = true; Sound.whoosh();
+    scopeSay(cfg.rover.dusty);
+    const fx = Math.sin(u.heading), fz = Math.cos(u.heading);
+    world.devil.userData.goal = [r.position.x + fx * 13 - fz * 5, r.position.z + fz * 13 + fx * 5];
+  }
+  function roverClean() { // durch den Staubteufel gefahren: Solarzellen sauber, Batterie lädt
+    const sp = view.special, r = world.rover;
+    sp.dusty = false; sp.charge = 1.6; Sound.correct();
+    grains(r.position, 18, 1.6); grains(tmp.copy(r.position).setY(r.position.y + 1.2), 12, 1.2);
+    scopeSay(cfg.rover.clean);
+    const [hx, hz] = world.L.teufel; world.devil.userData.goal = [hx, hz]; world.devil.userData.home = true;
   }
   function updateRover(dt) {
-    const sp = view.special, r = world.rover, u = r.userData, c = world.camera;
-    if (!sp.done) {
-      u.speed += (sp.iy * 2.8 - u.speed) * Math.min(1, dt * 2.5);
+    const sp = view.special, r = world.rover, u = r.userData, c = world.camera, T = cfg.rover;
+    sp.t += dt;
+    if (sp.phase === "drive") {
+      u.speed += ((sp.bat > 0 ? sp.iy * ROVER_SPEED : 0) - u.speed) * Math.min(1, dt * 2.5);
       u.heading -= sp.ix * 1.3 * dt * (u.speed < -0.2 ? -1 : 1);
-      const nx = r.position.x + Math.sin(u.heading) * u.speed * dt, nz = r.position.z + Math.cos(u.heading) * u.speed * dt;
-      if (Math.hypot(nx - world.L.rover[0], nz - world.L.rover[1]) < 75) r.position.set(nx, world.height(nx, nz), nz); // Funk-Reichweite
-      for (const w of u.wheels) w.rotation.x += (u.speed * dt) / 0.28;
-      sp.puff -= dt;
-      if (Math.abs(u.speed) > 0.6 && sp.puff <= 0) { sp.puff = 0.18; grains(r.position, 2, 0.5, -Math.sin(u.heading), -Math.cos(u.heading)); }
-      const [gx, gz] = world.L.roverZiel;
-      if (Math.hypot(r.position.x - gx, r.position.z - gz) < 2.6) {
-        sp.done = true; u.speed = 0; Sound.correct(); grains(tmp.set(gx, world.height(gx, gz) + 0.4, gz), 12, 0.7);
-        scopeSay(cfg.rover.found, [[cfg.rover.done, endRover, true]]);
+      // Batterie: Fahren kostet Strom, mit Staub auf den Solarzellen viel mehr
+      if (sp.charge > 0) { sp.charge -= dt; sp.bat = Math.min(1, sp.bat + dt * 0.9); }
+      else sp.bat = Math.max(0, sp.bat - dt * (0.006 + 0.0045 * Math.abs(u.speed)) * (sp.dusty ? 3.2 : 1));
+      if (sp.bat <= 0) { sp.phase = "charge"; sp.ct = 0; u.speed = 0; Sound.wrong(); scopeSay(T.empty); }
+      for (const s of world.samples) if (!s.done && Math.hypot(r.position.x - s.x, r.position.z - s.z) < 2.6) { roverSample(s); break; }
+      if (sp.dustAt > 0 && sp.t > sp.dustAt && !sp.dusty && sp.phase === "drive") { sp.dustAt = 0; roverDust(); }
+      if (sp.dusty) {
+        const d = world.devil.position;
+        if (Math.hypot(r.position.x - d.x, r.position.z - d.z) < 3.6) roverClean();
+        else if (!world.devil.userData.goal || Math.hypot(world.devil.userData.goal[0] - r.position.x, world.devil.userData.goal[1] - r.position.z) > 16) { // der Wirbel bleibt in der Nähe
+          const fx = Math.sin(u.heading), fz = Math.cos(u.heading);
+          world.devil.userData.goal = [r.position.x + fx * 9 - fz * 3, r.position.z + fz * 9 + fx * 3];
+        }
       }
+    } else if (sp.phase === "charge") { // Batterie leer: in der Sonne laden
+      sp.ct += dt; u.speed = 0; sp.bat = Math.min(0.35, (sp.ct / 4) * 0.35);
+      if (sp.ct > 4) { sp.phase = "drive"; scopeSay(sp.dusty ? T.dusty : `${T.start} (${isTouch() ? T.keysTouch : T.keys})`); }
+    } else if (sp.phase === "scan") { // Roboterarm untersucht die Probe
+      sp.st += dt; u.speed *= Math.exp(-dt * 6);
+      if (Math.random() < dt * 12 && sp.last) grains(tmp.set(sp.last.x, world.height(sp.last.x, sp.last.z) + 0.25, sp.last.z), 1, 0.4);
+      if (sp.st > 1.8) sp.phase = "drive";
+    } else u.speed *= Math.exp(-dt * 6);
+    // fahren (nur in Funk-Reichweite; Gebäude und große Felsen sind im Weg)
+    const nx = r.position.x + Math.sin(u.heading) * u.speed * dt, nz = r.position.z + Math.cos(u.heading) * u.speed * dt;
+    if (Math.hypot(nx - world.L.rover[0], nz - world.L.rover[1]) < 75) r.position.set(nx, world.height(nx, nz), nz);
+    else if (sp.t - sp.farAt > 6) { sp.farAt = sp.t; UI.toast(T.far); }
+    const [sx, sz] = world.L.roverStart;
+    for (const [cx, cz, cr] of world.colliders) {
+      if (cr < 0.9 || Math.hypot(cx - sx, cz - sz) < 4.5) continue;
+      const dx = r.position.x - cx, dz = r.position.z - cz, d = Math.hypot(dx, dz), min = cr + 1.2;
+      if (d < min && d > 0.001) { r.position.x = cx + (dx / d) * min; r.position.z = cz + (dz / d) * min; r.position.y = world.height(r.position.x, r.position.z); u.speed *= 0.5; }
     }
+    for (const w of u.wheels) w.rotation.x += (u.speed * dt) / 0.25;
+    sp.puff -= dt;
+    if (Math.abs(u.speed) > 0.6 && sp.puff <= 0) { sp.puff = 0.18; grains(r.position, 2, 0.5, -Math.sin(u.heading), -Math.cos(u.heading)); }
+    // Staub färbt die Solarzellen rotbraun
+    sp.dust += ((sp.dusty ? 1 : 0) - sp.dust) * Math.min(1, dt * (sp.dusty ? 0.8 : 2.5));
+    u.cells.color.copy(u.clean).lerp(ROVER_DUST, sp.dust * 0.85);
+    // Fundstellen: Hologramme schweben, aus der Ferne größer
+    for (const s of world.samples) if (s.mk.visible) { const h = s.mk.userData.holo; h.position.y = 2.9 + Math.sin(sp.t * 2 + s.i) * 0.15; h.scale.setScalar(Math.min(4, 1.3 + c.position.distanceTo(s.mk.position) * 0.022) / s.mk.scale.x); }
+    if (sp.phase !== "done") roverHud();
     r.rotation.y = u.heading;
     const fx = Math.sin(u.heading), fz = Math.cos(u.heading);
     c.position.lerp(tmp.set(r.position.x - fx * 6.5, r.position.y + 3.4, r.position.z - fz * 6.5), 1 - Math.exp(-dt * 3));
     view.look.lerp(tmp2.set(r.position.x + fx * 3, r.position.y + 1, r.position.z + fz * 3), 1 - Math.exp(-dt * 5));
     c.lookAt(view.look);
   }
-  function endRover() { world.roverGoal.visible = false; leaveExhibit(); }
+  const ROVER_DUST = srgb(0xa0583a);
+  function endChallengeHud() { $("chalHud").classList.add("hidden"); }
+  function endRover() {
+    for (const s of world.samples) s.mk.visible = false;
+    endChallengeHud();
+    const [hx, hz] = world.L.teufel; world.devil.userData.goal = [hx, hz]; world.devil.userData.home = true;
+    leaveExhibit();
+  }
 
   // --- Hubschrauber: aufsteigen, den Olympus Mons sehen und bekannte Berge danebenstellen ---
   function startHeli() {
@@ -4103,16 +4389,22 @@ window.Surface = (function () {
   }
 
   // --- Staubteufel: wandert über die Ebene, man muss ihn einholen ---
-  function updateDevil(elapsed) {
-    const [cx, cz] = world.L.teufel, st = world.stations.teufel;
-    const x = cx + 16 * Math.sin(elapsed * 0.11), z = cz + 12 * Math.sin(elapsed * 0.17 + 1), y = world.height(x, z);
+  function updateDevil(dt, elapsed) {
+    const u = world.devil.userData;
+    if (u.cx == null) { u.cx = world.L.teufel[0]; u.cz = world.L.teufel[1]; u.amp = 1; }
+    if (u.goal) { // zum Ziel gleiten (etwa so schnell wie ein Läufer), unterwegs kleiner tanzen
+      const ex = u.goal[0] - u.cx, ez = u.goal[1] - u.cz, d = Math.hypot(ex, ez), step = Math.min(d, (u.home ? 5 : 7) * dt);
+      if (d > 0.01) { u.cx += (ex / d) * step; u.cz += (ez / d) * step; }
+      u.amp += ((u.home && d < 1 ? 1 : 0.18) - u.amp) * Math.min(1, dt * 1.5);
+      if (u.home && d < 0.5 && u.amp > 0.97) { u.goal = null; u.home = false; u.amp = 1; }
+    }
+    const x = u.cx + 16 * u.amp * Math.sin(elapsed * 0.11), z = u.cz + 12 * u.amp * Math.sin(elapsed * 0.17 + 1), y = world.height(x, z);
     world.devil.position.set(x, y, z);
     world.devil.userData.parts.forEach((s, i) => {
       const hgt = (i / 19) * 7.5, r = 0.2 + hgt * 0.2, a = elapsed * 3.2 + i * 0.95;
       s.position.set(Math.cos(a) * r, hgt + 0.2, Math.sin(a) * r);
       s.scale.setScalar(0.9 + hgt * 0.32);
     });
-    st.x = x; st.z = z; st.marker.position.set(x, y, z);
   }
 
   // =========================================================
@@ -5125,6 +5417,25 @@ window.Surface = (function () {
     return g;
   }
   // Venera 13: Landering mit Zacken, Druckkugel, Bremsscheibe und Antenne obendrauf
+  // Radar-Peiler: Radarschüssel auf einem Dreibein, davor ein Bildschirm mit Radar-Kreisen (vorn = +Z)
+  function makeRadarFinder(M) {
+    const g = new THREE.Group();
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + 0.5; pipeSeg(g, M, new V(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7), new V(0, 1.5, 0), 0.04, M.steel); }
+    const head = new THREE.Group(); head.position.y = 1.55; g.add(head);
+    put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.3, 10), M.metal), 0, 0.12, 0);
+    put(head, dishCap(M, 0.6, 0.85), 0, 0.42, 0.1).rotation.x = -1.15;
+    const scr = canvasTex(256, 192, (c) => {
+      c.fillStyle = "#03140c"; c.fillRect(0, 0, 256, 192);
+      c.strokeStyle = "rgba(74,222,128,0.8)"; c.lineWidth = 3;
+      for (const r of [24, 52, 80]) { c.beginPath(); c.arc(128, 96, r, 0, 7); c.stroke(); }
+      c.beginPath(); c.moveTo(128, 96); c.lineTo(205, 50); c.stroke();
+      c.fillStyle = "#bbf7d0"; c.beginPath(); c.arc(170, 70, 6, 0, 7); c.fill();
+    });
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.12), M.hull(1, 1)), 0, 1.05, 0.42).rotation.x = -0.4;
+    put(g, new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.42), new THREE.MeshBasicMaterial({ map: scr, toneMapped: false })), 0, 1.05, 0.49, false).rotation.x = -0.4;
+    g.userData.head = head;
+    return g;
+  }
   function makeVenera(M) {
     const g = new THREE.Group(), tan = M.std({ color: srgb(0xc9a26b), roughness: 0.5, metalness: 0.5 });
     const ring = put(g, new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.22, 10, 24), tan), 0, 0.25, 0); ring.rotation.x = Math.PI / 2;
@@ -5163,10 +5474,10 @@ window.Surface = (function () {
   const VENUS_LAVA_Z = (x) => 50 + Math.sin(x * 0.08) * 3; // Lavafluss quer zur Route
   const VENUS_LAYOUT = {
     spawn: [-6.9, 4], waage: [24, 10], hitze: [28, 30], druck: [16, 40], abendstern: [6, 66],
-    venera: [18, -14], lava: [4, 50], wegweiser: [8, 5],
+    venera: [-36, -26], radar: [9, -4], lava: [4, 50], wegweiser: [8, 5], // Venera 13 steht versteckt im Dunst, gesucht wird vom Radar-Peiler aus
     station: [-14, 74], tag: [-20, 67], groesse: [-8, 67], meet: [20, 24],
     route: {
-      wegweiser: [[5.5, 2.5]], venera: [[10, -4], [15, -11]], waage: [[24, -2], [27.5, 6]], hitze: [[30, 18], [31.5, 26]],
+      wegweiser: [[5.5, 2.5]], venera: [[5.2, 0.2]], waage: [[24, -2], [27.5, 6]], hitze: [[18, 6], [30, 18], [31.5, 26]],
       druck: [[26, 38], [19.5, 43]], lava: [[8, 46], [4, 46.5]], abendstern: [[4, 54], [3.5, 61.5]],
       tag: [[-6, 62], [-14, 61.5]], groesse: [[-6, 62.5]], wand: [[-11, 69]], rakete: [[4, 60], [4, 46], [12, 30], [4, 8], [-4, 5]]
     }
@@ -5177,7 +5488,7 @@ window.Surface = (function () {
   function buildVenus() {
     const L = { ...VENUS_LAYOUT };
     const craters = [[70, 30, 14, 1.2], [-80, -50, 18, 1.6], [50, -80, 12, 1.2], [-70, 80, 12, 1]];
-    const flats = [[0, 0, 11], [...L.station, 20, VENUS_DOME[3]], [L.station[0], L.station[1] + 16, 22, VENUS_DOME[3]], [...L.waage, 3], [...L.hitze, 5], [...L.druck, 5], [...L.abendstern, 6, VENUS_DOME[3], 4], [...L.venera, 4], [L.lava[0], 50, 9, 0, 6]];
+    const flats = [[0, 0, 11], [...L.station, 20, VENUS_DOME[3]], [L.station[0], L.station[1] + 16, 22, VENUS_DOME[3]], [...L.waage, 3], [...L.hitze, 5], [...L.druck, 5], [...L.abendstern, 6, VENUS_DOME[3], 4], [...L.venera, 4], [...L.radar, 3], [L.lava[0], 50, 9, 0, 6]];
     const B = buildBase({
       height: makeHeight(craters, flats, 160, venusDome),
       // dichte, giftige Wolken: gelb-oranger Dunst, man sieht kaum 100 Meter weit, die Sonne ist nur ein heller Schein
@@ -5185,7 +5496,7 @@ window.Surface = (function () {
       ground: 0x8a6a48, rock: 0x5a4632,
       tint: (x, z) => { const m = 0.6 + 0.35 * fbm2(x * 0.03 + 4, z * 0.03); return [m, m * 0.92, m * 0.8]; },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.hitze, 4], [...L.druck, 4], [...L.abendstern, 4],
-        [...L.venera, 3], [...L.lava, 5], [...L.wegweiser, 3], [L.lava[0] - 20, 50, 12], [L.lava[0] + 20, 50, 12]],
+        [...L.venera, 3], [...L.radar, 3], [...L.lava, 5], [...L.wegweiser, 3], [L.lava[0] - 20, 50, 12], [L.lava[0] + 20, 50, 12]],
       ambient: [0xffc070, 0.75], hemi: [0xffd28a, 0x5a3a1a, 0.4], sun: [0xffe2b0, 0.5],
       dust: ["rgba(200,160,100,1)", "rgba(170,130,80,0.9)"]
     });
@@ -5239,6 +5550,9 @@ window.Surface = (function () {
     moonStar.position.copy(earthStar.position).addScaledVector(new V().crossVectors(VENUS_EARTH_DIR, new V(0, 1, 0)).normalize(), 12);
 
     on(makeVenera(M), ...L.venera).rotation.y = 0.9;
+    const finder = on(makeRadarFinder(M), ...L.radar); // Radar-Peiler: Startpunkt der Suche
+    finder.rotation.y = Math.atan2(L.spawn[0] - L.radar[0], L.spawn[1] - L.radar[1]);
+    on(makeSignBoard(M, "📡 RADAR-PEILER", "#0f766e", 2.4), L.radar[0] + 2.2, L.radar[1] + 1.4).rotation.y = Math.atan2(L.spawn[0] - L.radar[0] - 2.2, L.spawn[1] - L.radar[1] - 1.4);
     const vp = on(makePlaque(M, [["VENERA 13", 52], ["1982", 40], ["funkte 2 Stunden lang", 30], ["Fotos zur Erde", 30]]), L.venera[0] + 2.6, L.venera[1] + 2.2);
     vp.rotation.y = Math.atan2(-vp.position.x, -vp.position.z);
     // Lava-Spalte: glühende Risse im dunklen Gestein
@@ -5302,14 +5616,14 @@ window.Surface = (function () {
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, hitze: L.hitze, druck: L.druck, tag: L.tag, groesse: L.groesse, abendstern: L.abendstern,
-      venera: L.venera, lava: L.lava, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
+      venera: L.radar, lava: L.lava, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { venera: [-2, 1] }); // Kreis vor dem Bildschirm des Peilers
     const npcs = addNpcs(B);
-    const colliders = [...common.colliders, [...L.hitze, 1.3], [...L.druck, 1.2], [...L.abendstern, 0.6], [L.abendstern[0] + 3.2, L.abendstern[1] + 1.5, 0.6], [...L.venera, 1.4], [...L.wegweiser, 0.3],
+    const colliders = [...common.colliders, [...L.hitze, 1.3], [...L.druck, 1.2], [...L.abendstern, 0.6], [L.abendstern[0] + 3.2, L.abendstern[1] + 1.5, 0.6], [...L.venera, 1.4], [...L.radar, 0.6], [...L.wegweiser, 0.3],
       [...L.tag, 1.5], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1], ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2]),
       ...lavaCol, ...npcs.map((n) => n.col)];
 
     return { ...B, ...common, L, board, press, can, dome, telescope, earthStar, moonStar, globeE: gE.userData.ball, globeV: gV.userData.ball, rack, npcs,
-      blink: common.station.userData.blink, anim, spin: [[radarHead, "y", 0.25]], stations, colliders, shadowCasters: [rocket, common.station] };
+      blink: common.station.userData.blink, anim, spin: [[radarHead, "y", 0.25], [finder.userData.head, "y", 1.1]], stations, colliders, shadowCasters: [rocket, common.station] };
   }
   // c = 0: dichte Wolken (so ist die Venus wirklich) … c = 1: Wolken weg – klarer Himmel, die Wärme kann entweichen
   function venusSky(c) {
@@ -5510,6 +5824,91 @@ window.Surface = (function () {
     put(g, new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 6), M.std({ color: srgb(0xf59e0b) })), 0, 0.34, 0.42, false).rotation.x = Math.PI / 2;
     return g;
   }
+  // ---------- Lebewesen für die Foto-Safari (vorn = +Z) ----------
+  // Reh: grast – den Hals senkt es immer wieder zum Gras (userData.neck)
+  function earthDeer(M, s = 1) {
+    const g = new THREE.Group(), fur = M.std({ color: srgb(0x9c6a3c), roughness: 0.92, envMapIntensity: 0.3 }), pale = M.std({ color: srgb(0xeee0c8), roughness: 0.9, envMapIntensity: 0.3 });
+    const dark = M.std({ color: srgb(0x2a1d14), roughness: 0.55 });
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 14), fur), 0, 0.74, 0).scale.set(0.44, 0.44, 0.95);
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), pale), 0, 0.8, -0.44); // heller „Spiegel“ hinten
+    for (const [x, z] of [[-0.12, 0.3], [0.12, 0.3], [-0.12, -0.3], [0.12, -0.3]]) {
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.028, 0.58, 7), fur), x, 0.33, z);
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.06, 7), dark), x, 0.03, z);
+    }
+    const neck = new THREE.Group(); neck.position.set(0, 0.86, 0.36); g.add(neck);
+    put(neck, new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.11, 0.44, 9), fur), 0, 0.17, 0.06).rotation.x = 0.45;
+    const head = new THREE.Group(); head.position.set(0, 0.38, 0.17); neck.add(head);
+    put(head, new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 10), fur), 0, 0, 0).scale.set(0.85, 0.85, 1.25);
+    put(head, new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.17, 9), fur), 0, -0.03, 0.15).rotation.x = Math.PI / 2;
+    put(head, new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), dark), 0, -0.03, 0.235, false);
+    for (const x of [-1, 1]) {
+      put(head, new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), dark), x * 0.066, 0.035, 0.07, false);
+      put(head, new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.13, 7), fur), x * 0.075, 0.12, -0.04).rotation.z = -x * 0.45;
+    }
+    g.scale.setScalar(s);
+    g.userData = { neck, seed: Math.random() * 10 };
+    return g;
+  }
+  // Schmetterling: zwei bunte Flügel, die schlagen (userData.wl / wr)
+  const wingTexCache = {};
+  function wingTex(col) {
+    if (wingTexCache[col]) return wingTexCache[col];
+    return (wingTexCache[col] = canvasTex(128, 128, (c) => {
+      c.clearRect(0, 0, 128, 128);
+      const wing = (path) => { c.beginPath(); path(); c.closePath(); c.fillStyle = "#1f1308"; c.fill(); c.save(); c.clip(); c.fillStyle = col; c.translate(-6, 0); path(); c.fill(); c.restore(); };
+      wing(() => { c.moveTo(4, 60); c.bezierCurveTo(30, 0, 112, -6, 122, 30); c.bezierCurveTo(124, 52, 80, 66, 4, 64); }); // Vorderflügel
+      wing(() => { c.moveTo(4, 66); c.bezierCurveTo(60, 66, 104, 84, 92, 112); c.bezierCurveTo(72, 128, 24, 112, 4, 72); }); // Hinterflügel
+      c.fillStyle = "#fff"; for (const [x, y, r] of [[110, 26, 4], [100, 18, 3], [84, 100, 3.5], [70, 108, 3]]) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
+    }));
+  }
+  function earthButterfly(col) {
+    const g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ map: wingTex(col), transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, toneMapped: false });
+    const geo = new THREE.PlaneGeometry(0.4, 0.4); geo.translate(0.2, 0, 0); geo.rotateX(-Math.PI / 2); // Gelenk am Körper, Flügel liegt flach
+    const wr = new THREE.Mesh(geo, mat), wl = new THREE.Mesh(geo, mat); wl.scale.x = -1;
+    g.add(wr, wl);
+    const body = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.01, 0.26, 6), new THREE.MeshBasicMaterial({ color: 0x1f1308 })), 0, 0, 0, false); body.rotation.x = Math.PI / 2;
+    g.userData = { wl, wr, o: Math.random() * 6 };
+    return g;
+  }
+  // große Blume (wie eine Sonnenblume), damit man sie auf dem Foto erkennt
+  function earthFlower(M, petal, h) {
+    const g = new THREE.Group(), green = M.std({ color: srgb(0x3f8f35), roughness: 0.9, envMapIntensity: 0.3 }), pm = M.std({ color: srgb(petal), roughness: 0.7, envMapIntensity: 0.3 });
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.026, h, 6), green), 0, h / 2, 0, false);
+    for (const s of [-1, 1]) { const l = put(g, new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), green), s * 0.07, h * 0.45, 0, false); l.scale.set(1.3, 0.2, 0.55); l.rotation.z = s * 0.4; }
+    const head = new THREE.Group(); head.position.y = h; head.rotation.x = 0.4; g.add(head);
+    put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.04, 14), M.std({ color: srgb(0x5a3410), roughness: 0.9 })), 0, 0, 0, false);
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2, p = put(head, new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), pm), Math.cos(a) * 0.12, 0, Math.sin(a) * 0.12, false); p.scale.set(0.55, 0.25, 1.4); p.rotation.y = Math.PI / 2 - a; }
+    return g;
+  }
+  // Frosch: sitzt am Ufer und hüpft ab und zu
+  function earthFrog(M) {
+    const g = new THREE.Group(), skin = M.std({ color: srgb(0x4caf50), roughness: 0.45, envMapIntensity: 0.7 }), belly = M.std({ color: srgb(0xd9e8a6), roughness: 0.6 });
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), skin), 0, 0.1, 0).scale.set(1, 0.62, 1.15);
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), belly), 0, 0.07, 0.05, false).scale.set(1, 0.5, 1);
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), skin), 0, 0.15, 0.12).scale.set(1.2, 0.7, 1);
+    for (const s of [-1, 1]) {
+      put(g, new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })), s * 0.075, 0.21, 0.14, false);
+      put(g, new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 6), new THREE.MeshBasicMaterial({ color: 0x111111 })), s * 0.08, 0.215, 0.18, false);
+      put(g, new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), skin), s * 0.15, 0.06, -0.08).scale.set(0.6, 0.5, 1.4); // Hinterbein
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.12, 6), skin), s * 0.11, 0.05, 0.17, false);
+    }
+    g.scale.setScalar(1.7); g.userData = { seed: Math.random() * 7 };
+    return g;
+  }
+  // Rotkehlchen auf einem Pfosten: dreht den Kopf und hüpft
+  function earthRobin(M) {
+    const g = new THREE.Group(), brown = M.std({ color: srgb(0x7a5a3a), roughness: 0.8, envMapIntensity: 0.3 }), red = M.std({ color: srgb(0xe8662a), roughness: 0.7, envMapIntensity: 0.3 });
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), brown), 0, 0.1, 0).scale.set(0.85, 0.85, 1.15);
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.072, 12, 10), red), 0, 0.09, 0.045, false);
+    const head = new THREE.Group(); head.position.set(0, 0.18, 0.06); g.add(head);
+    put(head, new THREE.Mesh(new THREE.SphereGeometry(0.058, 12, 10), brown), 0, 0, 0);
+    put(head, new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), red), 0, -0.02, 0.03, false);
+    put(head, new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.05, 6), new THREE.MeshStandardMaterial({ color: 0x2b2118 })), 0, 0, 0.07, false).rotation.x = Math.PI / 2;
+    for (const s of [-1, 1]) put(head, new THREE.Mesh(new THREE.SphereGeometry(0.011, 6, 5), new THREE.MeshBasicMaterial({ color: 0x050505 })), s * 0.04, 0.015, 0.035, false);
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.015, 0.13), brown), 0, 0.1, -0.13).rotation.x = -0.5;
+    g.scale.setScalar(2.1); g.userData = { head, seed: Math.random() * 5 };
+    return g;
+  }
   // Vogelschwarm: kleine V-förmige Vögel, die Kreise ziehen
   function earthBirds(n) {
     const g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: 0x1f2937, side: THREE.DoubleSide, fog: false });
@@ -5545,7 +5944,7 @@ window.Surface = (function () {
     station: [0, 84], tag: [24, 70], groesse: [0, 77], meet: [16, 26],
     route: {
       wegweiser: [[4, 2.5]], waage: [[-6, 8], [-11, 9]], wasser: [[-18, 24], [-20, 34]], wald: [[-26, 42], [-30, 46]],
-      mond: [[-32, 54], [-26.5, 60.5]], groesse: [[-18, 70], [-6, 72], [-3, 73]], tag: [[10, 72], [19, 67.5]],
+      mond: [[-32, 54], [-26.5, 60.5]], groesse: [[-18, 70], [-6, 72], [-3, 73]], tag: [[-30, 56], [-18, 70], [6, 73], [19, 67.5]],
       stern: [[24, 58], [27, 46]], luft: [[24, 30], [21.5, 23.5]], wand: [[24, 40], [20, 62], [4, 78]], rakete: [[14, 62], [24, 40], [16, 10], [-4, 5]]
     }
   };
@@ -5688,6 +6087,21 @@ window.Surface = (function () {
     const sail = new THREE.BufferGeometry(); sail.setAttribute("position", new THREE.Float32BufferAttribute([0, 0.5, 0.3, 0, 3.1, 0.3, 0, 0.5, -1.6], 3)); sail.computeVertexNormals();
     put(boat, new THREE.Mesh(sail, new THREE.MeshStandardMaterial({ color: srgb(0xef4444), side: THREE.DoubleSide })), 0, 0, 0);
     const ducks = [0, 1, 2, 3].map(() => { const d = earthDuck(M); scene.add(d); return d; });
+    // Lebewesen für die Foto-Safari
+    const MC = [L.wald[0] + 12, L.wald[1] - 13]; // Blumenwiese zwischen See und Wald
+    const flowers = [0xfacc15, 0xf472b6, 0xef4444, 0xa78bfa, 0xfacc15, 0xfb923c, 0xf472b6, 0xffffff, 0xfacc15].map((c, i) => {
+      const a = hash2(i, 31) * Math.PI * 2, r = 0.8 + hash2(i, 32) * 2.6, f = earthFlower(M, c, 0.75 + hash2(i, 33) * 0.4);
+      f.rotation.y = hash2(i, 34) * 6; return on(f, MC[0] + Math.cos(a) * r, MC[1] + Math.sin(a) * r);
+    });
+    const flies = ["#f97316", "#3b82f6", "#facc15"].map((c) => { const b = earthButterfly(c); scene.add(b); return b; });
+    const doe = on(earthDeer(M), L.wald[0] - 2, L.wald[1] - 14), fawn = on(earthDeer(M, 0.68), L.wald[0] - 0.4, L.wald[1] - 15.6); // auf der Wiese vor dem Wald
+    for (const d of [doe, fawn]) d.rotation.y = Math.atan2(MC[0] - d.position.x, MC[1] - d.position.z) + 0.5;
+    const frogAt = [L.wasser[0] + 1.6, L.wasser[1] + 0.8], frog = new THREE.Group(), frogY = Math.max(height(...frogAt), -0.62);
+    frog.add(earthFrog(M)); frog.position.set(frogAt[0], frogY, frogAt[1]); frog.rotation.y = Math.atan2(-frogAt[0], -frogAt[1]) + Math.PI; scene.add(frog);
+    if (height(...frogAt) < -0.62) { const pad = put(frog, new THREE.Mesh(new THREE.CircleGeometry(0.42, 18, 0.3, 5.9), M.std({ color: srgb(0x3f8f35), side: THREE.DoubleSide, roughness: 0.6 })), 0, 0.01, 0, false); pad.rotation.x = -Math.PI / 2; } // Seerosenblatt
+    const postAt = [MC[0] + 2.5, MC[1] + 6.5], post = on(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1.25, 8), wood(M, 0.3, 1)), ...postAt, 0.62);
+    post.castShadow = true;
+    const robin = earthRobin(M); robin.position.set(postAt[0], post.position.y + 0.63, postAt[1]); robin.rotation.y = Math.atan2(-postAt[0], -postAt[1]); scene.add(robin);
     // Windräder am Horizont, Vögel am Himmel
     const turbines = [[140, 160], [175, 120], [110, 195]].map(([x, z]) => { const t = earthTurbine(M, 36); t.position.set(x, height(x, z) - 1, z); t.rotation.y = -2.4; scene.add(t); return t; });
     const birds = earthBirds(7); scene.add(birds);
@@ -5699,6 +6113,15 @@ window.Surface = (function () {
       boat.position.set(lx + Math.cos(t * 0.04) * 8, -0.55 + Math.sin(t * 1.3) * 0.05, lz + Math.sin(t * 0.04) * 6); boat.rotation.y = -t * 0.04; boat.rotation.z = Math.sin(t * 0.9) * 0.05;
       ducks.forEach((d, i) => { const a = t * 0.08 + i * 0.5; d.position.set(lx - 6 + Math.cos(a) * 5 + i * 0.6, -0.62, lz + Math.sin(a) * 4 + i * 0.4); d.rotation.y = -a; });
       for (const tb of turbines) tb.userData.rotor.rotation.z += dt * 0.9;
+      for (const d of [doe, fawn]) { const u = d.userData, ph = (t * 0.16 + u.seed) % 1; u.neck.rotation.x = 1.25 * smooth(0.05, 0.15, ph) * (1 - smooth(0.62, 0.72, ph)); } // grasen
+      flies.forEach((b, i) => { // Schmetterlinge flattern über der Wiese
+        const u = b.userData, a = t * (0.3 + i * 0.05) + u.o, r = 1.4 + i * 0.6, x = MC[0] + Math.cos(a) * r, z = MC[1] + Math.sin(a * 1.3) * r;
+        b.position.set(x, height(x, z) + 0.9 + 0.35 * Math.sin(t * 1.7 + u.o) + 0.08 * Math.sin(t * 9 + u.o), z);
+        b.rotation.y = Math.atan2(-Math.sin(a) * r, Math.cos(a * 1.3) * r * 1.3);
+        const f = 0.85 + Math.sin(t * 15 + u.o) * 0.6; u.wr.rotation.z = f; u.wl.rotation.z = -f;
+      });
+      { const u = frog.children[0].userData, ph = (t / 6 + u.seed) % 1; frog.children[0].position.y = ph < 0.08 ? Math.sin((ph / 0.08) * Math.PI) * 0.35 : 0; } // Frosch hüpft
+      { const u = robin.userData, ph = (t / 4 + u.seed) % 1; u.head.rotation.y = Math.sin(t * 1.3 + u.seed) * 0.8 * (ph > 0.3 ? 1 : 0); robin.position.y = post.position.y + 0.63 + (ph < 0.06 ? Math.sin((ph / 0.06) * Math.PI) * 0.12 : 0); }
       for (const b of birds.userData.birds) { const a = t * 0.18 + b.o; b.b.position.set(Math.cos(a) * b.r + 10, b.h + Math.sin(t * 2 + b.o) * 0.6, 40 + Math.sin(a) * b.r); b.b.rotation.y = -a; b.b.scale.y = 1.4 * (0.6 + 0.4 * Math.sin(t * 8 + b.o)); }
       for (const c of common.station.userData.flags) { const p = c.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) + 0.9; p.setZ(i, Math.sin(x * 3 - t * 4) * 0.12 * x); } p.needsUpdate = true; }
     }];
@@ -5711,7 +6134,13 @@ window.Surface = (function () {
     const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 0.4],
       [L.groesse[0] - 1.6, L.groesse[1], 1], [L.groesse[0], L.groesse[1], 1], [L.groesse[0] + 1.6, L.groesse[1], 1]];
 
-    return { ...B, ...common, L, water, trees, clouds, cloudMat: white, moon, telescope, meteor, fire, rack, stations, colliders, rollRoof, anim, npcs, shadowCasters: [rocket, common.station, trees, rollRoof] };
+    // Lebewesen: Art, Objekt, Höhe der Bildmitte, Größe (für das Teleobjektiv), größte Foto-Entfernung
+    const life = [...ducks.map((o) => ({ kind: "ente", obj: o, h: 0.3, size: 0.7 })), ...trees.children.map((o) => ({ kind: "baum", obj: o, h: 2.6, size: 5, far: 26 })),
+      { kind: "reh", obj: doe, h: 0.85, size: 1.5 }, { kind: "reh", obj: fawn, h: 0.6, size: 1.1 }, ...flies.map((o) => ({ kind: "schmetterling", obj: o, h: 0, size: 0.9 })),
+      ...flowers.map((o) => ({ kind: "blume", obj: o, h: 0.85, size: 1 })), { kind: "frosch", obj: frog, h: 0.25, size: 0.7 }, { kind: "vogel", obj: robin, h: 0.25, size: 0.6 },
+      ...npcs.map((n) => ({ kind: "mensch", obj: n.obj, h: 1.1, size: 2.2 }))]; // Jana und Nora: Menschen sind auch Lebewesen
+    colliders.push([...postAt, 0.2]);
+    return { ...B, ...common, L, water, trees, jetty, clouds, cloudMat: white, moon, telescope, meteor, fire, rack, stations, colliders, rollRoof, anim, npcs, life, shadowCasters: [rocket, common.station, trees, rollRoof] };
   }
   // Himmel der Erde: air = wie viel Luft (1 = normal, 0 = keine, wie auf dem Mond); dazu die Tageszeit aus der Sonnenhöhe
   function erdeSky(air) {
@@ -6126,7 +6555,8 @@ window.Surface = (function () {
     S.active = true;
     Sound.engine(0.35);
     const rest = cfg.discoveries.length - foundCount();
-    setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : foundCount() === 0 ? cfg.radio.start : cfg.radio.back, { rest }, cfg.flight && cfg.flight.who); }, 700);
+    if (rest === 0 && !quizDone) setTimeout(() => { if (S.active) quizSoon(); }, 1500);
+    else setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : foundCount() === 0 ? cfg.radio.start : cfg.radio.back, { rest }, cfg.flight && cfg.flight.who); }, 700);
   }
   function updateProbe(dt, elapsed) {
     const p = probe, w = world, C = PROBES[bodyId], c = w.camera;
@@ -6248,7 +6678,9 @@ window.Surface = (function () {
       reset() {
         marsSky(0); resetMagnet();
         world.telescope.visible = true;
-        world.everest.visible = world.zugspitze.visible = world.roverGoal.visible = world.drill.userData.ice.visible = false;
+        world.everest.visible = world.zugspitze.visible = world.drill.userData.ice.visible = false;
+        for (const s of world.samples) s.mk.visible = false;
+        world.rover.userData.cells.color.copy(world.rover.userData.clean);
         world.heli.position.y = world.heliY;
         world.drill.userData.rod.position.y = ROD_Y;
         const [x, z] = world.L.roverStart;
@@ -6256,7 +6688,7 @@ window.Surface = (function () {
         world.observatory.userData.open = world.observatory.userData.target = 0; world.observatory.userData.set(0);
       },
       update(dt, busy, elapsed) {
-        updateDevil(elapsed);
+        updateDevil(dt, elapsed);
         updatePatrol(dt);
         updateNpcs(dt, elapsed, busy);
         updateShuttle(dt);
@@ -6306,8 +6738,15 @@ window.Surface = (function () {
         world.telescope.visible = true;
         world.globeE.rotation.y = world.globeV.rotation.y = 0;
       },
-      update(dt, busy, elapsed) { updateLife(dt, elapsed, busy); },
-      actions: { hitze: startHeat, druck: startPress, tag: startSpin, groesse: startGuess, abendstern: startEveningStar }
+      update(dt, busy, elapsed) {
+        updateLife(dt, elapsed, busy);
+        const want = chal && chal.kind === "radar" ? 1 : 0, k = world.radarFog || 0;
+        if (k !== want) { // Dunst zieht zu bzw. wird wieder dünner
+          world.radarFog = Math.abs(want - k) < 0.01 ? want : k + (want - k) * Math.min(1, dt * 0.8);
+          world.scene.fog.near = 18 - 15 * world.radarFog; world.scene.fog.far = 190 - 162 * world.radarFog;
+        }
+      },
+      actions: { hitze: startHeat, druck: startPress, tag: startSpin, groesse: startGuess, abendstern: startEveningStar, venera: startRadar }
     },
     erde: {
       build: buildErde,
@@ -6321,7 +6760,7 @@ window.Surface = (function () {
         const [sx, sz] = world.L.see;
         world.clouds.rotation.y += dt * 0.004;
       },
-      actions: { luft: startAir, stern: startShooting, tag: startDay, groesse: startGuess, mond: startMoonScope }
+      actions: { luft: startAir, stern: startShooting, tag: startDay, groesse: startGuess, mond: startMoonScope, wald: startSafari }
     }
   };
 

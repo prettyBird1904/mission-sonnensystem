@@ -85,9 +85,10 @@
     Game.save();
     UI.updateHUD();
   }
+  // [entdeckt, insgesamt] – gezählt wird nur, was es dort heute zu entdecken gibt (alte Spielstände können mehr enthalten)
   Game.planetFound = (id) => {
     const sf = D.surfaces[id], f = (Game.state.found && Game.state.found[id]) || {};
-    return sf ? [Object.keys(f).length, sf.discoveries.length] : null;
+    return sf ? [sf.discoveries.filter((d) => f[d.key]).length, sf.discoveries.length] : null;
   };
   Game.planetDone = (id) => { const p = Game.planetFound(id); return !p || p[0] >= p[1]; };
   Game.onPlanetDone = (id) => {
