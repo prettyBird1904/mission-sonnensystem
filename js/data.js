@@ -560,8 +560,34 @@ window.SPACE_DATA = {
     merkur: {
       gravity: 3.7, jump: 0.3,
       temp: { sun: 430, shade: -180, sunText: "☀️ Sonne – heißer als ein Backofen!", shadeText: "❄️ Schatten – eiskalt!" },
+      // Kofi führt erst durch die glühende Sonne oben, dann hinab in den Krater, in dem die Station im Schatten liegt
+      guide: {
+        npc: 0, order: ["sprung", "wegweiser", "sonde", "waage", "sonne", "temperatur", "eis", "jahr", "groesse", "krater"],
+        hello: "Hallo {name}! Schnell aus der Sonne – ich hole dich ab!",
+        welcome: "Willkommen auf dem Merkur! Ich bin Kofi. Unsere Station liegt unten in einem Krater, wo nie die Sonne hinkommt. Vorher zeige ich dir, wie heiß es oben ist. Spring erst mal!",
+        jump: "Na los, spring! Der Merkur ist klein, aber er zieht trotzdem ganz ordentlich.",
+        wait: "Hier lang, {name}! Ich warte auf dich.",
+        next: "Klasse! Weiter geht's – als Nächstes: {ziel}.",
+        arrive: {
+          wegweiser: "Lauf mal zur Anzeigetafel – wie weit ist die Sonne wohl weg?",
+          sonde: "Hier liegen die Reste einer Raumsonde. Lauf ganz nah heran!",
+          waage: "Im Schatten-Platz steht unsere Waage. Ohne das Dach wäre sie in der Sonne glühend heiß. Stell dich drauf!",
+          sonne: "Oben auf dem Sonnenturm steht ein Fernrohr mit dunklem Filter. Schau, wie riesig die Sonne von hier aus ist!",
+          temperatur: "Stell dich in den Schatten von dem großen Felsen und schau auf dein Thermometer!",
+          eis: "Wir sind unten im Krater. Hierhin kommt nie ein Sonnenstrahl. Siehst du das Glitzern? Lauf hin!",
+          jahr: "Hier kannst du ein Rennen um die Sonne starten: Merkur gegen Erde. Wer gewinnt?",
+          groesse: "Schau dir die Kugeln an: Wie groß ist der Merkur eigentlich?",
+          krater: "Zum Schluss das Einschlag-Messfeld! Lass einen Brocken aus dem All fallen und schau, was passiert.",
+          wand: "An der Wand unserer Station siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist deine Rakete. Steig über die Leiter ein, wenn du weiterfliegen willst. Gute Reise, {name}!"
+        },
+        quiz: "Du hast alles entdeckt! Komm mit zur Station – die Bodenstation hat ein paar Fragen an dich.",
+        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
+        again: "🧭 Kofi, zeig mir den Weg"
+      },
       npcs: [
-        { name: "Forscher Kofi", color: "#b45309", path: [[-6, 48], [6, 46], [2, 38]],
+        { name: "Forscher Kofi", color: "#b45309", path: [[-6, 58], [6, 56], [2, 52]],
           hello: "Hallo {name}! Ich bin Kofi. Gut, dass du einen Raumanzug trägst – in der Sonne ist es hier heißer als in einem Backofen!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Du hast alles entdeckt! Jetzt weißt du mehr über den Merkur als fast alle Menschen.",
@@ -600,7 +626,7 @@ window.SPACE_DATA = {
         krater:     { label: "Einschlag-Messfeld", hint: "Probier den Einschlag-Versuch am Messpult aus", action: "☄️ Einschlag-Versuch starten" },
         jahr:       { label: "Planeten-Rennen", hint: "Geh zur Merkurstation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:    { label: "Größenvergleich", hint: "Geh zur Merkurstation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
-        eis:        { label: "Eis im Krater", hint: "Such ein ✨ im tiefen Krater hinter deiner Rakete", again: "🧊 Nochmal ansehen", small: true, auto: 2.8 },
+        eis:        { label: "Eis im Krater", hint: "Such ein ✨ unten im Krater, wo nie die Sonne hinscheint", again: "🧊 Nochmal ansehen", small: true, auto: 2.8 },
         sonde:      { label: "Absturzstelle", hint: "Such ein ✨ hinter deiner Rakete – dort liegt eine abgestürzte Raumsonde", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
         wegweiser:  { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
@@ -762,6 +788,41 @@ window.SPACE_DATA = {
     venus: {
       gravity: 8.87, jump: 0.13,
       temp: { sun: 465, shade: 465, sunText: "🔥 Überall glühend heiß!", shadeText: "🔥 Auch im Schatten glühend heiß!" },
+      // Sara kommt (wie das Kind) im Panzeranzug aus dem Luftschiff herunter und führt entlang der Leitlichter
+      npcs: [
+        { name: "Pilotin Sara", color: "#f97316", path: [[-20, 64], [-8, 64], [-14, 60]],
+          hello: "Hallo {name}! Hier ist Sara. Ich sehe dich kaum im Dunst – bleib stehen, ich komme!",
+          hint: "Warst du schon bei „{ziel}“? Folge den Leitlichtern!",
+          done: "Du hast alles entdeckt! Jetzt kennst du den heißesten Planeten.",
+          facts: ["Wir wohnen oben im Luftschiff, 50 Kilometer hoch in den Wolken. Dort ist es so warm wie in einem Zimmer!",
+            "Unsere Anzüge sind wie kleine Panzer. Ohne sie würde uns die dicke Luft zerquetschen.",
+            "Die Lichter am Weg brauchen wir, weil man im Dunst kaum 100 Meter weit sieht."] }
+      ],
+      guide: {
+        npc: 0, order: ["sprung", "wegweiser", "venera", "waage", "hitze", "druck", "lava", "abendstern", "tag", "groesse"],
+        hello: "Hallo {name}! Hier ist Sara. Ich sehe dich kaum im Dunst – bleib stehen, ich komme!",
+        welcome: "Willkommen auf der Venus! Ich bin Sara und wie du im Spezialanzug unterwegs. Siehst du die Leitlichter? Sie führen uns durch den Dunst bis zum Außenposten auf dem Vulkan. Spring erst mal – merkst du was?",
+        jump: "Spring mal! Mit dem schweren Anzug kommst du kaum vom Boden weg.",
+        wait: "Hier lang, {name}! Folge den Lichtern zu mir.",
+        next: "Gut gemacht! Weiter an den Leitlichtern entlang – als Nächstes: {ziel}.",
+        arrive: {
+          wegweiser: "Lauf mal zur Anzeigetafel – wie heiß ist es hier?",
+          venera: "Da steht eine alte Landesonde aus dem Jahr 1982. Lauf ganz nah heran!",
+          waage: "Hier steht eine Waage. Wie viel wiegst du wohl auf der Venus?",
+          hitze: "Das ist der Klima-Messturm. Was passiert wohl, wenn wir die Wolken wegschieben?",
+          druck: "Am Druck-Prüfstand siehst du, wie stark die Venusluft drückt. Achtung, gleich knirscht es!",
+          lava: "Vorsicht – ein Lavafluss! Wir gehen über die Brücke. Schau dir das Glühen an!",
+          abendstern: "Mit Radar und Infrarot schauen wir durch die Wolken. Such die Erde am Himmel!",
+          tag: "Hier drehen sich zwei Globen: Erde und Venus. Wer ist schneller?",
+          groesse: "Schau dir die Kugeln an: Ist die Venus größer oder kleiner als die Erde?",
+          wand: "Das ist unser Außenposten auf dem Vulkan. An der Wand siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist deine Rakete. Gute Reise, {name} – und raus aus der Hitze!"
+        },
+        quiz: "Du hast alles entdeckt! Komm zur Wand vom Außenposten – die Bodenstation hat Fragen an dich.",
+        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        alone: "Alles klar, erkunde allein! Folge einfach den Leitlichtern. Wenn du mich brauchst, komm zu mir.",
+        again: "🧭 Sara, zeig mir den Weg"
+      },
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Fast wie zu Hause", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 13 Zentimeter", zeit: "0,3" },
           text: "Nur {hoehe} – mit dem schweren Spezialanzug kommst du kaum vom Boden weg! Die Venus ist fast so groß wie die Erde und zieht fast genauso stark an dir. Man nennt sie deshalb auch die Schwester der Erde." },
@@ -793,7 +854,7 @@ window.SPACE_DATA = {
         groesse:    { label: "Größenvergleich", hint: "Geh zum Außenposten und schau dir die Kugeln an", action: "📏 Größe schätzen" },
         abendstern: { label: "Radar & Infrarot", hint: "Schau durch das Spezial-Fernrohr neben der Radarschüssel", action: "🔭 Durchschauen" },
         venera:     { label: "Venera 13", hint: "Such ein ✨ hinter deiner Rakete – dort steht eine alte Landesonde", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
-        lava:       { label: "Lava-Spalte", hint: "Such das Glühen hinter deiner Rakete", again: "🌋 Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
+        lava:       { label: "Lavafluss", hint: "Folge den Leitlichtern bis zur Brücke über den Lavafluss", again: "🌋 Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
         wegweiser:  { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },

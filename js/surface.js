@@ -3956,17 +3956,25 @@ window.Surface = (function () {
     return c;
   }
 
+  // Merkur: Die Station liegt unten in einem großen Krater am Pol – dort ist es immer schattig und kühl, im ewigen Schatten liegt Eis.
+  // Oben in der glühenden Sonne: Sonnenturm, Absturzstelle von MESSENGER, Schatten-Platz und das Einschlag-Messfeld.
+  const MERKUR_CRATER = [0, 72, 40, 10];
   const MERKUR_LAYOUT = {
-    spawn: [-6.9, 4], waage: [4, 27], sonne: [-14, 22], boulder: [22, 34], krater: [-30, 38], kraterZiel: [-44, 52],
-    wegweiser: [14, 4], sonde: [-22, -16], eis: [30, -36], // eis liegt mitten in einem tiefen Krater
-    station: [2, 58], jahr: [-4, 51], groesse: [8, 51]
+    spawn: [-6.9, 4], waage: [-26, 12], sonne: [-20, 37], boulder: [-42, 40], krater: [30, 44], kraterZiel: [44, 58],
+    wegweiser: [8, 4], sonde: [-24, -16], eis: [-26, 70], // Eis im ewigen Schatten am Kraterboden
+    station: [0, 66], jahr: [-4, 59], groesse: [8, 59], meet: [-16, 20],
+    route: {
+      wegweiser: [[5.5, 2.5]], sonde: [[-6, -6], [-19, -13]], waage: [[-24, -4], [-22, 9]], sonne: [[-22, 20], [-16, 33]],
+      temperatur: [[-26, 38], [-27, 43]], eis: [[-27, 52], [-23, 66]], jahr: [[-12, 60], [-7, 55]], groesse: [[4, 55]],
+      krater: [[14, 56], [24, 45], [27, 41]], wand: [[16, 52], [3, 60]], rakete: [[10, 48], [8, 30], [2, 6]]
+    }
   };
   function buildMerkur() {
     const L = { ...MERKUR_LAYOUT };
     L.shadowSpot = [L.boulder[0] + SHADOW_DIR.x * 12, L.boulder[1] + SHADOW_DIR.z * 12];
-    const craters = [[...L.eis, 13, 3.2], [...L.sonde, 5, 0.9], [70, 10, 16, 2.4], [-70, -30, 18, 2.8], [-85, 60, 14, 2], [60, 95, 12, 1.8], [-20, 105, 10, 1.4],
+    const craters = [MERKUR_CRATER, [...L.eis, 6, 1.5], [...L.sonde, 5, 0.9], [70, 10, 16, 2.4], [-70, -30, 18, 2.8], [-85, 60, 14, 2], [60, 95, 12, 1.8], [-20, 105, 10, 1.4],
       [100, -60, 20, 3], [-48, 10, 6, 0.9], [52, 44, 5, 0.8], [0, -80, 14, 2.2], [-100, 10, 9, 1.3], [40, -85, 8, 1.2]];
-    const flats = [[0, 0, 11], [...L.station, 20], [L.station[0], L.station[1] + 16, 22], [...L.waage, 5], [...L.sonne, 5], [...L.boulder, 7], [...L.shadowSpot, 8], [...L.krater, 5], [...L.kraterZiel, 7]];
+    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 16, 20, "auto"], [...L.waage, 5], [...L.sonne, 4, "auto", 3], [...L.boulder, 7, "auto"], [...L.shadowSpot, 5, "auto"], [...L.krater, 5, "auto"], [...L.kraterZiel, 7, "auto"]];
     const B = buildBase({
       height: makeHeight(craters, flats, 80),
       // keine Luft: schwarzer Himmel – und eine riesige, grelle Sonne (Merkur ist ihr am nächsten)
@@ -4034,11 +4042,10 @@ window.Surface = (function () {
       waage: L.waage, temperatur: L.shadowSpot, sonne: L.sonne, krater: L.krater, jahr: L.jahr, groesse: L.groesse,
       eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
     const npcs = addNpcs(B);
-    const brown = [168, 158, 144];
-    for (const p of [[[0, 5], [L.station[0], L.station[1] - 9]], [[-3, 5], [L.sonne[0] + 2, L.sonne[1] - 3]], [[2, 6], [L.waage[0], L.waage[1] - 3.5]],
-      [[L.sonne[0] - 2, L.sonne[1] + 2], [kx + 2, kz - 2]]]) makePath(B, p, 1.8, brown);
+    drawTour(B, L, [168, 158, 144], 1.8); // der Rundgang mit Kofi: oben in der Sonne, dann hinab in den schattigen Krater
+    on(makeSignBoard(M, "⬇️ ZUR STATION IM KRATER", "#b45309", 3), -30, 46).rotation.y = Math.atan2(30, -46);
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x7a7066, roughness: 0.95, vertexColors: true }); rockMat.userData.natural = true;
-    const clusters = [[26, 14, 5], [-40, 20, 5], [38, 56, 5], [-14, -10, 4], [14, -24, 4]];
+    const clusters = [[26, 14, 5], [-46, 4, 5], [52, 30, 5], [-6, -24, 4], [24, -22, 4]];
     clusters.forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 19 + 5));
     common.station.updateMatrixWorld(true);
     const wall = [];
@@ -4546,25 +4553,35 @@ window.Surface = (function () {
     return c;
   }
 
+  // Venus: Man sieht kaum etwas – Leitlichter zeigen den Weg durch den Dunst. Er führt an den Messstationen vorbei,
+  // über eine Brücke über einen Lavafluss und hinauf auf einen „Pfannkuchen-Vulkan“ (flache, runde Lava-Kuppel), auf dem der Außenposten steht.
+  const VENUS_DOME = [-14, 88, 36, 5];
+  const VENUS_LAVA_Z = (x) => 50 + Math.sin(x * 0.08) * 3; // Lavafluss quer zur Route
   const VENUS_LAYOUT = {
-    spawn: [-6.9, 4], waage: [-12, 20], hitze: [10, 18], druck: [24, 30], abendstern: [-24, 34],
-    venera: [20, -20], lava: [-30, -18], wegweiser: [14, 4],
-    station: [0, 56], tag: [-6, 49], groesse: [6, 49]
+    spawn: [-6.9, 4], waage: [24, 10], hitze: [28, 30], druck: [16, 40], abendstern: [6, 66],
+    venera: [18, -14], lava: [4, 50], wegweiser: [8, 5],
+    station: [-14, 74], tag: [-20, 67], groesse: [-8, 67], meet: [20, 24],
+    route: {
+      wegweiser: [[5.5, 2.5]], venera: [[10, -4], [15, -11]], waage: [[24, -2], [27.5, 6]], hitze: [[30, 18], [31.5, 26]],
+      druck: [[26, 38], [19.5, 43]], lava: [[8, 46], [4, 46.5]], abendstern: [[4, 54], [3.5, 61.5]],
+      tag: [[-6, 62], [-14, 61.5]], groesse: [[-6, 62.5]], wand: [[-11, 69]], rakete: [[4, 60], [4, 46], [12, 30], [4, 8], [-4, 5]]
+    }
   };
+  function venusDome(x, z) { return VENUS_DOME[3] * smooth(VENUS_DOME[2], VENUS_DOME[2] - 8, Math.hypot(x - VENUS_DOME[0], z - VENUS_DOME[1])) - 1.1 * smooth(4, 1.5, Math.abs(z - VENUS_LAVA_Z(x))) * smooth(48, 40, Math.abs(x)); } // Lava fließt in einer Rinne
   const VENUS_SKY = new THREE.Color(0xd9a441), VENUS_CLEAR = new THREE.Color(0x05070f);
   const VENUS_EARTH_DIR = new V(0.35, 0.55, 0.75).normalize();
   function buildVenus() {
     const L = { ...VENUS_LAYOUT };
     const craters = [[70, 30, 14, 1.2], [-80, -50, 18, 1.6], [50, -80, 12, 1.2], [-70, 80, 12, 1]];
-    const flats = [[0, 0, 11], [...L.station, 20], [L.station[0], L.station[1] + 16, 22], [...L.waage, 3], [...L.hitze, 5], [...L.druck, 5], [...L.abendstern, 6], [...L.venera, 4]];
+    const flats = [[0, 0, 11], [...L.station, 20, VENUS_DOME[3]], [L.station[0], L.station[1] + 16, 22, VENUS_DOME[3]], [...L.waage, 3], [...L.hitze, 5], [...L.druck, 5], [...L.abendstern, 6, VENUS_DOME[3], 4], [...L.venera, 4], [L.lava[0], 50, 9, 0, 6]];
     const B = buildBase({
-      height: makeHeight(craters, flats, 160),
+      height: makeHeight(craters, flats, 160, venusDome),
       // dichte, giftige Wolken: gelb-oranger Dunst, man sieht kaum 100 Meter weit, die Sonne ist nur ein heller Schein
       sky: VENUS_SKY.getHex(), fog: [18, 190], stars: false, sunSize: 190,
       ground: 0x8a6a48, rock: 0x5a4632,
       tint: (x, z) => { const m = 0.6 + 0.35 * fbm2(x * 0.03 + 4, z * 0.03); return [m, m * 0.92, m * 0.8]; },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.hitze, 4], [...L.druck, 4], [...L.abendstern, 4],
-        [...L.venera, 3], [...L.lava, 5], [...L.wegweiser, 3]],
+        [...L.venera, 3], [...L.lava, 5], [...L.wegweiser, 3], [L.lava[0] - 20, 50, 12], [L.lava[0] + 20, 50, 12]],
       ambient: [0xffc070, 0.75], hemi: [0xffd28a, 0x5a3a1a, 0.4], sun: [0xffe2b0, 0.5],
       dust: ["rgba(200,160,100,1)", "rgba(170,130,80,0.9)"]
     });
@@ -4615,13 +4632,32 @@ window.Surface = (function () {
     const vp = on(makePlaque(M, [["VENERA 13", 52], ["1982", 40], ["funkte 2 Stunden lang", 30], ["Fotos zur Erde", 30]]), L.venera[0] + 2.6, L.venera[1] + 2.2);
     vp.rotation.y = Math.atan2(-vp.position.x, -vp.position.z);
     // Lava-Spalte: glühende Risse im dunklen Gestein
-    const lava = new THREE.Group(), glow = new THREE.MeshBasicMaterial({ color: 0xff6a1a, fog: false });
-    for (let i = 0; i < 6; i++) {
-      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.22 + hash2(i, 1) * 0.2, 0.04, 1.5), glow);
-      seg.position.set((hash2(i, 2) - 0.5) * 0.9, 0.03, (i - 2.5) * 1.25); seg.rotation.y = (hash2(i, 3) - 0.5) * 0.9; lava.add(seg);
+    // Lavafluss quer zum Weg – glühende Bahn mit dunkler Kruste, darüber eine Metallbrücke
+    const lavaTex = canvasTex(256, 64, (c) => { c.fillStyle = "#ff6a1a"; c.fillRect(0, 0, 256, 64); for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(60,20,5,${0.4 + hash2(i, 1) * 0.5})`; c.beginPath(); c.ellipse(hash2(i, 2) * 256, hash2(i, 3) * 64, 6 + hash2(i, 4) * 18, 3 + hash2(i, 5) * 6, 0, 0, 7); c.fill(); } c.fillStyle = "rgba(255,230,120,0.6)"; for (let i = 0; i < 30; i++) c.fillRect(hash2(i, 6) * 256, hash2(i, 7) * 64, 10, 2); });
+    lavaTex.wrapS = THREE.RepeatWrapping; lavaTex.repeat.set(8, 1);
+    const lavaPts = []; for (let x = -46; x <= 40; x += 2) lavaPts.push([x, VENUS_LAVA_Z(x)]);
+    const lavaRiver = makePath(B, lavaPts, 3.4); lavaRiver.material = new THREE.MeshBasicMaterial({ map: lavaTex, fog: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    const bridge = new THREE.Group(); on(bridge, L.lava[0], VENUS_LAVA_Z(L.lava[0]), 0.35);
+    put(bridge, new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.2, 6), venusMetal(M, 1, 2)), 0, 0, 0);
+    for (const s of [-1.25, 1.25]) { put(bridge, new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 6), M.orange), s, 0.5, 0); }
+    on(makeSignBoard(M, "⚠️ LAVA – NUR ÜBER DIE BRÜCKE!", "#b91c1c", 3.2), L.lava[0] + 4.5, VENUS_LAVA_Z(L.lava[0]) - 4).rotation.y = Math.atan2(-L.lava[0], -L.lava[1]);
+    // Leitlichter: alle 7 Meter ein Pfosten mit Lampe links vom Weg – im dichten Dunst sieht man sonst den Weg nicht
+    const beacons = [], tour = [[L.spawn[0] + 2, L.spawn[1] + 2]];
+    for (const k of [...cfg.guide.order, "wand"]) for (const p of (L.route[k] || [])) tour.push(p);
+    const lampMat = new THREE.MeshBasicMaterial({ color: srgb(0xffd28a), toneMapped: false, fog: false });
+    let acc = 0;
+    for (let i = 0; i < tour.length - 1; i++) {
+      const [ax, az] = tour[i], [bx, bz] = tour[i + 1], len = Math.hypot(bx - ax, bz - az);
+      for (let s = 7 - acc; s < len; s += 7) {
+        const f = s / len, x = ax + (bx - ax) * f + ((bz - az) / len) * 1.7, z = az + (bz - az) * f - ((bx - ax) / len) * 1.7;
+        const b = on(new THREE.Group(), x, z);
+        put(b, new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.2, 6), M.metal), 0, 0.6, 0);
+        beacons.push(put(b, new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), lampMat), 0, 1.25, 0, false));
+        acc = len - s;
+      }
+      if (len < 7 - acc) acc += len;
     }
-    on(lava, ...L.lava);
-    on(makeSignBoard(M, "⚠️ LAVA – HEISS!", "#b91c1c", 2.2), L.lava[0] + 3.5, L.lava[1] + 3).rotation.y = Math.atan2(-L.lava[0], -L.lava[1]);
+    const lavaCol = []; for (let x = -46; x <= 40; x += 2.6) if (Math.abs(x - L.lava[0]) > 1.6) lavaCol.push([x, VENUS_LAVA_Z(x), 1.5]);
     // Vulkan in der Ferne (auf der Venus gibt es Tausende)
     const cone = new THREE.Mesh(new THREE.ConeGeometry(70, 45, 32), new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 1 }));
     cone.position.set(L.lava[0] - 110, 18, L.lava[1] - 90); scene.add(cone);
@@ -4633,18 +4669,17 @@ window.Surface = (function () {
     // im dichten Dunst sieht man nur einen dunklen Umriss mit leuchtenden Fenstern
     const ghost = new THREE.MeshBasicMaterial({ color: 0x8a5a24, transparent: true, opacity: 0.45, fog: false, depthWrite: false });
     ship.traverse((o) => { if (o.isMesh) o.material = o.material === M.glow ? new THREE.MeshBasicMaterial({ color: 0xffd28a, transparent: true, opacity: 0.8, fog: false }) : ghost; });
-    const windRover = on(venusWindRover(M), 30, 10);
-    const basalt = [120, 96, 70];
-    for (const p of [[[0, 5], [L.station[0], L.station[1] - 9]], [[3, 5], [L.hitze[0] - 1.5, L.hitze[1] - 3]], [[L.hitze[0] + 2, L.hitze[1] + 2], [L.druck[0] - 2, L.druck[1] - 2]],
-      [[-3, 5], [L.abendstern[0] + 2, L.abendstern[1] - 3]], [[-2, 5], [L.waage[0] + 1, L.waage[1] - 3]]]) makePath(B, p, 1.8, basalt);
+    const windRover = on(venusWindRover(M), 44, -8);
+    drawTour(B, L, [120, 96, 70], 1.8);
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2c, roughness: 0.95, vertexColors: true }); rockMat.userData.natural = true;
-    const clusters = [[-36, 6, 5], [36, 40, 5], [-12, -30, 4], [40, -6, 4], [-40, 48, 5]];
+    const clusters = [[-30, 10, 5], [46, 34, 5], [-12, -24, 4], [30, -24, 4], [-40, 32, 5]];
     clusters.forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 23 + 7));
     const anim = [(dt, t) => { // Luftschiff zieht einen großen Kreis, Propeller drehen sich
       const a = t * 0.015 + 1.2; ship.position.set(Math.cos(a) * 130, 52, 40 + Math.sin(a) * 130); ship.rotation.y = -a + Math.PI;
       for (const p of ship.userData.props) p.rotation.z += dt * 6;
     }, (dt, t) => { // Wind-Rover fährt langsam im Kreis, sein Windrad dreht sich; die Lava flackert
-      const a = t * 0.03, x = 30 + Math.cos(a) * 9, z = 10 + Math.sin(a) * 7;
+      const a = t * 0.03, x = 44 + Math.cos(a) * 9, z = -8 + Math.sin(a) * 7;
+      beacons.forEach((b, i) => { b.scale.setScalar(0.8 + 0.4 * Math.max(0, Math.sin(t * 3 - i * 0.6))); }); // Lauflicht zeigt die Richtung
       windRover.position.set(x, height(x, z), z); windRover.rotation.y = Math.atan2(-Math.sin(a) * 9, Math.cos(a) * 7);
       windRover.userData.turbine.rotation.y += dt * 1.6;
       lavaGlow.intensity = 1 + 0.4 * Math.sin(t * 3.1) * Math.sin(t * 1.7);
@@ -4658,10 +4693,12 @@ window.Surface = (function () {
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, hitze: L.hitze, druck: L.druck, tag: L.tag, groesse: L.groesse, abendstern: L.abendstern,
       venera: L.venera, lava: L.lava, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
+    const npcs = addNpcs(B);
     const colliders = [...common.colliders, [...L.hitze, 1.3], [...L.druck, 1.2], [...L.abendstern, 0.6], [L.abendstern[0] + 3.2, L.abendstern[1] + 1.5, 0.6], [...L.venera, 1.4], [...L.wegweiser, 0.3],
-      [...L.tag, 1.5], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1], ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2])];
+      [...L.tag, 1.5], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1], ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2]),
+      ...lavaCol, ...npcs.map((n) => n.col)];
 
-    return { ...B, ...common, L, board, press, can, dome, telescope, earthStar, moonStar, globeE: gE.userData.ball, globeV: gV.userData.ball, rack,
+    return { ...B, ...common, L, board, press, can, dome, telescope, earthStar, moonStar, globeE: gE.userData.ball, globeV: gV.userData.ball, rack, npcs,
       blink: common.station.userData.blink, anim, spin: [[radarHead, "y", 0.25]], stations, colliders, shadowCasters: [rocket, common.station] };
   }
   // c = 0: dichte Wolken (so ist die Venus wirklich) … c = 1: Wolken weg – klarer Himmel, die Wärme kann entweichen
