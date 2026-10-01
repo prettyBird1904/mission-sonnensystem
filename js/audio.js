@@ -3,7 +3,7 @@
    ========================================================= */
 window.Sound = (function () {
   let ctx = null, master = null, engineOsc = null, engineGain = null, engineFilter = null;
-  let enabled = true, engineLevel = -1, windGain = null, windFilter = null, windLevel = -1;
+  let enabled = true, engineLevel = -1, windGain = null, windFilter = null, windLevel = -1, noiseBuf = null;
 
   function ensure() {
     if (ctx) return true;
@@ -16,6 +16,7 @@ window.Sound = (function () {
       const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      noiseBuf = buf;
       engineOsc = ctx.createBufferSource();
       engineOsc.buffer = buf; engineOsc.loop = true;
       engineFilter = ctx.createBiquadFilter();
@@ -83,6 +84,72 @@ window.Sound = (function () {
     arrive() { tone(392, 0.5, "sine", 0.18, 0, 784); },
     fanfare() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.7 : 0.18, "triangle", 0.22, i * 0.12)); },
     whoosh() { tone(180, 0.6, "sawtooth", 0.06, 0, 900); },
-    land() { tone(110, 0.45, "sine", 0.3, 0, 45); tone(70, 0.6, "triangle", 0.2, 0.03, 40); }
+    land() { tone(110, 0.45, "sine", 0.3, 0, 45); tone(70, 0.6, "triangle", 0.2, 0.03, 40); },
+    // Filmmusik fürs Intro: alles wird ab jetzt (Sekunde 0) im Voraus geplant; stop() blendet alles aus
+    cinematic() {
+      if (!enabled || !ensure()) return null;
+      if (ctx.state === "suspended") ctx.resume();
+      const bus = ctx.createGain(); bus.gain.value = 1; bus.connect(master);
+      const t0 = ctx.currentTime + 0.05, at = (s) => t0 + s;
+      const env = (g, s, dur, vol, att, rel) => {
+        g.gain.setValueAtTime(0.0001, at(s));
+        g.gain.exponentialRampToValueAtTime(vol, at(s) + att);
+        g.gain.setValueAtTime(vol, at(s) + Math.max(att, dur - rel));
+        g.gain.exponentialRampToValueAtTime(0.0001, at(s) + dur);
+      };
+      const noise = (s, dur) => { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.start(at(s)); n.stop(at(s) + dur + 0.1); return n; };
+      return {
+        // weicher Klangteppich aus leicht verstimmten Sägezähnen hinter einem Tiefpass (wird langsam heller)
+        pad(freqs, s, dur, vol = 0.04, bright = 900) {
+          const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 0.6;
+          f.frequency.setValueAtTime(bright * 0.45, at(s)); f.frequency.linearRampToValueAtTime(bright, at(s) + dur * 0.7);
+          const g = ctx.createGain(), fade = Math.min(2.4, dur * 0.4); env(g, s, dur, vol, fade, fade);
+          f.connect(g).connect(bus);
+          for (const fr of freqs) for (const d of [-7, 7]) {
+            const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = fr; o.detune.value = d;
+            o.connect(f); o.start(at(s)); o.stop(at(s) + dur + 0.1);
+          }
+        },
+        // heller Glockenton (mit leiser Oktave darüber)
+        bell(fr, s, vol = 0.1) {
+          for (const [m, v] of [[1, vol], [2, vol * 0.3], [3, vol * 0.08]]) {
+            const o = ctx.createOscillator(), g = ctx.createGain(); o.type = "sine"; o.frequency.value = fr * m;
+            g.gain.setValueAtTime(0.0001, at(s)); g.gain.exponentialRampToValueAtTime(v, at(s) + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at(s) + 2.4 / m);
+            o.connect(g).connect(bus); o.start(at(s)); o.stop(at(s) + 2.5);
+          }
+        },
+        // tiefer Donnerschlag
+        boom(s, vol = 0.5) {
+          const o = ctx.createOscillator(), g = ctx.createGain(); o.type = "sine";
+          o.frequency.setValueAtTime(95, at(s)); o.frequency.exponentialRampToValueAtTime(26, at(s) + 2.2);
+          env(g, s, 2.4, vol, 0.02, 2); o.connect(g).connect(bus); o.start(at(s)); o.stop(at(s) + 2.5);
+          const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 500;
+          const gn = ctx.createGain(); env(gn, s, 1.6, vol * 0.5, 0.01, 1.4);
+          noise(s, 1.6).connect(f).connect(gn).connect(bus);
+        },
+        // anschwellendes Rauschen vor dem Start
+        riser(s, dur, vol = 0.1) {
+          const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.2;
+          f.frequency.setValueAtTime(250, at(s)); f.frequency.exponentialRampToValueAtTime(3800, at(s) + dur);
+          const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at(s)); g.gain.exponentialRampToValueAtTime(vol, at(s) + dur); g.gain.exponentialRampToValueAtTime(0.0001, at(s) + dur + 0.3);
+          noise(s, dur + 0.3).connect(f).connect(g).connect(bus);
+        },
+        // Triebwerksgrollen beim Abheben
+        rumble(s, dur, vol = 0.35) {
+          const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 170;
+          const g = ctx.createGain(); env(g, s, dur, vol, 0.3, Math.min(2, dur * 0.5));
+          noise(s, dur).connect(f).connect(g).connect(bus);
+        },
+        beep(fr, s, vol = 0.14) {
+          const o = ctx.createOscillator(), g = ctx.createGain(); o.type = "sine"; o.frequency.value = fr;
+          env(g, s, 0.3, vol, 0.01, 0.25); o.connect(g).connect(bus); o.start(at(s)); o.stop(at(s) + 0.35);
+        },
+        stop(fade = 0.6) {
+          const t = ctx.currentTime;
+          bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(0, t + fade);
+          setTimeout(() => bus.disconnect(), fade * 1000 + 300);
+        }
+      };
+    }
   };
 })();

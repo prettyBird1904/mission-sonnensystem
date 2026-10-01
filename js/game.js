@@ -649,6 +649,12 @@
     adaptQuality(rawDt);
     updateFps(rawDt);
 
+    if (Game.mode === "cinema") { // Intro-Kino
+      Intro.update(dt);
+      if (Intro.scene) W.renderer.render(Intro.scene, Intro.camera);
+      requestAnimationFrame(loop);
+      return;
+    }
     if (Game.mode === "surface") {
       Surface.update(dt, elapsed);
       W.renderer.render(Surface.scene, Surface.camera);
@@ -699,22 +705,25 @@
     ship.speed = 0;
   }
 
-  function beginFlight() {
+  // quick = direkt nach dem Intro: kein zweiter Countdown, nur ein kurzer Kameraflug zur Rakete
+  function beginFlight(quick) {
     placeShipAtEarth();
     W.ship.visible = true;
     Game.mode = "countdown";
     const from = W.camera.position.clone();
     const to = new V(0, 1.25, 4.4).applyEuler(new THREE.Euler(ship.pitch, ship.yaw, 0, "YXZ")).add(ship.pos);
     const lookFrom = new V(0, 0, 0), lookTo = forwardVec(new V()).multiplyScalar(6).add(ship.pos);
-    const t0 = performance.now(), dur = 3200;
-    UI.countdown(() => {
+    const t0 = performance.now(), dur = quick ? 2400 : 3200;
+    if (quick) { from.copy(ship.pos).add(new V(30, 18, 40)); lookFrom.copy(ship.pos); }
+    const go = () => {
       Game.mode = "fly";
       cam.look.copy(lookTo);
       UI.showHUD();
       UI.toast(document.documentElement.classList.contains("touch-ui")
         ? "🎮 Links lenken, rechts GAS geben! Tippe unten einen Planeten an – der Pfeil zeigt dir den Weg."
         : "🎮 W = Gas, A/D = Lenken, Leertaste = Turbo! Tippe unten einen Planeten an – der Pfeil zeigt dir den Weg.");
-    });
+    };
+    if (!quick) UI.countdown(go);
     (function fly() {
       const t = Math.min(1, (performance.now() - t0) / dur);
       const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -722,8 +731,22 @@
       cam.look.lerpVectors(lookFrom, lookTo, e);
       W.camera.lookAt(cam.look);
       if (t < 1 && Game.mode === "countdown") requestAnimationFrame(fly);
+      else if (quick && Game.mode === "countdown") go();
     })();
   }
+
+  // Intro-Kino abspielen; danach geht es dort weiter, wo man war (beim ersten Start: Flug ab der Erde)
+  function playIntro(first) {
+    const prev = Game.mode;
+    Game.mode = "cinema";
+    document.documentElement.classList.add("cinema");
+    Sound.engine(0);
+    Intro.play({ world: W, name: Game.state.name, color: Game.state.color, onDone: () => {
+      document.documentElement.classList.remove("cinema");
+      if (first) beginFlight(true); else Game.mode = prev;
+    } });
+  }
+  Game.replayIntro = () => { if (Game.mode === "fly") playIntro(false); };
 
   Game.setTimeRunning = function (run) { W.timeScale = run ? 1 : 0; };
 
@@ -759,7 +782,9 @@
       W.setShipColor(Game.state.color);
       Sound.unlock();
       UI.onStateReady();
-      beginFlight();
+      // Beim allerersten Start: das Intro-Kino
+      if (!Game.state.introSeen) { Game.state.introSeen = true; Game.save(); playIntro(true); }
+      else beginFlight();
     });
   }
 

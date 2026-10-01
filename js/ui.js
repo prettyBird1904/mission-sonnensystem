@@ -727,6 +727,7 @@ window.UI = (function () {
       </div>
       <div class="mnemonic">🧠 Merksatz für die Planeten: ${D.mnemonic.split(" ").map((w) => `<b>${w[0]}</b>${w.slice(1)}`).join(" ")}<br><small>(Merkur, Venus, Erde, Mars, Jupiter, Saturn, Uranus, Neptun)</small></div>
       <div class="row-gap">
+        <button class="btn warm" id="btnIntro">🎬 Intro nochmal ansehen</button>
         <button class="btn primary" id="btnSwitch">👋 Astronaut/in wechseln</button>
         <button class="btn ghost" id="btnReset">🗑️ Meinen Spielstand löschen</button>
       </div>
@@ -746,6 +747,7 @@ window.UI = (function () {
     $("gfxFast").onclick = () => { if (!World.fast) setGfx("schnell"); };
     $("gfxFps").onclick = (e) => { const on = !G.fpsVisible(); G.setFpsVisible(on); e.currentTarget.classList.toggle("selected", on); };
     $("btnSwitch").onclick = () => location.reload();
+    $("btnIntro").onclick = () => { closeModal(); G.replayIntro(); };
     let armed = false;
     $("btnReset").onclick = (e) => {
       if (!armed) { armed = true; e.currentTarget.textContent = "⚠️ Wirklich alles löschen? Nochmal tippen!"; return; }
