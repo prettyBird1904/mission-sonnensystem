@@ -12,7 +12,7 @@ window.Voice = (function () {
   const set = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* egal */ } };
   let enabled = get("ms-vorlesen") !== "0";
   let voices = [], nora = null, radio = null, failed = new Set();
-  let cur = null, seq = 0, last = { text: "", at: 0 }, keep = [];
+  let cur = null, seq = 0, last = { text: "", at: 0 }, keep = [], later = 0;
 
   // Frauen- und Männerstimmen an ihren Namen erkennen (Edge, Windows, Chrome, iPad, Android)
   const FEMALE = /katja|amala|seraphina|louisa|hedda|anna|helena|petra|marlene|vicki|sandy|shelley|grandma|ingrid|leni|gisela|elke|klara|maja|tanja|sabine|claudia|steffi|google deutsch|female|frau/i;
@@ -79,13 +79,14 @@ window.Voice = (function () {
     const now = performance.now();
     if (last.text && last.text.startsWith(clean) && now - last.at < 25000) return cur ? cur.id : 0; // eben schon gesagt (z. B. derselbe Text ohne die Frage)
     const R = ROLE[role] || ROLE.nora;
-    if (cur && synth.speaking && cur.prio > R.prio && !opt.queue) return 0; // Wichtigeres läuft gerade (z. B. eine Entdeckung)
+    if (cur && synth.speaking && now < cur.until && cur.prio > R.prio && !opt.queue) return 0; // Wichtigeres läuft gerade (z. B. eine Entdeckung)
     const male = role === "radio" || role === "narrator" || role === "npcM";
     const v = male ? radio || nora : nora;
     const nat = natural(v), base = { ...R };
     if (male && !radio) base.pitch -= 0.14; // dieselbe Stimme wie Nora – tiefer, damit man die beiden unterscheidet
     const parts = nat && clean.length < 260 ? [clean] : sentences(clean);
-    const id = ++seq, job = { id, prio: R.prio, left: parts.length, modal: !!opt.modal };
+    // until: spätestens dann gilt der Text als fertig (falls ein Browser das Ende nie meldet)
+    const id = ++seq, job = { id, prio: R.prio, left: parts.length, modal: !!opt.modal, until: now + (clean.length / 10 + 4) * 1000 * (opt.queue ? 2 : 1) };
     const run = () => {
       if (!opt.queue) cur = job;
       parts.forEach((s) => {
@@ -101,7 +102,8 @@ window.Voice = (function () {
         synth.speak(u);
       });
     };
-    if (!opt.queue && (synth.speaking || synth.pending)) { synth.cancel(); cur = job; setTimeout(run, 60); } // Chrome verschluckt sonst das Sprechen direkt nach cancel()
+    if (!opt.queue) clearTimeout(later);
+    if (!opt.queue && (synth.speaking || synth.pending)) { synth.cancel(); cur = job; later = setTimeout(run, 60); } // Chrome verschluckt sonst das Sprechen direkt nach cancel()
     else run();
     if (opt.queue && !cur) cur = job;
     last = { text: clean, at: now };
@@ -110,10 +112,10 @@ window.Voice = (function () {
   function stop(id) {
     if (!OK) return;
     if (id && (!cur || cur.id !== id)) return;
-    synth.cancel(); cur = null; keep = [];
+    clearTimeout(later); synth.cancel(); cur = null; keep = [];
   }
   // Sprechblasen bleiben stehen, solange ihr Text noch vorgelesen wird
-  const speaking = (id) => !!(OK && id && cur && cur.id === id && (synth.speaking || synth.pending));
+  const speaking = (id) => !!(OK && id && cur && cur.id === id && performance.now() < cur.until && (synth.speaking || synth.pending));
   function stopModal() { if (cur && cur.modal) stop(); }
   // Auf dem iPad darf erst nach einer Berührung gesprochen werden: einmal leise „freischalten“
   let unlocked = false;
