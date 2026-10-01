@@ -269,16 +269,42 @@ window.SPACE_DATA = {
       jump: 0.45,       // Sprunghöhe in Metern (mit schwerem Raumanzug)
       // Thermometer am Raumanzug: in der Sonne / im Schatten
       temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
+      // Lea empfängt das Kind: erst die Landestelle von 1969, dann hinauf auf den Kraterrand, hinab in den Krater und zur Basis
+      guide: {
+        npc: 0, order: ["sprung", "wegweiser", "waage", "apollo", "fallversuch", "spiegel", "temperatur", "himmel", "mondstein", "antenne"],
+        hello: "Hallo {name}! Bleib kurz bei deiner Rakete, ich komme zu dir!",
+        welcome: "Willkommen auf dem Mond! Ich bin Lea und leite die Mondbasis. Heute zeige ich dir einen ganzen Rundgang: alte Spuren, einen riesigen Krater und unsere Basis. Spring zuerst mal – aber vorsichtig!",
+        jump: "Na los, spring! Hier wiegst du fast nichts.",
+        wait: "Hier lang, {name}! Ich warte auf dich.",
+        next: "Toll! Komm mit – als Nächstes: {ziel}.",
+        arrive: {
+          wegweiser: "Siehst du den Wegweiser? Lauf ganz nah heran – er verrät dir, wie weit es nach Hause ist.",
+          waage: "Hier wird die Fracht gewogen, die der Frachtlander bringt. Stell dich mal selbst auf die Waage!",
+          apollo: "Psst – das ist ein besonderer Ort. Hier sind 1969 zum ersten Mal Menschen auf dem Mond gelandet. Lauf an der Absperrung entlang!",
+          fallversuch: "Hier hat ein Astronaut einen berühmten Versuch gemacht: Was fällt schneller – ein Hammer oder eine Feder? Probier es aus!",
+          spiegel: "Diesen Spiegel haben die Apollo-Astronauten aufgestellt. Gleich schickt die Erde einen Laserstrahl – stopp die Zeit mit!",
+          temperatur: "Stell dich mal in den Schatten von dem großen Felsen und schau auf dein Thermometer!",
+          himmel: "Willkommen auf dem Kraterrand! Von der Plattform „Erdblick“ aus siehst du unsere Erde. Schau durchs Fernrohr!",
+          mondstein: "Wir sind unten im Krater. Hier liegt etwas Besonderes im Staub – such das glitzernde Fundstück!",
+          antenne: "Das ist unsere Funkstation. Ihre Schüssel zeigt immer zur Erde. Spul mal die Zeit vor – was macht die Erde?",
+          wand: "Das ist unsere Mondbasis! An der Wand siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist deine Rakete. Steig über die Leiter ein, wenn du weiterfliegen willst. Gute Reise, {name}!"
+        },
+        quiz: "Du hast alles entdeckt! Komm mit zur Mondbasis – die Bodenstation funkt dir ein paar Fragen.",
+        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
+        again: "🧭 Lea, zeig mir den Weg"
+      },
       // Bewohner der Mondbasis (Ideen von ESA und NASA für eine echte Basis am Südpol des Mondes)
       npcs: [
-        { name: "Kommandantin Lea", color: "#3b82f6", path: [[-6, 44], [4, 42], [0, 34], [-8, 38]],
+        { name: "Kommandantin Lea", color: "#3b82f6", path: [[30, 38], [40, 34], [36, 28], [26, 32]],
           hello: "Hallo {name}! Ich bin Lea und leite die Mondbasis. Willkommen auf dem Mond!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Du hast alles entdeckt – toll! Jetzt kennst du den Mond besser als die meisten Erdlinge.",
           facts: ["Unsere Kuppeln sind mit Mondstaub bedeckt. Der dicke Staub schützt uns vor Strahlung und kleinen Meteoriten.",
             "In den dunklen Kratern am Südpol des Mondes liegt Eis. Daraus machen wir Wasser – und sogar Luft zum Atmen.",
             "Die Solartürme sind so hoch, weil die Sonne hier am Südpol immer ganz tief über dem Horizont steht."] },
-        { name: "Ingenieur Tom", color: "#f59e0b", path: [[17, 74], [26, 72]], work: true,
+        { name: "Ingenieur Tom", color: "#f59e0b", path: [[60, 66], [68, 66]], work: true,
           hello: "Hi {name}, ich bin Tom! Siehst du den großen Drucker? Er baut gerade eine neue Kuppel.",
           hint: "Tipp: Probier mal „{ziel}“ aus!",
           done: "Alles entdeckt? Super! Vergiss nicht, zur Rakete zurückzulaufen.",
@@ -323,7 +349,7 @@ window.SPACE_DATA = {
         // Exponate auf dem Platz vor der Mondstation
         antenne:     { label: "Funkstation", hint: "Die Funkstation steht vor der Mondbasis", action: "⏩ Zeit vorspulen" },
         spiegel:     { label: "Laser-Spiegel", hint: "Den Laser-Spiegel haben die Apollo-Astronauten neben ihrer Fähre aufgestellt", action: "🔦 Laser-Messung starten" },
-        mondstein:   { label: "Mondstein im Krater", hint: "Such ein ✨ im Krater hinter deiner Rakete", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
+        mondstein:   { label: "Mondstein im Krater", hint: "Such ein ✨ unten im großen Krater", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       // Fernrohr: Erde selbst suchen → Größe vergleichen → ausprobieren, was Luft mit dem Himmel macht
@@ -403,6 +429,32 @@ window.SPACE_DATA = {
             "Wasser holen wir an der Wasser-Anlage aus dem Eis im Boden. Das schmelzen wir und reinigen es.",
             "Im Gewächshaus bekommen die Pflanzen rosa-lila Licht von Lampen – das mögen sie am liebsten."] }
       ],
+      // Mia empfängt das Kind an der Rakete und führt es über die Hochebene hinab ins Tal zum Außenposten
+      guide: {
+        npc: 0, order: ["sprung", "wegweiser", "vulkan", "monde", "abend", "rover", "teufel", "waage", "rost", "eis"],
+        hello: "Hallo {name}! Warte, ich komme zu dir!",
+        welcome: "Willkommen auf dem Mars! Ich bin Mia und zeige dir alles. Du stehst auf einer Hochebene – unten im Tal liegt unser Außenposten. Spring doch zuerst mal in die Luft!",
+        jump: "Na los, spring! Du wirst staunen, wie leicht das hier geht.",
+        wait: "Hier lang, {name}! Ich warte auf dich.",
+        next: "Klasse! Komm mit – als Nächstes zeige ich dir: {ziel}.",
+        arrive: {
+          wegweiser: "Das ist unsere Anzeigetafel. Lauf mal ganz nah heran!",
+          vulkan: "Hier steht unser Hubschrauber. Steig mit ihm auf – von oben siehst du etwas Riesiges!",
+          monde: "Unsere Sternwarte steht direkt an der Kante. Die Kuppel klappt auf. Der Mars hat zwei Monde – findest du sie?",
+          abend: "Das ist unsere Wetterstation. Mit der Himmelskamera spulen wir bis zum Abend vor. Was meinst du: Welche Farbe hat der Sonnenuntergang?",
+          rover: "Wir sind unten im Tal! Das ist der Rover-Leitstand. Steuere den Rover zum hellen Stein im alten Flussdelta – dort war früher Wasser!",
+          teufel: "Siehst du den Wirbel da draußen? Ein Staubteufel! Lauf hin und fang ihn ein!",
+          waage: "Hier ist unser Gesundheits-Check. Stell dich mal auf die Waage!",
+          rost: "Willkommen im Proben-Labor! Warum ist der Mars eigentlich rot? Halte den Magneten in den Staub!",
+          eis: "Das ist unsere Wasser-Anlage. Bohr mal nach – was liegt unter dem Staub?",
+          wand: "An dieser Wand siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist deine Rakete. Steig über die Leiter ein, wenn du weiterfliegen willst. Tschüss, {name} – komm bald wieder!"
+        },
+        quiz: "Du hast alles entdeckt! Die Bodenstation funkt dir gleich ein paar Fragen – komm mit zur Wand!",
+        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
+        again: "🧭 Mia, zeig mir den Weg"
+      },
       temp: { sun: -50, shade: -75, sunText: "☀️ Sonne – trotzdem eiskalt!", shadeText: "❄️ Schatten – noch kälter!" },
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Leichter als zu Hause", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 30 Zentimeter", zeit: "0,8" },

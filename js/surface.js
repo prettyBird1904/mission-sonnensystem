@@ -31,31 +31,44 @@ window.Surface = (function () {
   // ---------- Aufbau des Mondes ----------
   // Richtung ZUR Sonne: tief am Himmel → lange, deutliche Schatten
   const SUN_DIR = new V(-1, 0.32, -0.55).normalize();
+  // Mond: Die Rakete landet auf der Ebene vor einem großen Krater. Im Westen die Apollo-Landestelle, auf dem Kraterrand
+  // die Aussichtsplattform und die Funkstation, unten im Krater der Mondstein – die Mondbasis steht östlich am Rand.
+  const MOON_CRATER = [-20, 78, 36, 9];
   const MOON_LAYOUT = {
     rocket: [0, 0], spawn: [-6.9, 4], // Start neben der Leiter (siehe HATCH), aber außer Reichweite von „Einsteigen“
-    // Apollo-Landestelle mit Laser-Spiegel und Hammer-und-Feder-Versuch, Aussichtsplattform „Erdblick“, Frachtlander mit Waage
-    fallversuch: [-10, 25], himmel: [14, 20], apollo: [-20, 34], boulder: [24, 36], waage: [6, 26], spiegel: [-28, 30],
-    // Fundstücke (kleine goldene Lichter): Inhalte des Steckbriefs zum Selbst-Finden
-    wegweiser: [-14, 6], mondstein: [25, -30], // mondstein liegt mitten in einem Krater
-    // Mondbasis „Wusstest du?“: Wand mit den Entdeckungs-Tafeln (Vorderseite zeigt zur Rakete), daneben die Funkstation
-    station: [2, 54], antenne: [12, 47]
+    fallversuch: [-24, 10], himmel: [-7.4, 44.2], apollo: [-34, 16], boulder: [-46, 26], waage: [14, 12], spiegel: [-42, 24],
+    wegweiser: [-10, 8], mondstein: [-20, 78], // mondstein liegt unten im großen Krater
+    station: [44, 46], antenne: [11.3, 60], meet: [22, 26],
+    route: {
+      wegweiser: [[-7.5, 6.5]], waage: [[2, 8], [10, 6.5], [16.5, 7.5]], apollo: [[2, 9], [-14, 12], [-25.5, 13.8]], fallversuch: [[-21.5, 13]],
+      spiegel: [[-33, 18], [-37.5, 26.5]], temperatur: [[-32, 32]], himmel: [[-20, 37], [-4, 38.5]], mondstein: [[-10, 50], [-14, 62], [-17, 72.5]],
+      antenne: [[-8, 74], [2, 66], [8, 63.5]], wand: [[18, 56], [28, 50], [41, 41.5]], rakete: [[30, 36], [10, 12], [-4, 5]]
+    }
   };
   const SHADOW_DIR = new V(-SUN_DIR.x, 0, -SUN_DIR.z).normalize(); // Schatten fallen weg von der Sonne
 
-  // Gelände: sanfte Hügel, Krater [x, z, Radius, Tiefe], ebene Plätze [x, z, Radius] für Rakete und Stationen
-  // extra(x, z): zusätzliche Formen (z. B. Sanddünen) – die ebenen Plätze bleiben trotzdem eben
-  function makeHeight(craters, flats, seed = 0, extra = null) {
-    return function height(x, z) {
+  // Gelände: sanfte Hügel, Krater [x, z, Radius, Tiefe], ebene Plätze [x, z, Radius, Höhe] für Rakete und Stationen
+  // extra(x, z): zusätzliche Formen (Sanddünen, Hochebenen, Schluchten …) – die ebenen Plätze bleiben trotzdem eben.
+  // Höhe eines ebenen Platzes: weggelassen = 0 · "auto" = so hoch, wie das Gelände in seiner Mitte ohnehin ist · Zahl = genau diese Höhe
+  // bumps = sanfte Hügel ohne Ebenen dazwischen: [x, z, Radius, Höhe] (negativ = Mulde)
+  function makeHeight(craters, flats, seed = 0, extra = null, bumps = []) {
+    const raw = (x, z) => {
       let h = (fbm2(x * 0.02 + seed, z * 0.02) - 0.5) * 6 + (fbm2(x * 0.12 + 7 + seed, z * 0.12) - 0.5) * 0.8;
       if (extra) h += extra(x, z);
       for (const [cx, cz, r, d] of craters) {
         const q = Math.hypot(x - cx, z - cz) / r;
         if (q < 1.7) { if (q < 1) h -= d * (1 - q * q); h += d * 0.45 * Math.exp(-Math.pow((q - 1) / 0.22, 2)); }
       }
-      for (const [fx, fz, r] of flats) {
+      for (const [bx, bz, r, b] of bumps) h += b * smooth(r, 0, Math.hypot(x - bx, z - bz));
+      return h;
+    };
+    const levels = flats.map(([fx, fz, , lv]) => (lv === "auto" ? raw(fx, fz) : lv || 0));
+    return function height(x, z) {
+      let h = raw(x, z);
+      flats.forEach(([fx, fz, r, , bw = 10], i) => {
         const dd = Math.hypot(x - fx, z - fz);
-        if (dd < r + 10) h *= smooth(r, r + 10, dd);
-      }
+        if (dd < r + bw) h = levels[i] + (h - levels[i]) * smooth(r, r + bw, dd);
+      });
       const edge = Math.hypot(x, z);
       h += smooth(170, 260, edge) * 30 * (0.6 + fbm2(x * 0.03, z * 0.03)); // Hügelkette am Rand
       return h;
@@ -1435,10 +1448,9 @@ window.Surface = (function () {
   function buildMoon() {
     const L = { ...MOON_LAYOUT };
     L.shadowSpot = [L.boulder[0] + SHADOW_DIR.x * 12, L.boulder[1] + SHADOW_DIR.z * 12];
-    const craters = [[60, -20, 14, 2.2], [-50, 10, 10, 1.6], [12, 95, 18, 2.6], [-70, 70, 12, 1.8], [80, 60, 9, 1.4],
-      [-30, -40, 16, 2.4], [40, -70, 11, 1.8], [-95, -30, 20, 3], [0, -95, 13, 2], [100, 10, 8, 1.2], [-15, 75, 7, 1.1],
-      [55, 25, 5, 0.7], [-45, 30, 4, 0.6], [25, -30, 6, 0.9]];
-    const flats = [[0, 0, 11], [...L.fallversuch, 5], [...L.himmel, 6], [...L.apollo, 10], [...L.boulder, 7], [...L.shadowSpot, 8], [...L.waage, 8], [...L.station, 20], [L.station[0], L.station[1] + 18, 24], [...L.spiegel, 4], [...L.antenne, 4]];
+    const craters = [MOON_CRATER, [60, -20, 14, 2.2], [-60, -6, 10, 1.6], [70, 110, 18, 2.6], [-80, 40, 12, 1.8], [90, 70, 9, 1.4],
+      [-30, -40, 16, 2.4], [40, -70, 11, 1.8], [-95, -30, 20, 3], [0, -95, 13, 2], [100, 10, 8, 1.2], [25, -30, 6, 0.9]];
+    const flats = [[0, 0, 11], [...L.fallversuch, 5], [...L.himmel, 4, "auto", 3], [...L.apollo, 10], [...L.boulder, 7], [...L.shadowSpot, 6], [...L.waage, 9], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 18, 24, "auto"], [...L.spiegel, 4], [...L.antenne, 3, "auto", 3]];
     const B = buildBase({
       height: makeHeight(craters, flats),
       sky: 0x000000, stars: true, sunSize: 160,
@@ -1549,12 +1561,11 @@ window.Surface = (function () {
       fp.position.set(x, height(x, z) + 0.03, z); fp.rotation.y = -a;
       scene.add(fp);
     }
-    // Spuren im Staub: Wege von der Rakete zu allen Orten, Felsgruppen
-    const grey = [176, 174, 168];
-    for (const p of [[[0, 5], [L.station[0], L.station[1] - 9]], [[-4, 6], [ax + 6, az - 6]], [[3, 5], [L.himmel[0] - 2, L.himmel[1] - 3.5]], [[2, 6], [L.waage[0] - 1, L.waage[1] - 3]],
-      [[ax + 5, az - 5], [L.fallversuch[0], L.fallversuch[1] - 2]], [[ax - 5, az - 3], [L.spiegel[0] + 1.5, L.spiegel[1]]]]) makePath(B, p, 1.8, grey);
+    // Spuren im Staub: der Rundgang, den Lea mit dem Kind läuft; Felsgruppen
+    drawTour(B, L, [176, 174, 168], 1.8);
+    on(makeSignBoard(M, "⬇️ IN DEN KRATER", "#1d4ed8", 2.4), -12, 47).rotation.y = Math.atan2(12, -47);
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x77767a, roughness: 0.95, vertexColors: true }); rockMat.userData.natural = true;
-    const clusters = [[-30, 12, 5], [34, 12, 5], [-8, 70, 4], [30, 60, 5], [-40, 48, 5], [16, -14, 4]];
+    const clusters = [[30, 12, 5], [-8, -14, 4], [-56, 46, 5], [64, 14, 5], [-6, 104, 5], [-36, 64, 4]];
     clusters.forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 17 + 3));
     const npcs = addNpcs(B);
 
@@ -1591,9 +1602,10 @@ window.Surface = (function () {
     return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : ""));
   }
 
-  function radio(text, vars) {
+  function radio(text, vars, who) {
     const msg = fmtVars(text, vars);
     $("radioText").textContent = msg;
+    $("radioHead").textContent = who || "📻 Bodenstation";
     const r = $("radio"); r.classList.remove("hidden"); r.classList.remove("ping"); void r.offsetWidth; r.classList.add("ping");
     radioTimer = 14;
   }
@@ -1811,10 +1823,12 @@ window.Surface = (function () {
     S.active = true;
     const rest = cfg.discoveries.length - foundCount();
     const first = foundCount() === 0;
-    setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : first ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
+    setupGuide();
+    if (!guide || !guide.on) setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : first ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
   };
 
   function exit() {
+    $("guideBtn").classList.add("hidden"); guide = null;
     if (!S.active) return;
     S.active = false; probe = null;
     Sound.engine(0); Sound.wind(0);
@@ -1882,6 +1896,7 @@ window.Surface = (function () {
     const grip = site.grip ? site.grip() : 1; // auf glattem Eis rutscht man: langsam anfahren, kaum bremsen
     if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * grip * (targetSpeed > ast.speed ? 3.0 : 3.4));
     const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
+    const ox = ast.pos.x, oz = ast.pos.z, oh = H(ox, oz);
     ast.pos.x += hx * ast.speed * dt; ast.pos.z += hz * ast.speed * dt;
 
     // Hindernisse & Grenze
@@ -1889,6 +1904,8 @@ window.Surface = (function () {
       const dx = ast.pos.x - cx, dz = ast.pos.z - cz, d = Math.hypot(dx, dz), min = r + 0.45;
       if (d < min && d > 0.001) { ast.pos.x = cx + (dx / d) * min; ast.pos.z = cz + (dz / d) * min; }
     }
+    // Steilwände (Klippen, Kraterwände) kann man nicht hochlaufen – dafür gibt es Rampen und Wege
+    if (!boarding && ast.onGround && H(ast.pos.x, ast.pos.z) - oh > Math.max(0.1, Math.hypot(ast.pos.x - ox, ast.pos.z - oz) * 1.1)) { ast.pos.x = ox; ast.pos.z = oz; ast.speed *= 0.5; }
     const far = Math.hypot(ast.pos.x, ast.pos.z);
     if (far > 150) {
       ast.pos.x *= 150 / far; ast.pos.z *= 150 / far;
@@ -1994,6 +2011,7 @@ window.Surface = (function () {
       const text = sc.action || (sc.again && foundMap()[key] ? sc.again : "");
       if (text && d < (sc.reach || 3.2)) { near = key; nearText = text; }
     }
+    if (guide && !guide.on && !near && Math.hypot(ast.pos.x - guide.n.obj.position.x, ast.pos.z - guide.n.obj.position.z) < 3.2) { near = "guide"; nearText = cfg.guide.again; }
     const act = $("surfAction");
     if (near && !experiment && !view.special && !busy) {
       act.classList.remove("hidden");
@@ -2003,6 +2021,7 @@ window.Surface = (function () {
     } else act.classList.add("hidden");
     actionPressed = false;
 
+    updateGuide(dt, busy);
     site.update(dt, busy, elapsed);
     updateScaleDisplay();
     updateDust(dt);
@@ -2054,6 +2073,7 @@ window.Surface = (function () {
     Sound.click();
     if (key === "rakete") { startBoarding(); return; }
     if (key === "wand") { showFound(); return; }
+    if (key === "guide") { guideResume(); return; }
     if (!cfg.stations[key].action) { discover(key, null, true); return; }
     if (key === "waage") startWeigh();
     else site.actions[key]();
@@ -2433,7 +2453,10 @@ window.Surface = (function () {
   function updateCompass() {
     const el = $("surfCompass");
     let best = null, bestD = Infinity;
-    for (const [key, st] of Object.entries(world.stations)) {
+    if (guide && guide.on && guide.met) {
+      const p = guide.n.obj.position, dg = Math.hypot(p.x - ast.pos.x, p.z - ast.pos.z), st = world.stations[guide.key];
+      best = dg > 12 || !st ? { x: p.x, z: p.z } : st; bestD = Math.hypot(best.x - ast.pos.x, best.z - ast.pos.z);
+    } else for (const [key, st] of Object.entries(world.stations)) {
       const sc = cfg.stations[key];
       if (sc.info || sc.home || foundMap()[key] || !cfg.discoveries.some((d) => d.key === key)) continue;
       const d = Math.hypot(st.x - ast.pos.x, st.z - ast.pos.z);
@@ -2503,7 +2526,8 @@ window.Surface = (function () {
       const p = n.obj.position, dx = ast.pos.x - p.x, dz = ast.pos.z - p.z, dist = Math.hypot(dx, dz);
       let moving = false;
       n.talk -= dt; n.cool -= dt; n.waveT -= dt;
-      if (dist < 5.5 && !busy) { // stehen bleiben, zum Kind drehen und etwas sagen
+      if (n.guide) moving = !!n.moving;
+      else if (dist < 5.5 && !busy) { // stehen bleiben, zum Kind drehen und etwas sagen
         n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5));
         if (n.cool <= 0 && !UI.modalOpen()) npcSay(n);
       } else if (n.wait > 0) n.wait -= dt;
@@ -2529,6 +2553,114 @@ window.Surface = (function () {
         if (tmp.z < 1) { n.el.style.display = ""; n.el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h}px) translate(-50%, -100%)`; }
         else n.el.style.display = "none";
       } else n.el.style.display = "none";
+    }
+  }
+
+  // =========================================================
+  //  Begleitperson: empfängt das Kind an der Rakete und führt es von Mission zu Mission.
+  //  cfg.guide = { npc (Index in cfg.npcs), order: [Schlüssel …], hello, welcome, jump, wait, next, arrive: { Schlüssel: Text }, quiz, home, alone, again }
+  //  world.L.route[Schlüssel] = Wegpunkte zur Station (der Weg, den die Person läuft); world.L.meet = wo sie zu Beginn herkommt
+  // =========================================================
+  let guide = null;
+  const GUIDE_SPEED = 2.3;
+  function guideOff() { return !!((G.state.guideOff || {})[bodyId]); }
+  function setGuideOff(off) { G.state.guideOff = { ...(G.state.guideOff || {}), [bodyId]: off }; G.save && G.save(); }
+  function setupGuide() {
+    guide = null; $("guideBtn").onclick = guideAlone; $("guideBtn").classList.add("hidden");
+    const GC = cfg.guide; if (!GC || !world.npcs) return;
+    const n = world.npcs.find((x) => x.c === cfg.npcs[GC.npc]); if (!n) return;
+    const allDone = foundCount() >= cfg.discoveries.length && quizDone;
+    guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0 };
+    n.guide = guide.on;
+    if (guide.on) { // Sie kommt von der Station her auf die Rakete zu
+      const [mx, mz] = world.L.meet || [world.L.spawn[0] + 10, world.L.spawn[1] + 14], [sx, sz] = world.L.spawn;
+      n.obj.position.set(mx, world.height(mx, mz), mz);
+      guide.pts = [[sx + 1.8, sz + 3.2]];
+      setTimeout(() => { if (S.active && guide && guide.on) guideSay(GC.hello); }, 900);
+    }
+    updateGuideBtn();
+  }
+  function guideSay(text, vars) {
+    if (!guide || !text) return;
+    const n = guide.n, msg = fmtVars(text, vars);
+    n.cool = 20;
+    radio(msg, null, `🧑‍🚀 ${n.c.name}`);
+  }
+  function updateGuideBtn() {
+    const b = $("guideBtn");
+    if (!guide || !guide.on || probe) { b.classList.add("hidden"); return; }
+    b.innerHTML = `🧭 ${guide.n.c.name.split(" ").pop()} führt dich · <b>Allein erkunden ✕</b>`;
+    b.classList.remove("hidden");
+  }
+  function guideAlone() {
+    if (!guide || !guide.on) return;
+    guide.on = false; guide.n.guide = false; setGuideOff(true);
+    guideSay(cfg.guide.alone); updateGuideBtn(); Sound.click();
+  }
+  function guideResume() {
+    if (!guide) return;
+    guide.on = true; guide.n.guide = true; guide.key = undefined; guide.met = true; setGuideOff(false);
+    updateGuideBtn();
+  }
+  // Wohin die Person als Nächstes führt: erste offene Entdeckung der Reihenfolge, dann die Funk-Fragen an der Wand, zum Schluss die Rakete
+  function guideNextKey() {
+    const f = foundMap();
+    for (const k of cfg.guide.order) if (!f[k]) return k;
+    return quizDone ? "rakete" : "wand";
+  }
+  // Wo sie neben der Station stehen bleibt (Ende des Weges oder 2,5 m seitlich vor der Markierung)
+  function guideStand(key) {
+    const r = world.L.route && world.L.route[key];
+    if (r) return r[r.length - 1];
+    const st = world.stations[key]; if (!st) return null;
+    const p = guide.n.obj.position, dx = st.x - p.x, dz = st.z - p.z, d = Math.hypot(dx, dz) || 1;
+    return [st.x - (dx / d) * 2.6 - (dz / d) * 1.4, st.z - (dz / d) * 2.6 + (dx / d) * 1.4];
+  }
+  function guideRoute(key) {
+    const r = world.L.route && world.L.route[key], p = guide.n.obj.position;
+    if (!r) { const s = guideStand(key); return s ? [s] : []; }
+    // ab dem Wegpunkt weiterlaufen, der am nächsten liegt (falls die Person schon mittendrin steht)
+    let best = 0, bd = Infinity;
+    r.forEach(([x, z], i) => { const d = Math.hypot(x - p.x, z - p.z); if (d < bd) { bd = d; best = i; } });
+    return r.slice(best).map((q) => [...q]);
+  }
+  function updateGuide(dt, busy) {
+    if (!guide) return;
+    const n = guide.n, GC = cfg.guide, p = n.obj.position;
+    guide.waitCd -= dt;
+    // Im Gespräch: freie Person, die man ansprechen kann
+    if (!guide.on) return;
+    n.moving = false;
+    if (busy || view.special || experiment || boarding || UI.modalOpen()) return;
+    const dAst = Math.hypot(ast.pos.x - p.x, ast.pos.z - p.z);
+    const key = guideNextKey();
+    if (guide.met && key !== guide.key) { // neues Ziel: Bescheid sagen und losgehen
+      const first = guide.key === undefined;
+      guide.key = key; guide.pts = guideRoute(key); guide.said[key] = false;
+      if (key === "wand") guideSay(GC.quiz);
+      else if (key === "rakete") guideSay(GC.home);
+      else if (key !== "sprung" && !first) guideSay(GC.next, { ziel: cfg.stations[key].label });
+    }
+    const face = (x, z) => { n.heading = angleLerp(n.heading, Math.atan2(x - p.x, z - p.z), 1 - Math.exp(-dt * 5)); };
+    if (guide.pts.length) {
+      if (dAst > 11) { // zu weit zurück: stehen bleiben, umdrehen, winken
+        face(ast.pos.x, ast.pos.z);
+        if (guide.waitCd <= 0) { guide.waitCd = 12; n.waveT = 2.4; guideSay(GC.wait); }
+        return;
+      }
+      const [tx, tz] = guide.pts[0], ex = tx - p.x, ez = tz - p.z, d = Math.hypot(ex, ez);
+      if (d < 0.3) { guide.pts.shift(); return; }
+      const step = Math.min(d, GUIDE_SPEED * dt * (dAst < 3 ? 1.2 : 1));
+      p.x += (ex / d) * step; p.z += (ez / d) * step;
+      face(tx, tz); n.moving = true;
+      return;
+    }
+    // angekommen
+    face(ast.pos.x, ast.pos.z);
+    if (!guide.met) { if (dAst < 7) { guide.met = true; n.waveT = 2.4; guideSay(GC.welcome); guide.waitCd = 6; } return; }
+    if (dAst < 7 && !guide.said[guide.key] && guide.waitCd <= 0) {
+      guide.said[guide.key] = true; guide.waitCd = 4;
+      guideSay(guide.key === "sprung" ? GC.jump : (GC.arrive && GC.arrive[guide.key]) || "");
     }
   }
 
@@ -2603,15 +2735,32 @@ window.Surface = (function () {
   // =========================================================
   //  Mars
   // =========================================================
+  // Mars: Die Rakete landet auf einer Hochebene. Von der Kante blickt man hinunter ins Tal mit dem Außenposten;
+  // eine Rampe führt im Westen hinab, weiter draußen liegt ein altes Flussdelta (wie im Jezero-Krater, wo Perseverance forscht).
   const MARS_LAYOUT = {
     spawn: [-6.9, 4],
     // Waage und Magnet-Versuch stehen unter den Vordächern der beiden Türme (Station bei z = 56)
     waage: [-MARS_TOWER[0] + WEIGH_DIR.x * (TOWER_R + 2.8), 56 + MARS_TOWER[1] + WEIGH_DIR.z * (TOWER_R + 2.8)],
     rost: [MARS_TOWER[0] + LAB_DIR.x * (TOWER_R + 2.8), 56 + MARS_TOWER[1] + LAB_DIR.z * (TOWER_R + 2.8)],
-    monde: [13, 21], vulkan: [27, 30], rover: [-22, 12], roverStart: [-25, 17], roverZiel: [-42, 40],
-    eis: [30, 46], wegweiser: [12, 5], teufel: [-42, 34],
-    station: [0, 56], abend: [-20, 46], pad: [-34, 72] // Landeplatz des Raumtransporters
+    monde: [-12, 12], vulkan: [24, 6], rover: [-22, 44], roverStart: [-27, 50], roverZiel: [-54, 72],
+    eis: [30, 46], wegweiser: [8, 5], teufel: [-48, 40],
+    station: [0, 56], abend: [-28, 6], pad: [-34, 74], // Landeplatz des Raumtransporters
+    meet: [-24, 12], // hier kommt Mia zu Beginn her
+    // Weg der Führung (Wegpunkte bis zum Standplatz neben der Station)
+    route: {
+      wegweiser: [[5, 2.5]], vulkan: [[14, 3], [20.5, 2.6]], monde: [[8, 8], [-4, 8.6]], abend: [[-16, 5], [-23, 3.5]],
+      rover: [[-33, 9], [-37, 16], [-37, 34], [-31, 40], [-25.5, 41]], teufel: [[-36, 40]], waage: [[-30, 52], [-25.5, 60.5]],
+      rost: [[-12, 50], [2, 59], [6.5, 63.2]], eis: [[16, 56], [25, 47], [26.2, 43.2]], wand: [[14, 48], [3.5, 49.5]],
+      rakete: [[-12, 49], [-31, 40], [-37, 34], [-37, 16], [-30, 8], [-5, 4.5]]
+    }
   };
+  // Hochebene mit gezackter Kante (ca. 8 m hoch), im Westen eine sanfte Rampe ins Tal
+  function marsPlateau(x, z) {
+    const edge = 22 + Math.sin(x * 0.06) * 3 + Math.sin(x * 0.17 + 1) * 1.2;
+    let s = smooth(edge + 2.5, edge - 2.5, z);
+    const ramp = smooth(7, 3, Math.abs(x + 37));
+    return (s * (1 - ramp) + smooth(36, 10, z) * ramp) * 8;
+  }
   // Rover steht schräg in seiner Garage – das Kind muss beim Losfahren selbst lenken
   const MARS_ROVER_PARK = Math.atan2(MARS_LAYOUT.roverZiel[0] - MARS_LAYOUT.roverStart[0], MARS_LAYOUT.roverZiel[1] - MARS_LAYOUT.roverStart[1]) + 0.7;
   const MARS_MAST = ([x, z]) => [x - 3.2, z + 5.5];
@@ -3116,6 +3265,12 @@ window.Surface = (function () {
     t.wrapT = THREE.RepeatWrapping;
     return (pathTexCache[key] = t);
   }
+  // Der Rundgang: ein durchgehender Pfad von der Rakete über alle Stationen in der Reihenfolge der Führung
+  function drawTour(B, L, col, w = 2) {
+    const pts = [[L.spawn[0] + 2, L.spawn[1] + 2]];
+    for (const k of [...cfg.guide.order, "wand"]) for (const p of (L.route[k] || [])) pts.push(p);
+    makePath(B, pts, w, col);
+  }
   function makePath(B, pts, w = 2.2, col) {
     const P = [];
     for (let i = 0; i < pts.length - 1; i++) {
@@ -3155,10 +3310,11 @@ window.Surface = (function () {
     const L = { ...MARS_LAYOUT };
     const rich = !W.fast; // „⚡ Flüssig“: weniger Zierrat
     const craters = [[60, -40, 16, 2], [-75, 65, 14, 1.8], [90, 50, 10, 1.2], [-45, -75, 18, 2.4], [45, 100, 12, 1.6], [70, 5, 6, 0.8]];
-    const flats = [[0, 0, 11], [...L.station, 20], [L.station[0], L.station[1] + 16, 26], [...L.waage, 4], [...L.monde, 6], [...L.vulkan, 6], [...L.rover, 7], [...L.roverStart, 5], [...L.eis, 7], [...L.pad, 7], [...L.abend, 6], [...L.wegweiser, 3]];
+    const up = (p, r) => [...p, r, "auto", 3]; // Plätze oben auf der Hochebene: eben, aber auf ihrer Höhe
+    const flats = [up([0, 0], 10), [...L.station, 20], [L.station[0], L.station[1] + 16, 26], [...L.waage, 4], up(L.monde, 5), up(L.vulkan, 6), [...L.rover, 7], [...L.roverStart, 5], [...L.eis, 7], [...L.pad, 7], up(L.abend, 5), up(L.wegweiser, 2.5), up(MARS_MAST(L.abend), 2)];
     const dustColors = ["rgba(190,110,70,1)", "rgba(170,95,60,0.9)"];
     const B = buildBase({
-      height: makeHeight(craters, flats, 40, marsDunes),
+      height: makeHeight(craters, flats, 40, (x, z) => marsDunes(x, z) + marsPlateau(x, z)),
       // dünne, staubige Luft: gelbbrauner Himmel, Dunst in der Ferne, keine Sterne am Tag, die Sonne wirkt kleiner als auf der Erde
       sky: MARS_SKY.getHex(), fog: [90, 430], stars: false, sunSize: 105,
       ground: 0xb8623a, rock: 0x7d4a35,
@@ -3166,6 +3322,10 @@ window.Surface = (function () {
         let m = 0.75 + 0.25 * fbm2(x * 0.015 + 9, z * 0.015), r = m, g = m * 0.95, b = m * 0.9;
         const d = duneMask(x, z); // in den Dünen: feiner, hellerer Sand
         if (d > 0) { r += (1.08 - r) * d; g += (0.86 - g) * d; b += (0.62 - b) * d; }
+        const cliff = marsPlateau(x, z); // Gesteinsschichten an der Steilkante
+        if (cliff > 0.4 && cliff < 7.6) { const band = 0.82 + 0.18 * Math.sin(cliff * 5.5); r *= band; g *= band * 0.96; b *= band * 0.92; }
+        const delta = smooth(30, 12, Math.hypot(x - L.roverZiel[0], z - L.roverZiel[1])); // helles Flussdelta mit Rinnen
+        if (delta > 0) { const ch = 0.5 + 0.5 * Math.sin((x - L.roverZiel[0]) * 0.5 + Math.sin(z * 0.2) * 3); r += (1.15 * (0.9 + 0.1 * ch) - r) * delta; g += (0.92 * (0.9 + 0.1 * ch) - g) * delta; b += (0.7 - b) * delta; }
         m = 0.9 + 0.1 * hash2(Math.floor(x * 2), Math.floor(z * 2)); // feine Körnung
         return [r * m, g * m, b * m];
       },
@@ -3237,11 +3397,10 @@ window.Surface = (function () {
     const weather = on(makeWeatherMast(M), ...MARS_MAST(L.abend)); // Mast seitlich, damit er beim Sonnenuntergang nicht im Bild steht
     const magnetTable = on(makeMagnetTable(), ...L.rost); // unter dem Vordach „Proben-Labor“
     magnetTable.rotation.y = Math.atan2(LAB_DIR.x, LAB_DIR.z);
-    // Trampelpfade: von der Rakete zu allen Gebäuden
-    const [sx, sz] = L.station, [tx, tz] = MARS_TOWER;
-    for (const p of [[[0, 5], [0, sz - 9]], [[-2, sz - 9], [sx - tx + WEIGH_DIR.x * 9, sz + tz + WEIGH_DIR.z * 9]], [[2, sz - 9], [sx + tx + LAB_DIR.x * 9.5, sz + tz + LAB_DIR.z * 9.5]],
-      [[3, 5], [L.monde[0] - 2.6, L.monde[1] - 4]], [[-4, 4], [L.rover[0] + 2.5, L.rover[1] - 1]], [[5, 4], [L.vulkan[0] - 3.5, L.vulkan[1] - 2.5]],
-      [[4, sz - 9], [ex - 3.5, ez - 2]], [[-4, sz - 9], [L.abend[0] + 3.5, L.abend[1] + 1.5]], [[sx - tx + WEIGH_DIR.x * 9, sz + tz + WEIGH_DIR.z * 9], [L.pad[0] + 5, L.pad[1] - 3]]]) makePath(B, p);
+    // Trampelpfad: der Rundgang, den Mia mit dem Kind läuft – über die Hochebene, die Rampe hinab ins Tal, durch den Außenposten
+    drawTour(B, L);
+    on(makeSignBoard(M, "🏞️ ALTES FLUSSDELTA", "#c84a12", 2.8), L.roverZiel[0] + 6, L.roverZiel[1] - 6).rotation.y = Math.atan2(L.rover[0] - L.roverZiel[0], L.rover[1] - L.roverZiel[1]);
+    on(makeSignBoard(M, "⬇️ ZUM AUSSENPOSTEN", "#0d9488", 2.6), -32, 10).rotation.y = Math.atan2(32, -10);
     // Landschaft mit Charakter: Himmelsverlauf, Tafelberge am Horizont, Felsgruppen, Staubschleier, ein Rover auf Patrouille
     const skyDome = makeSkyDome(1.12, 0.74); skyDome.material.color.copy(MARS_SKY); scene.add(skyDome);
     const bands = bandTexture(["#8a4a33", "#9b5a3f", "#7a3f2b", "#a8694a", "#8f5038", "#b37757"], 3); // gedämpfte Rottöne, die im Dunst verschwimmen
@@ -3249,7 +3408,7 @@ window.Surface = (function () {
     buttes.slice(0, rich ? 6 : 3).forEach(([x, z, r, h], i) => on(makeButte(r, h, bands, i * 7 + 1), x, z, h / 2 - 3));
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x6a3a26, roughness: 0.95, vertexColors: true });
     rockMat.userData.natural = true;
-    const clusters = [[24, 14, 6], [34, 22, 5], [9, -9, 5], [-10, 34, 6], [38, 64, 5], [-42, 58, 6], [-9, 24, 4], [-38, 10, 5], [28, -30, 6], [-18, -12, 4]];
+    const clusters = [[38, 14, 6], [34, 30, 5], [9, -9, 5], [-10, 36, 6], [38, 64, 5], [-46, 58, 6], [12, 30, 4], [-50, 8, 5], [28, -30, 6], [-18, -12, 4]];
     clusters.slice(0, rich ? 10 : 5).forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 13 + 2));
     const veils = rich ? makeDustVeils("rgba(210,150,100,1)", 9) : new THREE.Group(); scene.add(veils);
     const patrol = on(makeMarsRover(), 48, 62);
@@ -5469,6 +5628,6 @@ window.Surface = (function () {
     }
   };
 
-  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, discover, startAction, showFound, POSE, setBone, HATCH };
+  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, discover, startAction, showFound, POSE, setBone, HATCH };
   return S;
 })();
