@@ -46,6 +46,16 @@ window.Surface = (function () {
     }
   };
   const SHADOW_DIR = new V(-SUN_DIR.x, 0, -SUN_DIR.z).normalize(); // Schatten fallen weg von der Sonne
+  // Mondgraben um den Mondstein: 2,3 m tief, steile Wände; der Mondstein liegt auf der Insel in der Mitte.
+  // Hinüber kommt man nur mit Anlauf (Mond-Schwerkraft!) – wer hineinfällt, läuft über die Rampe wieder hinaus.
+  const MOAT_R = [2.5, 2.8, 4.6, 4.9], MOAT_DEPTH = 2.3, MOAT_RAMP = Math.atan2(5.5, -3);
+  function moonMoatK(x, z) { // 0 = kein Graben … 1 = Grabenboden
+    const [cx, cz] = MOON_LAYOUT.mondstein, dx = x - cx, dz = z - cz, r = Math.hypot(dx, dz);
+    if (r > 9.5) return 0;
+    const a = Math.atan2(dz, dx), da = Math.abs(Math.atan2(Math.sin(a - MOAT_RAMP), Math.cos(a - MOAT_RAMP)));
+    const outer = da < 0.32 ? smooth(MOAT_R[2], 9.2, r) : smooth(MOAT_R[2], MOAT_R[3], r);
+    return 1 - Math.max(smooth(MOAT_R[1], MOAT_R[0], r), outer);
+  }
 
   // Gelände: sanfte Hügel, Krater [x, z, Radius, Tiefe], ebene Plätze [x, z, Radius, Höhe] für Rakete und Stationen
   // extra(x, z): zusätzliche Formen (Sanddünen, Hochebenen, Schluchten …) – die ebenen Plätze bleiben trotzdem eben.
@@ -1463,10 +1473,10 @@ window.Surface = (function () {
       [-30, -40, 16, 2.4], [40, -70, 11, 1.8], [-95, -30, 20, 3], [0, -95, 13, 2], [100, 10, 8, 1.2], [25, -30, 6, 0.9]];
     const flats = [[0, 0, 11], [...L.fallversuch, 5], [...L.himmel, 4, "auto", 3], [...L.apollo, 10], [...L.boulder, 7], [...L.shadowSpot, 6], [...L.waage, 9], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 18, 24, "auto"], [...L.spiegel, 4], [...L.antenne, 5, "auto", 9]];
     const B = buildBase({
-      height: makeHeight(craters, flats),
+      height: makeHeight(craters, flats, 0, (x, z) => -MOAT_DEPTH * moonMoatK(x, z)),
       sky: 0x000000, stars: true, sunSize: 160,
       ground: 0x86837d, rock: 0x6b6863,
-      tint: (x, z) => { const m = 0.72 + 0.28 * smooth(0.35, 0.6, fbm2(x * 0.01 + 3, z * 0.01)); return [m, m, m * 1.02]; }, // dunklere „Meere“
+      tint: (x, z) => { const m = (0.72 + 0.28 * smooth(0.35, 0.6, fbm2(x * 0.01 + 3, z * 0.01))) * (1 - 0.35 * moonMoatK(x, z)); return [m, m, m * 1.02]; }, // dunklere „Meere“, dunkler Graben
       keepFree: [[...L.fallversuch, 5], [...L.himmel, 6], [...L.apollo, 9], [...L.shadowSpot, 7], [...L.spawn, 4],
         [...L.waage, 8], [...L.wegweiser, 3], [...L.mondstein, 3], [L.station[0], L.station[1] + 2, 18], [L.station[0], L.station[1] + 18, 26], [...L.spiegel, 4], [...L.antenne, 4]],
       // grelle Sonne, kaum Umgebungslicht (auf dem Mond sind Schatten tiefschwarz), bläulicher Erdschein
@@ -1515,7 +1525,7 @@ window.Surface = (function () {
     boulder.material.map.repeat.set(3, 3);
     boulder.scale.set(7, 8.5, 6.5); boulder.rotation.set(0.2, 0.7, 0.1);
     boulder.castShadow = true; boulder.receiveShadow = true;
-    on(boulder, ...L.boulder, 5.5);
+    on(boulder, ...L.boulder, 2.4); // unten im Boden versenkt (der Fels ist unten flach)
 
     const DECK = 0.9; // Fernrohr auf der Aussichtsplattform „Erdblick“
     const deck = on(makeViewDeck(M, DECK), ...L.himmel);
@@ -1531,6 +1541,10 @@ window.Surface = (function () {
     const scaleSign = on(makeSignBoard(M, "⚖️ FRACHTWAAGE", "#b45309", 2.2), L.waage[0] + 2.2, L.waage[1] - 1.2);
     scaleSign.rotation.y = Math.atan2(-scaleSign.position.x, -scaleSign.position.z);
     on(makeReflector(), ...L.spiegel).rotation.y = Math.atan2(earthDir.x, earthDir.z);
+    { // Schild neben der Absprungstelle (nicht in der Sprungbahn)
+      const [cx, cz] = L.mondstein, ax = 3, az = -5.5, d = Math.hypot(ax, az), sx = cx + (ax / d) * 7.5 + (-az / d) * 3.6, sz = cz + (az / d) * 7.5 + (ax / d) * 3.6;
+      on(makeSignBoard(M, "🦘 NUR MIT ANLAUF!", "#7c3aed", 2.8), sx, sz).rotation.y = Math.atan2(ax, az);
+    }
     const station = on(makeStation(cfg.discoveries, "Mondbasis", "mond"), ...L.station);
     // Laserstrahl zwischen Spiegel und Erde (nur während der Messung sichtbar)
     const laserFrom = new V(L.spiegel[0], height(...L.spiegel) + 0.5, L.spiegel[1]);
@@ -1851,6 +1865,7 @@ window.Surface = (function () {
     if (!S.active) return;
     S.active = false; probe = null;
     Sound.engine(0); Sound.wind(0);
+    if (chal) endChallenge();
     compassShown = ""; $("surfCompass").classList.add("hidden");
     $("surfaceHud").classList.add("hidden");
     $("surfLabels").innerHTML = "";
@@ -1934,9 +1949,11 @@ window.Surface = (function () {
 
     // Springen & Lope-Schritte – mit moveGravity (etwas stärker als die echte Mond-Schwerkraft, fühlt sich weniger zäh an)
     const ground = H(ast.pos.x, ast.pos.z);
-    if (jumpPressed && ast.onGround) {
+    // Springen geht auch mitten in einem kleinen Lauf-Hüpfer (sonst wird die Leertaste beim Laufen oft „verschluckt“)
+    if (jumpPressed && (ast.onGround || (ast.hopping && ast.pos.y - ground < 0.2))) {
       // Anzug + Rucksack wiegen so viel wie ein Erwachsener → auf dem Mond ca. 45 cm hoch, gut 1 s in der Luft (cfg.jump = Höhe in m)
       ast.vy = Math.sqrt(2 * g * cfg.jump); ast.onGround = false; ast.jumpBase = ast.pos.y; ast.maxY = ast.pos.y; ast.jumping = true; ast.hopping = false;
+      ast.jumpFrom = [ast.pos.x, ast.pos.z];
       ast.airT = 0; ast.airDur = 2 * ast.vy / g;
       Sound.whoosh();
       grains(ast.pos, 8, 0.6);
@@ -1967,7 +1984,12 @@ window.Surface = (function () {
           const h = Math.max(ast.maxY - ast.jumpBase, cfg.jump);
           const jump = { hoehe: `${Math.round(h * 100)} Zentimeter`, zeit: Math.max(ast.airT, ast.airDur).toFixed(1).replace(".", ",") };
           const real = Math.abs(ast.pos.y - ast.jumpBase) < Math.max(0.25, cfg.jump * 0.6); // an einem steilen Hang zählt ein Sprung nicht
-          if (real && foundMap().sprung) UI.toast(`🦘 ${jump.hoehe} hoch · ${jump.zeit} Sekunden in der Luft`, "gold");
+          const far = Math.hypot(ast.pos.x - ast.jumpFrom[0], ast.pos.z - ast.jumpFrom[1]);
+          if (bodyId === "mond" && far > 2.2 && moonMoatK(ast.jumpFrom[0], ast.jumpFrom[1]) < 0.05 && Math.hypot(ast.pos.x - world.L.mondstein[0], ast.pos.z - world.L.mondstein[1]) < MOAT_R[0]) {
+            const msg = `🦘 Über den Graben: ${far.toFixed(1).replace(".", ",")} m weit! Auf der Erde wären es nur ${(far * cfg.gravity / 9.81).toFixed(1).replace(".", ",")} m gewesen.`;
+            const show = () => (UI.modalOpen() ? setTimeout(show, 500) : UI.toast(msg, "gold")); setTimeout(show, 700); // erst nach der Entdeckungskarte
+            Sound.correct();
+          } else if (real && foundMap().sprung) UI.toast(`🦘 ${jump.hoehe} hoch · ${jump.zeit} Sekunden in der Luft`, "gold");
           else if (real) discover("sprung", jump);
         }
       }
@@ -2016,7 +2038,8 @@ window.Surface = (function () {
     temp.shown += (target - temp.shown) * Math.min(1, dt * 1.2);
     if (temp.inShadow) temp.shadowTime += dt; else { temp.shadowTime = 0; temp.sunSeen = true; }
     const ts = world.stations.temperatur;
-    if (ts && temp.inShadow && temp.shadowTime > 1.5 && !busy && Math.hypot(ast.pos.x - ts.x, ast.pos.z - ts.z) < ts.zone) discover("temperatur");
+    if (ts && !cfg.stations.temperatur.action && temp.inShadow && temp.shadowTime > 1.5 && !busy && Math.hypot(ast.pos.x - ts.x, ast.pos.z - ts.z) < ts.zone) discover("temperatur");
+    updateChallenge(dt, busy);
     const t = Math.round(temp.shown);
     const tEl = $("suitTemp");
     const tText = (t < 0 ? "−" : "") + Math.abs(t) + " °C";
@@ -2062,6 +2085,48 @@ window.Surface = (function () {
     updateCompass();
   };
 
+  // ---------- Spielaufgaben, bei denen man frei herumläuft (Anzeige oben: #chalHud) ----------
+  let chal = null;
+  function chalHud(label, f, info, hot) {
+    const h = $("chalHud"); h.classList.remove("hidden"); h.classList.toggle("hot", !!hot);
+    if ($("chalLabel").textContent !== label) $("chalLabel").textContent = label;
+    $("chalFill").style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + "%";
+    if ($("chalInfo").textContent !== (info || "")) $("chalInfo").textContent = info || "";
+  }
+  function endChallenge() { chal = null; $("chalHud").classList.add("hidden"); }
+  function chalSay(text) { if (guide && guide.on && guide.n.obj.visible) guideSay(text); else radio(text); }
+  function updateChallenge(dt, busy) {
+    if (!chal) return;
+    if (chal.kind === "shadow") updateShadowRun(dt, busy);
+  }
+  // Merkur: Schattenlauf – in der Sonne wird der Anzug heiß, im Schatten kühlt er ab
+  function startShadowRun() {
+    const run = world.run, T = cfg.shadowRun;
+    chal = { kind: "shadow", heat: 0 };
+    ast.pos.set(run.S[0], world.height(...run.S), run.S[1]); ast.speed = 0;
+    ast.heading = view.yaw = Math.atan2(run.F[0] - run.S[0], run.F[1] - run.S[1]);
+    world.finish.visible = true; world.stations.temperatur.marker.visible = false;
+    chalSay(T.start); Sound.click();
+  }
+  function updateShadowRun(dt, busy) {
+    const run = world.run, T = cfg.shadowRun;
+    if (busy) return;
+    chal.heat = Math.max(0, Math.min(1, chal.heat + (temp.inShadow ? -0.32 : 0.42) * dt));
+    chalHud(T.label, chal.heat, temp.inShadow ? T.cool : T.sun, chal.heat > 0.7);
+    const toGoal = Math.hypot(ast.pos.x - run.F[0], ast.pos.z - run.F[1]);
+    if (toGoal < 1.6) { // geschafft: im Schatten des großen Felsens
+      endChallenge(); world.finish.visible = false; world.stations.temperatur.marker.visible = true;
+      Sound.correct(); UI.confetti(80); discover("temperatur"); return;
+    }
+    if (chal.heat >= 1) { // zu heiß: zurück zum Start
+      Sound.wrong(); chalSay(T.hot);
+      chal.heat = 0; ast.pos.set(run.S[0], world.height(...run.S), run.S[1]); ast.speed = 0;
+      return;
+    }
+    // weit weg gelaufen: abbrechen
+    const line = Math.hypot(ast.pos.x - (run.S[0] + run.F[0]) / 2, ast.pos.z - (run.S[1] + run.F[1]) / 2);
+    if (line > 26) { endChallenge(); world.finish.visible = false; world.stations.temperatur.marker.visible = true; chalSay(T.quit); }
+  }
   // Liegt ein Punkt im Schatten des Geländes? In Schritten zur Sonne hin prüfen, ob der Boden höher ist als der Sonnenstrahl
   function terrainShade(p, dir) {
     const H = world.height, hd = Math.hypot(dir.x, dir.z) || 1e-6, rise = dir.y / hd;
@@ -3305,7 +3370,7 @@ window.Surface = (function () {
     for (let i = 0; i < p.count; i++) {
       v.fromBufferAttribute(p, i);
       const n = fbm2(v.x * 1.6 + seed * 3.1, v.z * 1.6 + v.y * 1.3 - seed) - 0.5;
-      const facet = Math.round((v.x + v.y * 0.7) * 2.2 + seed) * 0.04; // grobe Bruchkanten
+      const facet = (Math.round((v.x + v.y * 0.7) * 2.2 + seed) - Math.round(seed)) * 0.04; // grobe Bruchkanten (ohne die Größe zu ändern)
       v.multiplyScalar(1 + n * 0.55 + facet);
       if (v.y < -0.35) v.y = -0.35 + (v.y + 0.35) * 0.25; // unten flach, damit er aufliegt
       p.setXYZ(i, v.x, v.y, v.z);
@@ -4351,13 +4416,18 @@ window.Surface = (function () {
   // Merkur: Die Station liegt unten in einem großen Krater am Pol – dort ist es immer schattig und kühl, im ewigen Schatten liegt Eis.
   // Oben in der glühenden Sonne: Sonnenturm, Absturzstelle von MESSENGER, Schatten-Platz und das Einschlag-Messfeld.
   const MERKUR_CRATER = [0, 72, 40, 10];
+  function shadowRunLayout(L) {
+    const F = L.shadowSpot, px = SHADOW_DIR.z, pz = -SHADOW_DIR.x, S = [F[0] + px * 28, F[1] + pz * 28];
+    const pillars = [0.14, 0.33, 0.52, 0.7].map((k) => [S[0] + (F[0] - S[0]) * k - SHADOW_DIR.x * 3, S[1] + (F[1] - S[1]) * k - SHADOW_DIR.z * 3]);
+    return { S, F, pillars };
+  }
   const MERKUR_LAYOUT = {
     spawn: [-6.9, 4], waage: [-26, 12], sonne: [-20, 37], boulder: [-42, 40], krater: [30, 44], kraterZiel: [44, 58],
     wegweiser: [8, 4], sonde: [-24, -16], eis: [-26, 70], // Eis im ewigen Schatten am Kraterboden
     station: [0, 66], jahr: [-4, 59], groesse: [8, 59], meet: [-16, 20],
     route: {
       wegweiser: [[5.5, 2.5]], sonde: [[-6, -6], [-19, -13]], waage: [[-24, -4], [-22, 9]], sonne: [[-22, 20], [-16, 33]],
-      temperatur: [[-26, 38], [-27, 43]], eis: [[-27, 52], [-23, 66]], jahr: [[-12, 60], [-7, 55]], groesse: [[4, 55]],
+      temperatur: [[-15.5, 23.5]], eis: [[-27, 52], [-23, 66]], jahr: [[-12, 60], [-7, 55]], groesse: [[4, 55]],
       krater: [[14, 56], [24, 45], [27, 41]], wand: [[16, 52], [3, 60]], rakete: [[10, 48], [8, 30], [2, 6]]
     }
   };
@@ -4386,8 +4456,14 @@ window.Surface = (function () {
 
     const boulder = new THREE.Mesh(naturalRockGeo(23, 5), new THREE.MeshStandardMaterial({ color: 0x86807a, roughness: 1, vertexColors: true, map: regolithTexture() }));
     boulder.material.map.repeat.set(3, 3);
+    // Schattenlauf: drei Felsnadeln werfen Schatteninseln über die Strecke, am Ziel ein goldener Kreis im Felsschatten
+    const run = shadowRunLayout(L), pillarMat = new THREE.MeshStandardMaterial({ color: 0x7c766f, roughness: 1, vertexColors: true });
+    const pillars = run.pillars.map(([x, z], i) => { const p = new THREE.Mesh(naturalRockGeo(40 + i, 4), pillarMat); p.scale.set(2.1, 2.7, 1.9); p.castShadow = p.receiveShadow = true; return on(p, x, z, 1.2); });
+    const finish = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.6, 48), new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+    finish.rotation.x = -Math.PI / 2; on(finish, ...run.F, 0.07); finish.visible = false;
+    on(makeSignBoard(M, "☀️ SCHATTENLAUF", "#b45309", 2.6), run.S[0] + 2.2, run.S[1] + 1.2).rotation.y = Math.atan2(run.F[0] - run.S[0], run.F[1] - run.S[1]) + Math.PI;
     boulder.scale.set(7, 8.5, 6.5); boulder.rotation.set(0.2, 0.7, 0.1); boulder.castShadow = boulder.receiveShadow = true;
-    on(boulder, ...L.boulder, 5.5);
+    on(boulder, ...L.boulder, 2.4); // unten im Boden versenkt (der Fels ist unten flach)
 
     // Sonne im Filter-Fernrohr: groß, wie sie vom Merkur aussieht – und daneben klein, wie wir sie von der Erde kennen
     const TOWER = 4; // Sonnenturm, oben das Filter-Fernrohr
@@ -4431,7 +4507,7 @@ window.Surface = (function () {
     const rack = on(makeSizeRack(["mond", "merkur", "erde"]), ...L.groesse);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
-      waage: L.waage, temperatur: L.shadowSpot, sonne: L.sonne, krater: L.krater, jahr: L.jahr, groesse: L.groesse,
+      waage: L.waage, temperatur: run.S, sonne: L.sonne, krater: L.krater, jahr: L.jahr, groesse: L.groesse,
       eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
     const npcs = addNpcs(B);
     drawTour(B, L, [168, 158, 144], 1.8); // der Rundgang mit Kofi: oben in der Sonne, dann hinab in den schattigen Krater
@@ -4443,11 +4519,11 @@ window.Surface = (function () {
     const wall = [];
     const colliders = [...common.colliders, [...L.boulder, 6.8], [...L.sonne, 1.9], [...L.krater, 1], [...L.wegweiser, 0.3], [...L.sonde, 1.6],
       [...L.eis, 0.5], [iceProbe.position.x, iceProbe.position.z, 1.1], [...L.jahr, 1.2], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1],
-      ...seismos.map((s) => [s.position.x, s.position.z, 0.5]), ...wall, ...npcs.map((n) => n.col),
+      ...seismos.map((s) => [s.position.x, s.position.z, 0.5]), ...wall, ...npcs.map((n) => n.col), ...run.pillars.map(([x, z]) => [x, z, 1.7]),
       ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2])];
 
     return { ...B, ...common, L, telescope, sunBig, sunSmall, sunAt, meteor, decal, orrery, rack, stations, colliders, npcs, blink: common.station.userData.blink,
-      shadowCasters: [boulder, rocket, common.station, tower, shelter] };
+      shadowCasters: [boulder, rocket, common.station, tower, shelter, ...pillars], run, finish };
   }
   function startSunScope() {
     const T = cfg.sunScope, w = world;
@@ -4765,14 +4841,108 @@ window.Surface = (function () {
     const orrery = on(makeOrrery("pluto", 1.95, 0.6), ...L.jahr);
     const rack = on(makeSizeRack(["pluto", "mond", "erde"]), ...L.groesse);
 
+    // Eis-Curling: Zielscheibe auf dem Herz, Eisstein und Richtungspfeil
+    const lane = curlLane(L), curl = makeCurling();
+    curl.target.position.set(lane.tx, height(lane.tx, lane.tz) + 0.04, lane.tz); scene.add(curl.target, curl.stone, curl.arrow);
+    curl.stone.visible = curl.arrow.visible = false;
+    on(makeSignBoard(M, "🥌 EIS-CURLING", "#0e7490", 2.4), lane.sx - lane.dz * 3, lane.sz + lane.dx * 3).rotation.y = Math.atan2(-lane.dx, -lane.dz);
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, charon: L.charon, herz: L.herz, funk: L.funk, jahr: L.jahr, groesse: L.groesse,
       eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { charon: MARS_SCOPE_DOOR(L.charon) });
     const colliders = [...common.colliders, [...L.charon, 2.9], [...L.herz, 0.7], [L.herz[0] + 3.6 * Math.cos(dronePad.rotation.y), L.herz[1] - 3.6 * Math.sin(dronePad.rotation.y), 1.4], [...L.funk, 1.2], [L.funk[0] + 2.6, L.funk[1] + 1.6, 0.9], [...L.wegweiser, 0.3], [...L.sonde, 1.4], ...npcs.map((n) => n.col),
       [...L.jahr, 1.2], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1]];
 
-    return { ...B, ...common, L, telescope, charon, cmpMoon, drone, droneY: drone.position.y, signalFrom, beam, pulse, orrery, rack, npcs,
+    return { ...B, ...common, L, telescope, charon, cmpMoon, drone, droneY: drone.position.y, signalFrom, beam, pulse, orrery, rack, npcs, curl, lane,
       blink: dronePad.userData.lights, stations, colliders, shadowCasters: [rocket, common.station, igloo] };
+  }
+  // ---------- Eis-Curling: Bahn vom Kreis aus Richtung Herzmitte ----------
+  const CURL_LEN = 22, CURL_DECEL = 0.8; // Ziel 22 m entfernt; auf Stickstoff-Eis bremst fast nichts
+  function curlLane(L) {
+    const [sx, sz] = L.eis, [hx, hz] = L.heart, d = Math.hypot(hx - sx, hz - sz), dx = (hx - sx) / d, dz = (hz - sz) / d;
+    return { sx, sz, dx, dz, tx: sx + dx * CURL_LEN, tz: sz + dz * CURL_LEN };
+  }
+  function makeCurling() {
+    // Zielscheibe: blau – weiß – rot (Radien 3,8 / 2,4 / 1,2 m)
+    const tex = canvasTex(512, 512, (c) => {
+      const ring = (r, col) => { c.fillStyle = col; c.beginPath(); c.arc(256, 256, r, 0, 7); c.fill(); };
+      ring(254, "rgba(37,99,235,0.85)"); ring(214, "rgba(240,248,255,0.85)"); ring(160, "rgba(59,130,246,0.85)"); ring(124, "rgba(240,248,255,0.9)"); ring(80, "rgba(220,38,38,0.9)"); ring(28, "rgba(240,248,255,0.95)");
+    });
+    const target = new THREE.Mesh(new THREE.CircleGeometry(3.8, 48), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.25, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2 }));
+    target.rotation.x = -Math.PI / 2; target.receiveShadow = true;
+    // Eisstein: Granit mit farbigem Griff
+    const stone = new THREE.Group();
+    const granite = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(0, 0), new THREE.Vector2(0.26, 0.01), new THREE.Vector2(0.31, 0.06), new THREE.Vector2(0.3, 0.13), new THREE.Vector2(0.24, 0.18), new THREE.Vector2(0, 0.19)], 28),
+      new THREE.MeshStandardMaterial({ color: srgb(0x6b7280), roughness: 0.35, metalness: 0.15 }));
+    granite.castShadow = true; stone.add(granite);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.025, 8, 32), new THREE.MeshStandardMaterial({ color: srgb(0xfacc15), roughness: 0.4 })); band.rotation.x = Math.PI / 2; band.position.y = 0.11; stone.add(band);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.07, 0.34), new THREE.MeshStandardMaterial({ color: srgb(0xdc2626), roughness: 0.4 })); handle.position.set(0, 0.24, -0.04); stone.add(handle);
+    // Pfeil: Richtung und (Länge, Farbe) Schwung
+    const arrow = new THREE.Group(), amat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.85, depthWrite: false });
+    const shaft = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 1), amat); shaft.rotation.x = -Math.PI / 2; shaft.position.z = 0.5; arrow.add(shaft);
+    const head = new THREE.Mesh(new THREE.CircleGeometry(0.4, 3), amat); head.rotation.x = -Math.PI / 2; head.rotation.z = Math.PI / 2; head.position.z = 1.1; arrow.add(head);
+    arrow.userData = { shaft, head, mat: amat };
+    return { target, stone, arrow };
+  }
+  function startCurling() {
+    const ln = world.lane;
+    enterExhibit("eis", { update: updateCurling, phase: "aim", aim: (Math.random() - 0.5) * 0.4, t: 0, left: 3, best: 0, v: 0, power: 0 });
+    const sp = view.special; sp.x = ln.sx + ln.dx * 1.4; sp.z = ln.sz + ln.dz * 1.4;
+    world.curl.stone.visible = world.curl.arrow.visible = true; world.astronaut.visible = false;
+    curlAim();
+  }
+  function curlAim() {
+    const sp = view.special, T = cfg.curling, ln = world.lane;
+    sp.phase = "aim"; sp.x = ln.sx + ln.dx * 1.4; sp.z = ln.sz + ln.dz * 1.4; sp.v = 0;
+    world.curl.arrow.visible = true;
+    scopeSay(isTouch() ? T.aimTouch : T.aim, [[T.aimBtn, curlPower, true]]);
+  }
+  function curlPower() { const sp = view.special; sp.phase = "power"; sp.t = 0; scopeSay(cfg.curling.power, [[cfg.curling.throwBtn, curlThrow, true]]); }
+  function curlThrow() {
+    const sp = view.special; sp.phase = "slide"; sp.v = 3.2 + sp.power * 5; sp.left--;
+    world.curl.arrow.visible = false; Sound.whoosh();
+    scopeSay(cfg.curling.slide);
+  }
+  function curlEnd(success) {
+    const sp = view.special;
+    world.curl.stone.visible = world.curl.arrow.visible = false; world.astronaut.visible = true;
+    if (success) leaveExhibit();
+    else { const key = sp.key; view.special = null; world.stations[key].marker.visible = true; $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping", "driving"); }
+  }
+  function updateCurling(dt) {
+    const sp = view.special, c = world.camera, ln = world.lane, T = cfg.curling, st = world.curl.stone, ar = world.curl.arrow;
+    if (sp.phase === "aim") sp.aim = Math.max(-0.45, Math.min(0.45, sp.aim - sp.ix * dt * 0.7));
+    if (sp.phase === "power") { sp.t += dt; sp.power = 0.5 - 0.5 * Math.cos(sp.t * 2.1); }
+    const ca = Math.cos(sp.aim), sa = Math.sin(sp.aim), dx = ln.dx * ca - ln.dz * sa, dz = ln.dz * ca + ln.dx * sa;
+    if (sp.phase === "slide") {
+      sp.x += dx * sp.v * dt; sp.z += dz * sp.v * dt; sp.v = Math.max(0, sp.v - CURL_DECEL * dt);
+      st.rotation.y += dt * sp.v * 0.6; // dreht sich beim Rutschen
+      if (sp.v <= 0) { // liegen geblieben: wie nah am Ziel?
+        sp.phase = "result";
+        const d = Math.hypot(sp.x - ln.tx, sp.z - ln.tz), along = (sp.x - ln.sx) * ln.dx + (sp.z - ln.sz) * ln.dz;
+        const pts = d < 1.2 ? 3 : d < 2.4 ? 2 : d < 3.8 ? 1 : 0;
+        const first = pts > 0 && !sp.best; sp.best = Math.max(sp.best, pts);
+        if (pts) { Sound.correct(); UI.confetti(pts * 40); } else Sound.wrong();
+        let text = pts === 3 ? T.r3 : pts === 2 ? T.r2 : pts === 1 ? T.r1 : along < CURL_LEN ? T.short : T.long;
+        if (first) text += " " + T.fact;
+        const btns = [];
+        if (sp.left > 0) btns.push([fmtVars(T.again, { n: sp.left }), curlAim, !sp.best]);
+        if (sp.best) btns.push([T.done, () => curlEnd(true), true]);
+        if (!sp.best && sp.left <= 0) { sp.left = 3; btns.push([fmtVars(T.again, { n: 3 }), curlAim, true]); }
+        if (!sp.best) btns.push([T.quit, () => curlEnd(false)]);
+        scopeSay(text, btns);
+      }
+    }
+    st.position.set(sp.x, world.height(sp.x, sp.z) + 0.02, sp.z);
+    // Pfeil: zeigt die Richtung; beim Schwung-Holen wächst er und wird von grün über gelb nach rot
+    ar.position.set(sp.x, st.position.y + 0.05, sp.z); ar.rotation.y = Math.atan2(dx, dz);
+    const len = sp.phase === "power" ? 1 + sp.power * 5 : 2.4;
+    ar.userData.shaft.scale.y = len; ar.userData.shaft.position.z = 0.35 + len / 2; ar.userData.head.position.z = 0.45 + len;
+    ar.userData.mat.color.setHSL(sp.phase === "power" ? 0.33 * (1 - sp.power) : 0.33, 0.8, 0.5);
+    // Kamera hinter dem Stein; beim Rutschen fährt sie mit
+    const back = sp.phase === "slide" || sp.phase === "result" ? 6 : 5.5;
+    c.position.lerp(tmp.set(sp.x - dx * back, st.position.y + 2.6, sp.z - dz * back), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(sp.x + dx * 8, st.position.y, sp.z + dz * 8), 1 - Math.exp(-dt * 4));
+    c.lookAt(view.look);
   }
   function startCharon() {
     const T = cfg.charon, w = world;
@@ -6065,6 +6235,11 @@ window.Surface = (function () {
         updateExperiment(dt);
         updateLife(dt, elapsed, busy);
         world.earth.rotation.y += dt * 0.02;
+        const [mx, mz] = world.L.mondstein, mr = Math.hypot(ast.pos.x - mx, ast.pos.z - mz);
+        if (ast.onGround && mr > MOAT_R[0] - 0.1 && mr < MOAT_R[3] && ast.pos.y < world.height(mx, mz) - 0.3 && elapsed - (world.moatTold || -99) > 25) { // in den Graben gefallen
+          world.moatTold = elapsed;
+          if (guide && guide.on) guideSay(cfg.moat.fell); else radio(cfg.moat.fell);
+        }
       },
       actions: { himmel: startScope, spiegel: startLaser, antenne: startLapse, fallversuch: startFall }
     },
@@ -6106,7 +6281,7 @@ window.Surface = (function () {
       update(dt, busy, elapsed) { updateLife(dt, elapsed, busy); },
       // Wettrennen: Die Erde läuft eine Runde (365 Tage), Merkur in derselben Zeit gut vier
       orrery: { earthLaps: 1, planetLaps: 365 / 88, vars: (f) => ({ erde: Math.floor(f * 365), planet: Math.floor((f * 365) / 88) }) },
-      actions: { sonne: startSunScope, krater: startMeteor, jahr: startOrrery, groesse: startGuess }
+      actions: { sonne: startSunScope, krater: startMeteor, jahr: startOrrery, groesse: startGuess, temperatur: startShadowRun }
     },
     pluto: {
       build: buildPluto,
@@ -6122,7 +6297,7 @@ window.Surface = (function () {
       grip: () => (inHeart(ast.pos.x, ast.pos.z) ? 0.16 : 1),
       // Wettrennen: Die Erde läuft 12 Runden, Pluto in derselben Zeit nur 12/248 einer Runde
       orrery: { earthLaps: 12, planetLaps: 12 / 248, vars: (f) => ({ erde: Math.floor(f * 12) }) },
-      actions: { charon: startCharon, herz: startDrone, funk: startSignal, jahr: startOrrery, groesse: startGuess }
+      actions: { charon: startCharon, herz: startDrone, funk: startSignal, jahr: startOrrery, groesse: startGuess, eis: startCurling }
     },
     venus: {
       build: buildVenus,

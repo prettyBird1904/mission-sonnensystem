@@ -314,7 +314,7 @@ window.SPACE_DATA = {
           spiegel: "Diesen Spiegel haben die Apollo-Astronauten aufgestellt. Gleich schickt die Erde einen Laserstrahl – stopp die Zeit mit!",
           temperatur: "Stell dich mal in den Schatten von dem großen Felsen und schau auf dein Thermometer!",
           himmel: "Wir sind auf dem Kraterrand! Von der Plattform „Erdblick“ aus siehst du unsere Erde. Schau durchs Fernrohr!",
-          mondstein: "Wir sind unten im Krater. Hier liegt etwas Besonderes im Staub – such das glitzernde Fundstück!",
+          mondstein: "Siehst du das Glitzern hinter dem Graben? Nimm Anlauf und spring hinüber! Auf der Erde würdest du das nie schaffen.",
           antenne: "Das ist die Funkstation der Basis. Ihre Schüssel zeigt immer zur Erde. Spul mal die Zeit vor – was macht die Erde?",
           wand: "Das ist die Mondbasis! An der Wand siehst du alles, was du entdeckt hast.",
           rakete: "Hier ist unsere Rakete. Steig über die Leiter ein – ich komme mit. Auf zum nächsten Abenteuer, {name}!"
@@ -378,9 +378,10 @@ window.SPACE_DATA = {
         // Exponate auf dem Platz vor der Mondstation
         antenne:     { label: "Funkstation", hint: "Die Funkstation steht vor der Mondbasis", action: "⏩ Zeit vorspulen" },
         spiegel:     { label: "Laser-Spiegel", hint: "Den Laser-Spiegel haben die Apollo-Astronauten neben ihrer Fähre aufgestellt", action: "🔦 Laser-Messung starten" },
-        mondstein:   { label: "Mondstein im Krater", hint: "Such ein ✨ unten im großen Krater", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
+        mondstein:   { label: "Mondstein im Krater", hint: "Unten im Krater liegt der Mondstein hinter einem Graben – nimm Anlauf und spring!", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
+      moat: { fell: "Hoppla, in den Graben! Lauf über die flache Rampe wieder hinaus und nimm mehr Anlauf. Lauf schnell und spring kurz vor der Kante!" },
       // Fernrohr: Erde selbst suchen → Größe vergleichen → ausprobieren, was Luft mit dem Himmel macht
       scope: {
         aim: "Such unsere Erde! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten, um das Fernrohr zu schwenken.",
@@ -611,7 +612,7 @@ window.SPACE_DATA = {
           sonde: "Hier liegen die Reste einer Raumsonde. Lauf ganz nah heran!",
           waage: "Im Schatten-Platz steht eine Waage. Ohne das Dach wäre sie in der Sonne glühend heiß. Stell dich drauf!",
           sonne: "Oben auf dem Sonnenturm steht ein Fernrohr mit dunklem Filter. Schau, wie riesig die Sonne von hier aus ist!",
-          temperatur: "Stell dich in den Schatten von dem großen Felsen und schau auf dein Thermometer!",
+          temperatur: "Hier startet der Schattenlauf! In der Sonne ist es 430 °C heiß – dein Anzug hält das nur kurz aus. Lauf von Schatten zu Schatten bis zum großen Felsen!",
           eis: "Wir sind unten im Krater. Hierhin kommt nie ein Sonnenstrahl. Siehst du das Glitzern? Lauf hin!",
           jahr: "Hier kannst du ein Rennen um die Sonne starten: Merkur gegen Erde. Wer gewinnt?",
           groesse: "Schau dir die Kugeln an: Wie groß ist der Merkur eigentlich?",
@@ -659,7 +660,7 @@ window.SPACE_DATA = {
       stations: {
         wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         waage:      { label: "Schatten-Platz", hint: "Die Waage steht unter dem Sonnenschutz-Dach", action: "⚖️ Auf die Waage stellen" },
-        temperatur: { label: "Schatten am Felsen", hint: "Stell dich in den Kreis im Schatten des großen Felsens", again: "🌡️ Nochmal ansehen" },
+        temperatur: { label: "Schattenlauf", hint: "Der Schattenlauf startet neben dem Sonnenturm – lauf von Schatten zu Schatten bis zum großen Felsen", action: "☀️ Schattenlauf starten" },
         sonne:      { label: "Sonnenturm", hint: "Oben auf dem Sonnenturm steht ein Fernrohr mit Sonnenfilter", action: "🔭 Durchschauen" },
         krater:     { label: "Einschlag-Messfeld", hint: "Probier den Einschlag-Versuch am Messpult aus", action: "☄️ Einschlag-Versuch starten" },
         jahr:       { label: "Planeten-Rennen", hint: "Geh zur Merkurstation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
@@ -673,6 +674,12 @@ window.SPACE_DATA = {
         guess: { "q": "Was zeigt die Waage auf dem kleinen Merkur?", "a": ["Fast nichts", "Etwa ein Drittel", "Genauso viel wie auf der Erde"], "c": 1 },
         text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Merkur zeigt die Waage nur {mond} Kilo!",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      shadowRun: {
+        start: "Los! Lauf von Schatten zu Schatten bis in den goldenen Kreis im Schatten des großen Felsens. In der Sonne wird dein Anzug heiß – ruh dich im Schatten aus!",
+        label: "🧑‍🚀 Anzug-Hitze", sun: "☀️ Sonne: 430 °C – schnell in den Schatten!", cool: "❄️ Schatten: dein Anzug kühlt ab",
+        hot: "Puh, zu heiß! Dein Anzug musste kühlen – zurück zum Start. Bleib nicht zu lange in der Sonne!",
+        quit: "Schattenlauf abgebrochen. Du kannst ihn am Start jederzeit neu beginnen."
       },
       sunScope: {
         aim: "Dieses Fernrohr hat einen dunklen Sonnenfilter. Such die Sonne! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten.",
@@ -739,7 +746,7 @@ window.SPACE_DATA = {
           waage: "Im Wärme-Pavillon steht eine Waage. Stell dich drauf – du wirst lachen!",
           charon: "Die Iglu-Sternwarte ist aus Eisblöcken gebaut. Schau durchs Fernrohr: Da hängt ein großer Mond am Himmel!",
           herz: "Am Drohnen-Start wartet eine Kameradrohne. Flieg hoch und schau dir die Eisfläche von oben an!",
-          eis: "Jetzt du! Lauf auf das glatte Eis – aber pass auf, es ist rutschig!",
+          eis: "Jetzt du! Auf dem glatten Stickstoff-Eis rutscht alles ewig weit. Spiel eine Runde Eis-Curling!",
           jahr: "Hier kannst du ein Rennen um die Sonne starten: Pluto gegen Erde. Rate mal, wer gewinnt!",
           groesse: "Schau dir die Kugeln an: Wie groß ist Pluto im Vergleich?",
           funk: "Mit der großen Antenne funkt die Station zur Erde. Schick einen Funkspruch – und miss, wie lange er braucht!",
@@ -777,8 +784,8 @@ window.SPACE_DATA = {
           text: "Pluto braucht 248 Erdjahre für eine einzige Runde um die Sonne! Seit er 1930 entdeckt wurde, hat er noch nicht einmal eine halbe Runde geschafft. Auf Pluto könnte niemand Geburtstag feiern. Ein Tag dauert dort etwa 6 Erdtage." },
         { key: "groesse", icon: "📏", title: "Ein Zwergplanet",
           text: "Pluto ist kleiner als unser Mond: nur 2.377 Kilometer breit. Früher galt er als neunter Planet. Weil er so klein ist, nennt man ihn seit 2006 Zwergplanet." },
-        { key: "eis", icon: "⛸️", title: "Rutschpartie auf Stickstoff-Eis",
-          text: "Du rutschst! Das Herz ist eine glatte Fläche aus gefrorenem Stickstoff. Bei uns ist Stickstoff ein Gas in der Luft, die wir atmen. Hier ist es mit −230 °C so kalt, dass er zu Eis gefriert. Die Berge am Rand sind aus Wassereis – hart wie Stein." },
+        { key: "eis", icon: "🥌", title: "Rutschpartie auf Stickstoff-Eis",
+          text: "Der Stein ist ewig weit gerutscht – und wenn du übers Herz läufst, rutschst du selbst! Das Herz ist eine glatte Fläche aus gefrorenem Stickstoff. Bei uns ist Stickstoff ein Gas in der Luft, die wir atmen. Hier ist es mit −230 °C so kalt, dass er zu Eis gefriert. Die Berge am Rand sind aus Wassereis – hart wie Stein." },
         { key: "sonde", icon: "🛰️", title: "Besuch von der Erde", gallery: ["pluto.jpg", "pluto-1.jpg"],
           text: "Das ist ein Nachbau der Raumsonde New Horizons. Sie war 9½ Jahre unterwegs und flog 2015 ganz nah an Pluto vorbei. Erst durch ihre Fotos wissen wir, wie Pluto aussieht – vorher war er nur ein unscharfer Punkt." },
         { key: "wegweiser", icon: "🪧", title: "Am Rand des Sonnensystems",
@@ -792,7 +799,7 @@ window.SPACE_DATA = {
         funk:      { label: "Große Antenne", hint: "Schick an der großen Antenne einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
         jahr:      { label: "Planeten-Rennen", hint: "Geh zur Plutostation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:   { label: "Größenvergleich", hint: "Geh zur Plutostation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
-        eis:       { label: "Eisfläche", hint: "Lauf auf das glatte Eis und stell dich in den Kreis", again: "⛸️ Nochmal ansehen", small: true, auto: true },
+        eis:       { label: "Eis-Curling", hint: "Auf dem glatten Eis des Herzens wartet ein Eis-Curling-Spiel", action: "🥌 Eis-Curling spielen" },
         sonde:     { label: "New Horizons", hint: "Such ein ✨ hinter deiner Rakete – dort steht ein Denkmal", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
         wegweiser: { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
@@ -813,6 +820,18 @@ window.SPACE_DATA = {
         sunBtn: "☀️ Zur Sonne schwenken",
         sun: "Dieser helle Stern ist unsere Sonne! Pluto ist so weit weg, dass sie nur noch wie ein sehr heller Stern aussieht.",
         done: "Fertig ✓"
+      },
+      curling: {
+        aim: "Eis-Curling! Ziel mit ⬅️ ➡️ (oder A und D) auf die Zielscheibe.",
+        aimTouch: "Eis-Curling! Ziel mit dem Joystick auf die Zielscheibe.",
+        aimBtn: "🎯 Richtung passt!",
+        power: "Der Pfeil zeigt den Schwung: grün = sanft, rot = kräftig. Drück im richtigen Moment!",
+        throwBtn: "🥌 Jetzt schieben!",
+        slide: "Der Stein rutscht und rutscht … auf Stickstoff-Eis bremst fast nichts!",
+        r3: "🎯 Volltreffer – mitten im Ziel!", r2: "Super, im Ziel!", r1: "Knapp – aber im Ziel!",
+        short: "Zu kurz – gib etwas mehr Schwung!", long: "Zu weit! Das Eis ist so glatt, dass weniger Schwung reicht.",
+        fact: "Auf Pluto ist es −230 °C kalt: Da gefriert sogar Stickstoff zu spiegelglattem Eis.",
+        again: "🥌 Nochmal werfen (noch {n})", done: "Fertig ✓", quit: "Später"
       },
       drone: {
         rising: "Die Kameradrohne steigt auf … Schau dir die helle Fläche dort hinten an!",
