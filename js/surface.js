@@ -36,12 +36,12 @@ window.Surface = (function () {
   const MOON_CRATER = [-20, 78, 36, 9];
   const MOON_LAYOUT = {
     rocket: [0, 0], spawn: [-6.9, 4], // Start neben der Leiter (siehe HATCH), aber außer Reichweite von „Einsteigen“
-    fallversuch: [-24, 10], himmel: [-7.4, 44.2], apollo: [-34, 16], boulder: [-46, 26], waage: [14, 12], spiegel: [-42, 24],
+    fallversuch: [-24, 10], himmel: [-7.4, 44.2], apollo: [-34, 16], boulder: [-46, 26], waage: [14, 12], spiegel: [-27.5, 29],
     wegweiser: [-10, 8], mondstein: [-20, 78], // mondstein liegt unten im großen Krater
     station: [44, 46], antenne: [11.3, 60], meet: [22, 26],
     route: {
-      wegweiser: [[-7.5, 6.5]], waage: [[2, 8], [10, 6.5], [16.5, 7.5]], apollo: [[2, 9], [-14, 12], [-25.5, 13.8]], fallversuch: [[-21.5, 13]],
-      spiegel: [[-33, 18], [-37.5, 26.5]], temperatur: [[-32, 32]], himmel: [[-20, 37], [-4, 38.5]], mondstein: [[-10, 50], [-14, 62], [-17, 72.5]],
+      wegweiser: [[-7.5, 6.5]], waage: [[2, 8], [10, 6.5], [16.5, 7.5]], fallversuch: [[2, 9], [-14, 11], [-21.5, 12.6]], apollo: [[-21, 18], [-24, 21.5]],
+      spiegel: [[-24.5, 27]], temperatur: [[-31.5, 30.5]], himmel: [[-20, 37], [-4, 38.5]], mondstein: [[-10, 50], [-14, 62], [-17, 72.5]],
       antenne: [[-8, 74], [2, 66], [8, 63.5]], wand: [[18, 56], [28, 50], [41, 41.5]], rakete: [[30, 36], [10, 12], [-4, 5]]
     }
   };
@@ -613,8 +613,8 @@ window.Surface = (function () {
     // Schüssel: offene Seite zeigt genau zur Erde
     const head = new THREE.Group(); head.position.y = 1.7;
     head.quaternion.setFromUnitVectors(new V(0, -1, 0), earthDir.clone().normalize());
-    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 10, 0, Math.PI * 2, 0, 0.75), white);
-    dish.position.y = -0.75; dish.castShadow = true; head.add(dish);
+    const dish = dishCap(PROBE_M, 0.9, 0.75);
+    dish.position.y = -0.75; head.add(dish);
     const feed = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6), dark);
     feed.position.y = -0.2; head.add(feed);
     g.add(head);
@@ -919,7 +919,7 @@ window.Surface = (function () {
     const tilt = new THREE.Group(); tilt.rotation.x = -0.75; head.add(tilt);
     const white = M.std({ color: srgb(0xf8fafc), roughness: 0.35, side: THREE.DoubleSide });
     // Kugelkappe umgedreht: Rand bei y = 0, tiefste Stelle 0,56 m darunter – die Schüssel öffnet nach oben
-    put(tilt, new THREE.Mesh(new THREE.SphereGeometry(3, 40, 12, 0, Math.PI * 2, 0, 0.62), white), 0, 2.44, 0).rotation.x = Math.PI;
+    put(tilt, dishCap(M, 3, 0.62), 0, 2.44, 0).rotation.x = Math.PI;
     const up = new V(0, 1, 0), tip = new V(0, 1.15, 0);
     for (let i = 0; i < 3; i++) { // drei Streben vom Rand zum Empfänger
       const a = i * Math.PI * 2 / 3, foot = new V(Math.sin(a) * 1.6, -0.08, Math.cos(a) * 1.6), dv = tip.clone().sub(foot);
@@ -1071,8 +1071,10 @@ window.Surface = (function () {
   function makeMarker() {
     const g = new THREE.Group();
     const add = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false };
-    const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.45, 40), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, opacity: 0.75, ...add }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.45, 48), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, opacity: 0.75, ...add }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; g.add(ring);
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(1.1, 40), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, opacity: 0.1, ...add }));
+    pad.rotation.x = -Math.PI / 2; pad.position.y = 0.05; g.add(pad);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 1.05, 2.6, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, opacity: 0.16, ...add }));
     beam.position.y = 1.3; g.add(beam);
     const cv = document.createElement("canvas"); cv.width = cv.height = 128;
@@ -1092,7 +1094,7 @@ window.Surface = (function () {
       x.font = "bold 64px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(icon, 64, 70);
       tex.needsUpdate = true;
     };
-    g.userData = { beam, ring, holo, setIcon, phase: Math.random() * 6 };
+    g.userData = { beam, ring, pad, holo, setIcon, phase: Math.random() * 6, inside: false };
     return g;
   }
   // Hologramme schweben leicht auf und ab und werden in der Ferne etwas größer, damit man sie auch von weitem findet
@@ -1101,6 +1103,13 @@ window.Surface = (function () {
     for (const st of Object.values(world.stations)) {
       const m = st.marker; if (!m.visible) continue;
       const u = m.userData, d = c.position.distanceTo(m.position);
+      const inside = Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) < st.zone;
+      if (inside !== u.inside) {
+        u.inside = inside;
+        u.ring.material.color.setHex(inside ? 0xfde68a : 0x7dd3fc); u.pad.material.color.setHex(inside ? 0xfde68a : 0x7dd3fc);
+        u.pad.material.opacity = inside ? 0.28 : 0.1; u.beam.material.color.setHex(inside ? 0xfde68a : 0x7dd3fc);
+      }
+      u.ring.scale.setScalar((u.ringK || 1) * (inside ? 1 + Math.sin(elapsed * 6) * 0.04 : 1));
       u.holo.position.y = 2.9 + Math.sin(elapsed * 2 + u.phase) * 0.15;
       u.holo.scale.setScalar(Math.min(4, 1.3 + d * 0.022) / m.scale.x);
     }
@@ -1216,7 +1225,9 @@ window.Surface = (function () {
       const mk = B.on(makeMarker(), x + ox, z + oz);
       if (cfg.stations[key].small) mk.scale.setScalar(0.7); // Fundstück: nur ein kleines Licht
       if (cfg.stations[key].info) mk.visible = false;              // Tafelwand: keine Entdeckung, also kein Licht
-      stations[key] = { marker: mk, x: mk.position.x, z: mk.position.z };
+      const sc = cfg.stations[key];
+      const zone = sc.info ? (sc.reach || 3.2) : sc.zone || (sc.small ? 1.3 : 1.7);
+      stations[key] = { marker: mk, x: mk.position.x, z: mk.position.z, zone };
     }
     return stations;
   }
@@ -1352,7 +1363,7 @@ window.Surface = (function () {
     }
     put(g, new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.1), M.metal), 0, 1.2, -1.2);
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), M.steel), 0.7, 1.5, -1.3);
-    const dish = put(g, new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 6, 0, Math.PI * 2, 0, 0.9), M.std({ color: srgb(0xf8fafc), side: THREE.DoubleSide, roughness: 0.4 })), 0.7, 2.1, -1.3);
+    const dish = put(g, dishCap(M, 0.4, 0.9), 0.7, 2.1, -1.3);
     dish.rotation.x = -0.9;
     return g;
   }
@@ -1450,7 +1461,7 @@ window.Surface = (function () {
     L.shadowSpot = [L.boulder[0] + SHADOW_DIR.x * 12, L.boulder[1] + SHADOW_DIR.z * 12];
     const craters = [MOON_CRATER, [60, -20, 14, 2.2], [-60, -6, 10, 1.6], [70, 110, 18, 2.6], [-80, 40, 12, 1.8], [90, 70, 9, 1.4],
       [-30, -40, 16, 2.4], [40, -70, 11, 1.8], [-95, -30, 20, 3], [0, -95, 13, 2], [100, 10, 8, 1.2], [25, -30, 6, 0.9]];
-    const flats = [[0, 0, 11], [...L.fallversuch, 5], [...L.himmel, 4, "auto", 3], [...L.apollo, 10], [...L.boulder, 7], [...L.shadowSpot, 6], [...L.waage, 9], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 18, 24, "auto"], [...L.spiegel, 4], [...L.antenne, 3, "auto", 3]];
+    const flats = [[0, 0, 11], [...L.fallversuch, 5], [...L.himmel, 4, "auto", 3], [...L.apollo, 10], [...L.boulder, 7], [...L.shadowSpot, 6], [...L.waage, 9], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 18, 24, "auto"], [...L.spiegel, 4], [...L.antenne, 5, "auto", 9]];
     const B = buildBase({
       height: makeHeight(craters, flats),
       sky: 0x000000, stars: true, sunSize: 160,
@@ -1500,7 +1511,8 @@ window.Surface = (function () {
     const plaque = on(makePlaque(M, [["APOLLO 11", 58], ["20. JULI 1969", 40], ["Hier betraten Menschen", 34], ["zum ersten Mal den Mond", 34]]), ax + 5.2, az - 6.2);
     plaque.rotation.y = Math.atan2(-plaque.position.x, -plaque.position.z);
 
-    const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0x5f5f65, roughness: 1, flatShading: true }));
+    const boulder = new THREE.Mesh(naturalRockGeo(11, 5), new THREE.MeshStandardMaterial({ color: 0x8a8a90, roughness: 1, vertexColors: true, map: regolithTexture() })); // verwitterter Felsbrocken
+    boulder.material.map.repeat.set(3, 3);
     boulder.scale.set(7, 8.5, 6.5); boulder.rotation.set(0.2, 0.7, 0.1);
     boulder.castShadow = true; boulder.receiveShadow = true;
     on(boulder, ...L.boulder, 5.5);
@@ -1573,10 +1585,12 @@ window.Surface = (function () {
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2], // zuerst: die Exponate daneben haben Vorrang
       apollo: L.apollo, himmel: L.himmel, temperatur: L.shadowSpot, fallversuch: L.fallversuch, waage: L.waage,
       spiegel: L.spiegel, wegweiser: L.wegweiser, antenne: L.antenne, mondstein: L.mondstein, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] },
-    { apollo: [6, -5], himmel: MARS_SCOPE_DOOR(L.himmel) }); // Markierung am Fuß der Treppe
+    { apollo: [7, 7], himmel: MARS_SCOPE_DOOR(L.himmel) }); // Landestelle: Kreis außen am Seil · Erdblick: am Fuß der Treppe
 
     // Einfache Kreis-Hindernisse: [x, z, Radius]
-    const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], [...L.fallversuch, 1], [...L.himmel, 2.8],
+    // Absperrung um die Landestelle von 1969: eine geschlossene Kette, durch die niemand hindurchkommt
+    const fence = []; for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; fence.push([L.apollo[0] + Math.sin(a) * 7, L.apollo[1] + Math.cos(a) * 7, 0.85]); }
+    const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], ...fence, [...L.fallversuch, 1], [...L.himmel, 2.8],
       [...L.spiegel, 0.5], [...L.wegweiser, 0.3], [...L.antenne, 1.2], [L.antenne[0] + 2, L.antenne[1] - 1, 1.1], [...L.mondstein, 0.4],
       [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], [cargo.position.x, cargo.position.z, 3.6],
       [buggy.position.x, buggy.position.z, 1.8], ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2]), ...npcs.map((n) => n.col),
@@ -1910,7 +1924,8 @@ window.Surface = (function () {
       if (d < min && d > 0.001) { ast.pos.x = cx + (dx / d) * min; ast.pos.z = cz + (dz / d) * min; }
     }
     // Steilwände (Klippen, Kraterwände) kann man nicht hochlaufen – dafür gibt es Rampen und Wege
-    if (!boarding && ast.onGround && H(ast.pos.x, ast.pos.z) - oh > Math.max(0.1, Math.hypot(ast.pos.x - ox, ast.pos.z - oz) * 1.1)) { ast.pos.x = ox; ast.pos.z = oz; ast.speed *= 0.5; }
+    // (Grenze in Höhe pro Meter – gleich bei jeder Bildrate und gleich für Nora, siehe navGrid)
+    if (!boarding && ast.onGround && H(ast.pos.x, ast.pos.z) - oh > Math.max(0.015, Math.hypot(ast.pos.x - ox, ast.pos.z - oz) * MAX_SLOPE)) { ast.pos.x = ox; ast.pos.z = oz; ast.speed *= 0.5; }
     const far = Math.hypot(ast.pos.x, ast.pos.z);
     if (far > 150) {
       ast.pos.x *= 150 / far; ast.pos.z *= 150 / far;
@@ -1989,18 +2004,19 @@ window.Surface = (function () {
       if (experiment) { const hd = experiment.t < 0 ? -1.25 : -0.9; u.armL.rotation.x = hd; u.armR.rotation.x = hd; u.armL.rotation.z = 0.3; u.armR.rotation.z = -0.3; }
     }
 
-    // Schatten & Temperatur (Raumanzug-Thermometer)
+    // Schatten & Temperatur (Raumanzug-Thermometer): Gebäude und Felsen – und das Gelände selbst (Kraterrand, Hügel)
     temp.check -= dt;
     if (temp.check <= 0) {
       temp.check = 0.2;
       ray.set(tmp.copy(ast.pos).setY(ast.pos.y + 1.2), SUN_DIR);
       ray.far = 200;
-      temp.inShadow = ray.intersectObjects(world.shadowCasters, true).length > 0;
+      temp.inShadow = ray.intersectObjects(world.shadowCasters, true).length > 0 || terrainShade(tmp, SUN_DIR);
     }
     const target = temp.inShadow ? cfg.temp.shade : cfg.temp.sun;
     temp.shown += (target - temp.shown) * Math.min(1, dt * 1.2);
     if (temp.inShadow) temp.shadowTime += dt; else { temp.shadowTime = 0; temp.sunSeen = true; }
-    if (world.stations.temperatur && temp.inShadow && temp.shadowTime > 1.8 && temp.sunSeen && !busy) discover("temperatur");
+    const ts = world.stations.temperatur;
+    if (ts && temp.inShadow && temp.shadowTime > 1.5 && !busy && Math.hypot(ast.pos.x - ts.x, ast.pos.z - ts.z) < ts.zone) discover("temperatur");
     const t = Math.round(temp.shown);
     const tEl = $("suitTemp");
     const tText = (t < 0 ? "−" : "") + Math.abs(t) + " °C";
@@ -2013,9 +2029,9 @@ window.Surface = (function () {
     for (const [key, st] of Object.entries(world.stations)) {
       const sc = cfg.stations[key], d = Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z);
       // Stationen ohne eigene Aktion: nach der Entdeckung kann man sie sich dort nochmal ansehen
-      if (sc.auto && d < sc.auto && !busy && !view.special && !experiment) discover(key); // Fundstück: hingehen genügt
+      if (sc.auto && d < st.zone && !busy && !view.special && !experiment) discover(key); // Fundstück: in den Kreis treten genügt
       const text = sc.action || (sc.again && foundMap()[key] ? sc.again : "");
-      if (text && d < (sc.reach || 3.2)) { near = key; nearText = text; }
+      if (text && d < st.zone) { near = key; nearText = text; }
     }
     if (guide && !guide.on && !near && Math.hypot(ast.pos.x - guide.n.obj.position.x, ast.pos.z - guide.n.obj.position.z) < 3.2) { near = "guide"; nearText = cfg.guide.again; }
     const act = $("surfAction");
@@ -2046,6 +2062,12 @@ window.Surface = (function () {
     updateCompass();
   };
 
+  // Liegt ein Punkt im Schatten des Geländes? In Schritten zur Sonne hin prüfen, ob der Boden höher ist als der Sonnenstrahl
+  function terrainShade(p, dir) {
+    const H = world.height, hd = Math.hypot(dir.x, dir.z) || 1e-6, rise = dir.y / hd;
+    for (let d = 1.5; d < 120; d += d < 20 ? 1 : 2.5) if (H(p.x + (dir.x / hd) * d, p.z + (dir.z / hd) * d) > p.y + d * rise) return true;
+    return false;
+  }
   function updateCamera(dt) {
     const c = world.camera;
     if (boarding) {
@@ -2090,7 +2112,23 @@ window.Surface = (function () {
     if (key === "waage") startWeigh();
     else site.actions[key]();
   }
+  // Hammer & Feder: beim ersten Mal erst vermuten lassen (Kamera bleibt stehen, solange die Frage offen ist)
+  let fallGuess = null;
   function startFall() {
+    const Q = cfg.fall && cfg.fall.guess;
+    if (Q && !fallGuess) {
+      view.special = { update: () => {} }; ast.speed = 0; resetJoy();
+      $("surfaceHud").classList.add("scoping");
+      askGuess(Q, "Hammer und Feder liegen auf dem Tisch. Gleich lässt du beide gleichzeitig los.", () => {
+        fallGuess = { ok: view.special.guess === Q.c };
+        view.special = null; $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
+        dropFall();
+      });
+      return;
+    }
+    dropFall();
+  }
+  function dropFall() {
     {
       // Der Astronaut hält Hammer und Feder vor sich (wie Dave Scott 1971) und lässt beide gleichzeitig los
       const tb = world.table.position;
@@ -2118,6 +2156,21 @@ window.Surface = (function () {
     world.ambient.intensity = 0.16 + 0.55 * a; world.hemi.intensity = 0.12 + 0.5 * a;
   }
   // Text und Knöpfe unter dem Fernrohr-Bild: buttons = [[Beschriftung, Funktion, hervorgehoben], …]
+  // ---------- Erst vermuten, dann ausprobieren ----------
+  // guess = { q, a: [Antworten], c: Nummer der richtigen } aus den Daten. Erst nach dem Tipp startet der Versuch (go).
+  function askGuess(guess, ready, go) {
+    const sp = view.special;
+    if (!guess || sp.guessDone) { scopeSay(ready, [["▶ Los geht's", () => { scopeSay(ready); go(); }, true]]); return; }
+    scopeSay(`${ready}\n\n🤔 ${guess.q}`, guess.a.map((txt, i) => [txt, () => { sp.guess = i; sp.guessQ = guess; scopeSay(ready); go(); }, false]));
+  }
+  // Ergebnis mit Rückmeldung zur Vermutung (nur beim ersten Durchgang)
+  function guessed(text) {
+    const sp = view.special; if (!sp || !sp.guessQ || sp.guessDone) return text;
+    sp.guessDone = true;
+    const ok = sp.guess === sp.guessQ.c;
+    if (ok) UI.confetti(70);
+    return (ok ? "✅ Richtig vermutet! " : "🤔 Gut überlegt – aber schau mal: ") + text;
+  }
   function scopeSay(text, buttons) {
     $("scopeText").textContent = text;
     const host = $("scopeBtns"); host.innerHTML = "";
@@ -2230,25 +2283,27 @@ window.Surface = (function () {
     st.marker.visible = false;
     $("surfaceHud").classList.add("scoping");
     Sound.land();
-    showWeigh();
+    if (cfg.weigh.guess) { scaleGuessing = true; askGuess(cfg.weigh.guess, "Du stehst auf der Waage. Auf der Erde wiegst du 30 Kilo.", () => { scaleGuessing = false; showWeigh(true); }); }
+    else showWeigh();
   }
   function moonKg(kg) { return (kg * cfg.gravity / 9.81).toFixed(1).replace(".", ","); }
   // Die Anzeige reagiert wie eine echte Waage: Sie zeigt nur etwas an, solange der Astronaut auf der Platte steht
-  let scaleKg = 30, scaleShown = "";
+  let scaleKg = 30, scaleShown = "", scaleGuessing = false;
   function updateScaleDisplay() {
     const st = world.stations.waage;
     const onPlate = ast.onGround && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) < 0.6;
-    const text = `${onPlate ? moonKg(scaleKg) : "0,0"} kg`;
+    const text = scaleGuessing ? "?? kg" : `${onPlate ? moonKg(scaleKg) : "0,0"} kg`;
     if (text !== scaleShown) { scaleShown = text; world.scale.userData.show(text); }
   }
-  function showWeigh() {
+  function showWeigh(first) {
     const sp = view.special, T = cfg.weigh, mond = moonKg(sp.kg);
     scaleKg = sp.kg;
     const step = (d) => () => { sp.kg = Math.max(20, Math.min(60, sp.kg + d)); showWeigh(); };
-    scopeSay(fmtVars(T.text, { erde: sp.kg, mond }), [[T.less, step(-5)], [T.more, step(5)], [T.done, endWeigh, true]]);
+    const text = fmtVars(T.text, { erde: sp.kg, mond });
+    scopeSay(first ? guessed(text) : text, [[T.less, step(-5)], [T.more, step(5)], [T.done, endWeigh, true]]);
   }
   function endWeigh() {
-    const sp = view.special;
+    const sp = view.special; scaleGuessing = false;
     view.special = null;
     world.stations.waage.marker.visible = true;
     $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
@@ -2284,18 +2339,21 @@ window.Surface = (function () {
   const LIGHT_TIME = 1.28; // Sekunden für eine Strecke Erde–Mond
   function startLaser() { enterExhibit("spiegel", { update: updateLaser }); world.astronaut.visible = false; runLaser(); } // freier Blick auf den Spiegel
   function runLaser() {
-    const sp = view.special; sp.t = -2.2; sp.stage = "";
+    const sp = view.special; sp.t = 0; sp.stage = ""; sp.go = false;
     world.beam.visible = world.pulse.visible = false;
-    scopeSay(cfg.laser.ready);
+    askGuess(cfg.laser.guess, cfg.laser.ready, () => { sp.go = true; sp.t = -0.6; scopeSay(cfg.laser.hin); });
   }
   function updateLaser(dt) {
     const c = world.camera, sp = view.special, T = cfg.laser, e = world.earthDir, M = world.laserFrom;
     // Kamera hinter dem Spiegel: Spiegel unten im Bild, die Erde darüber
-    const h = Math.hypot(e.x, e.z);
-    c.position.lerp(tmp.set(M.x - (e.x / h) * 6.5, M.y + 1.7, M.z - (e.z / h) * 6.5), 1 - Math.exp(-dt * 3));
-    view.look.lerp(tmp2.copy(M).addScaledVector(e, 14), 1 - Math.exp(-dt * 4));
+    const h = Math.hypot(e.x, e.z), elev = Math.atan2(e.y, h);
+    c.position.lerp(tmp.set(M.x - (e.x / h) * 7.5, M.y + 0.9, M.z - (e.z / h) * 7.5), 1 - Math.exp(-dt * 3));
+    // Blick halb zwischen Spiegel (unten) und Erde (oben) – beide im Bild
+    const pitch = (elev - 0.08) / 2, fov = Math.min(80, Math.max(55, (elev + 0.22) * 57.3 + 14));
+    view.look.lerp(tmp2.set(c.position.x + (e.x / h) * Math.cos(pitch) * 10, c.position.y + Math.sin(pitch) * 10, c.position.z + (e.z / h) * Math.cos(pitch) * 10), 1 - Math.exp(-dt * 4));
     c.lookAt(view.look);
-    if (sp.stage === "end") return;
+    c.fov += (fov - c.fov) * Math.min(1, dt * 3); c.updateProjectionMatrix();
+    if (sp.stage === "end" || !sp.go) return;
     sp.t += dt;
     if (sp.t < 0) return;
     const t = Math.min(sp.t, LIGHT_TIME * 2);
@@ -2308,7 +2366,7 @@ window.Surface = (function () {
     if (stage !== sp.stage) {
       sp.stage = stage;
       if (stage === "zurueck") { Sound.correct(); grains(M, 6, 0.4); }
-      if (stage === "end") { Sound.land(); world.pulse.visible = false; scopeSay(T.end, [[T.again, runLaser], [T.done, endLaser, true]]); return; }
+      if (stage === "end") { Sound.land(); world.pulse.visible = false; scopeSay(guessed(T.end), [[T.again, runLaser], [T.done, endLaser, true]]); return; }
     }
     const text = `${stage === "hin" ? T.hin : T.zurueck} ⏱️ ${sec(t)} s`;
     if ($("scopeText").textContent !== text) $("scopeText").textContent = text;
@@ -2333,8 +2391,8 @@ window.Surface = (function () {
   const LAPSE_TIME = 12, MOON_DAYS = 27;
   function startLapse() { enterExhibit("antenne", { update: updateLapse }); runLapse(); }
   function runLapse() {
-    const sp = view.special; sp.t = -1.5; sp.day = 0; sp.running = true;
-    scopeSay(cfg.lapse.ready);
+    const sp = view.special; sp.t = 0; sp.day = 0; sp.running = false;
+    askGuess(cfg.lapse.guess, cfg.lapse.ready, () => { sp.running = true; sp.t = 0; scopeSay(cfg.lapse.ready); });
   }
   function updateLapse(dt) {
     const c = world.camera, sp = view.special, T = cfg.lapse, e = world.earthDir, st = world.stations.antenne;
@@ -2350,7 +2408,7 @@ window.Surface = (function () {
     setSun(f * Math.PI * 2);
     if (f >= 1) {
       sp.running = false; setSun(0); Sound.correct();
-      scopeSay(T.end, [[T.again, runLapse], [T.done, leaveExhibit, true]]);
+      scopeSay(guessed(T.end), [[T.again, runLapse], [T.done, leaveExhibit, true]]);
       return;
     }
     const day = 1 + Math.floor(f * MOON_DAYS);
@@ -2369,7 +2427,9 @@ window.Surface = (function () {
     if (!ex.landed && y <= ex.ground + 0.05) {
       ex.landed = true; ex.landedAt = ex.t;
       Sound.land(); puff(world.hammer.position, 3); puff(world.feather.position, 2);
-      UI.toast(`⏱️ Beide nach ${ex.t.toFixed(1).replace(".", ",")} Sekunden unten – gleichzeitig!`, "gold");
+      const g = fallGuess && !fallGuess.told ? (fallGuess.told = true, fallGuess.ok ? "✅ Richtig vermutet! " : "🤔 Überraschung! ") : "";
+      if (g.startsWith("✅")) UI.confetti(70);
+      UI.toast(`${g}⏱️ Beide nach ${ex.t.toFixed(1).replace(".", ",")} Sekunden unten – gleichzeitig!`, "gold");
     }
     if (ex.landed && ex.t > ex.landedAt + 1.4) {
       experiment = null;
@@ -2554,7 +2614,9 @@ window.Surface = (function () {
     for (const n of world.npcs) {
       const p = n.obj.position, dx = ast.pos.x - p.x, dz = ast.pos.z - p.z, dist = Math.hypot(dx, dz);
       let moving = false;
-      n.talk -= dt; n.cool -= dt; n.waveT -= dt;
+      const modal = UI.modalOpen();
+      if (!modal || !n.isNora) n.talk -= dt;
+      n.cool -= dt; n.waveT -= dt;
       if (n.guide) moving = !!n.moving;
       else if (n.isNora) { if (dist < 6) n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5)); }
       else if (dist < 5.5 && !busy) { // stehen bleiben, zum Kind drehen und etwas sagen
@@ -2579,7 +2641,7 @@ window.Surface = (function () {
         air: false, airP: 0, contact: 0, wave: n.waveT > 0, work: !moving && n.c.work && dist > 5.5 });
       n.col[0] = p.x; n.col[1] = p.z;
       // Sprechblase über dem Kopf (Noras Blase bleibt am Bildrand, wenn sie gerade nicht im Bild ist)
-      if (n.talk > 0 && !view.special && n.obj.visible) {
+      if (n.talk > 0 && !view.special && n.obj.visible && !modal) {
         tmp.set(p.x, p.y + 2.35, p.z).project(c);
         if (tmp.z < 1 || n.isNora) {
           let x = (tmp.x * 0.5 + 0.5) * w, y = (-tmp.y * 0.5 + 0.5) * h;
@@ -2600,13 +2662,34 @@ window.Surface = (function () {
   //  world.L.route[Schlüssel] = Wegpunkte zur Station (der Weg, den die Person läuft); world.L.meet = wo sie zu Beginn herkommt
   // =========================================================
   let guide = null;
-  const GUIDE_SPEED = 2.3;
+  const GUIDE_SPEED = 2.3, MAX_SLOPE = 1.35; // MAX_SLOPE: so steil darf es bergauf gehen (Höhe pro Meter) – für Kind und Nora
+  // Steht ein Ausstellungsstück (Hindernis) mitten im Kreis, wird der Kreis größer – sonst bliebe kaum Platz zum Hineintreten
+  function fitZones() {
+    if (world.zonesFitted) return; world.zonesFitted = true;
+    const npcCols = new Set((world.npcs || []).map((n) => n.col));
+    for (const [key, st] of Object.entries(world.stations)) {
+      const sc = cfg.stations[key]; if (sc.info || sc.zone) continue;
+      let need = 0;
+      for (const c of world.colliders) {
+        if (npcCols.has(c)) continue;
+        const dc = Math.hypot(c[0] - st.x, c[1] - st.z);
+        if (dc < c[2] + 0.45) need = Math.max(need, c[2] + 0.45 - dc + 0.55);
+      }
+      if (need > st.zone - 0.15) {
+        st.zone = need + 0.15;
+        const u = st.marker.userData, k = st.zone / (sc.small ? 1.3 : 1.7);
+        u.ring.scale.setScalar(k); u.pad.scale.setScalar(k); u.ringK = k;
+      }
+    }
+  }
   function guideOff() { return !!((G.state.guideOff || {})[bodyId]); }
   function setGuideOff(off) { G.state.guideOff = { ...(G.state.guideOff || {}), [bodyId]: off }; G.save && G.save(); }
   function setupGuide() {
+    fitZones();
     guide = null; $("guideBtn").onclick = guideAlone; $("guideBtn").classList.add("hidden");
     const GC = cfg.guide; if (!GC || !world.npcs) return;
     const n = world.npcs.find((x) => x.isNora); if (!n) return;
+    navGrid();
     const allDone = foundCount() >= cfg.discoveries.length && quizDone;
     guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0 };
     n.guide = guide.on; n.obj.visible = true; n.talk = 0; n.climbY = null;
@@ -2676,13 +2759,107 @@ window.Surface = (function () {
     const p = guide.n.obj.position, dx = st.x - p.x, dz = st.z - p.z, d = Math.hypot(dx, dz) || 1;
     return [st.x - (dx / d) * 2.6 - (dz / d) * 1.4, st.z - (dz / d) * 2.6 + (dx / d) * 1.4];
   }
+  // ---------- Wegsuche: Nora läuft nur, wo das Kind auch hinkommt (Hindernisse, Steilwände) ----------
+  // Raster (1 m) über dem Gebiet der Führung; frei = kein Hindernis in Reichweite des Anzugs. Bergauf höchstens MAX_SLOPE.
+  function navGrid() {
+    if (world.nav) return world.nav;
+    const L = world.L, pts = [L.spawn, ...Object.values(world.stations).map((st) => [st.x, st.z])];
+    for (const r of Object.values(L.route || {})) pts.push(...r);
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const [x, z] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    x0 = Math.max(-148, Math.floor(x0 - 25)); z0 = Math.max(-148, Math.floor(z0 - 25)); x1 = Math.min(148, Math.ceil(x1 + 25)); z1 = Math.min(148, Math.ceil(z1 + 25));
+    const nx = x1 - x0 + 1, nz = z1 - z0 + 1, h = new Float32Array(nx * nz), free = new Uint8Array(nx * nz);
+    const npcCols = new Set((world.npcs || []).map((n) => n.col));
+    const cols = world.colliders.filter((c) => !npcCols.has(c));
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const x = x0 + i, z = z0 + j, k = j * nx + i;
+      const H = world.height, hc = (h[k] = H(x, z));
+      let ok = Math.hypot(x, z) < 147;
+      if (ok) for (const [cx, cz, r] of cols) { const dx = x - cx, dz = z - cz, rr = r + 0.55; if (dx * dx + dz * dz < rr * rr) { ok = false; break; } }
+      if (ok) for (const [ox, oz] of [[0.25, 0], [-0.25, 0], [0, 0.25], [0, -0.25], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5], [0.35, 0.35], [-0.35, 0.35], [0.35, -0.35], [-0.35, -0.35], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]]) {
+        const d = Math.hypot(ox, oz); if (Math.abs(H(x + ox, z + oz) - hc) > d * MAX_SLOPE) { ok = false; break; } // Steilwand in der Nähe
+      }
+      free[k] = ok ? 1 : 0;
+    }
+    return (world.nav = { x0, z0, nx, nz, h, free, cols });
+  }
+  // gerade Linie begehbar? (für das Glätten des Weges)
+  function navLine(ax, az, bx, bz) {
+    const N = navGrid(), len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(len / 0.2));
+    let px = ax, pz = az, ph = world.height(ax, az);
+    for (let i = 1; i <= n; i++) {
+      const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n, hh = world.height(x, z);
+      if (hh - ph > (len / n) * MAX_SLOPE * 0.92) return false;
+      for (const [cx, cz, r] of N.cols) { const dx = x - cx, dz = z - cz, rr = r + 0.5; if (dx * dx + dz * dz < rr * rr) return false; }
+      px = x; pz = z; ph = hh;
+    }
+    return true;
+  }
+  // Weg von a nach b als Liste von Punkten (ohne a); findet keinen Weg → direkt (und world.navMiss zählt mit, für die Tests)
+  function navPath(ax, az, bx, bz) {
+    const N = navGrid(), { x0, z0, nx, nz, h, free } = N;
+    const cell = (x, z) => { const i = Math.round(x - x0), j = Math.round(z - z0); return i < 0 || j < 0 || i >= nx || j >= nz ? -1 : j * nx + i; };
+    const nearFree = (k) => {
+      if (k < 0) return -1; if (free[k]) return k;
+      const i0 = k % nx, j0 = (k / nx) | 0;
+      for (let r = 1; r < 10; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+        const i = i0 + di, j = j0 + dj; if (i >= 0 && j >= 0 && i < nx && j < nz && free[j * nx + i]) return j * nx + i;
+      }
+      return -1;
+    };
+    const s = nearFree(cell(ax, az)), g = nearFree(cell(bx, bz));
+    if (s < 0 || g < 0) return [[bx, bz]];
+    const gFree = free[cell(bx, bz)] === 1; // Ziel selbst begehbar? (sonst endet der Weg auf dem nächsten begehbaren Punkt)
+    if (gFree && navLine(ax, az, bx, bz)) return [[bx, bz]];
+    const gi = g % nx, gj = (g / nx) | 0;
+    const cost = new Float32Array(nx * nz).fill(Infinity), from = new Int32Array(nx * nz).fill(-1), done = new Uint8Array(nx * nz);
+    const heap = [], push = (k, f) => { heap.push([f, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+    cost[s] = 0; push(s, 0);
+    const D = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+    let found = false;
+    while (heap.length) {
+      const [, k] = pop(); if (done[k]) continue; done[k] = 1;
+      if (k === g) { found = true; break; }
+      const i = k % nx, j = (k / nx) | 0;
+      for (const [di, dj, dd] of D) {
+        const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
+        const q = jj * nx + ii; if (!free[q] || done[q]) continue;
+        if (di && dj && (!free[j * nx + ii] || !free[jj * nx + i])) continue; // keine Abkürzung über Ecken
+        const rise = h[q] - h[k]; if (rise > dd * MAX_SLOPE) continue;
+        const c = cost[k] + dd + Math.max(0, rise) * 0.6;
+        if (c < cost[q]) { cost[q] = c; from[q] = k; push(q, c + Math.hypot(ii - gi, jj - gj)); }
+      }
+    }
+    if (!found) { world.navMiss = (world.navMiss || 0) + 1; return [[bx, bz]]; }
+    const cells = []; for (let k = g; k !== -1 && k !== s; k = from[k]) cells.push([x0 + (k % nx), z0 + ((k / nx) | 0)]);
+    cells.reverse();
+    const lc = cells[cells.length - 1] || [ax, az];
+    if (gFree && navLine(lc[0], lc[1], bx, bz)) cells.push([bx, bz]);
+    if (!cells.length) return [[bx, bz]];
+    // glätten: so weit wie möglich geradeaus gehen
+    const out = []; let cx = ax, cz = az, i = 0;
+    while (i < cells.length) {
+      let j = cells.length - 1;
+      while (j > i && !navLine(cx, cz, cells[j][0], cells[j][1])) j--;
+      out.push(cells[j]); cx = cells[j][0]; cz = cells[j][1]; i = j + 1;
+    }
+    return out;
+  }
   function guideRoute(key) {
     const r = world.L.route && world.L.route[key], p = guide.n.obj.position;
-    if (!r) { const s = guideStand(key); return s ? [s] : []; }
-    // ab dem Wegpunkt weiterlaufen, der am nächsten liegt (falls die Person schon mittendrin steht)
-    let best = 0, bd = Infinity;
-    r.forEach(([x, z], i) => { const d = Math.hypot(x - p.x, z - p.z); if (d < bd) { bd = d; best = i; } });
-    return r.slice(best).map((q) => [...q]);
+    let way;
+    if (!r) { const st = guideStand(key); way = st ? [st] : []; }
+    else { // ab dem Wegpunkt weiterlaufen, der am nächsten liegt (falls die Person schon mittendrin steht)
+      let best = 0, bd = Infinity;
+      r.forEach(([x, z], i) => { const d = Math.hypot(x - p.x, z - p.z); if (d < bd) { bd = d; best = i; } });
+      way = r.slice(best).map((q) => [...q]);
+    }
+    // zwischen den Wegpunkten: ein Weg, den das Kind auch gehen kann
+    const out = []; let cx = p.x, cz = p.z;
+    for (const q of way) { const seg = navPath(cx, cz, q[0], q[1]); out.push(...seg); const e = seg[seg.length - 1] || q; cx = e[0]; cz = e[1]; }
+    return out;
   }
   function updateGuide(dt, busy) {
     if (!guide) return;
@@ -2861,6 +3038,71 @@ window.Surface = (function () {
   const VOLCANO_DIR = new V(1, 0, 0.35).normalize(), VOLCANO_H = 500, REAL_H = 22; // Olympus Mons: 22 km hoch
   const MAGNET_UP = 1.75, MAGNET_DOWN = 1.27;
 
+  // ---------- Berge in der Ferne: als echte, beleuchtete Landschaftsformen (Farben im Gitter, ferner Dunst eingerechnet) ----------
+  // Gitter aus Ringen um die Mitte: f(r, a) → [Höhe 0…1, Farbe]; r = 0 (Gipfel) … 1 (Fuß), a = Winkel
+  function polarMountain(R, Hh, RINGS, SEG, f) {
+    const pos = [], col = [], idx = [];
+    for (let i = 0; i <= RINGS; i++) for (let j = 0; j <= SEG; j++) {
+      const r = i / RINGS, a = (j / SEG) * Math.PI * 2, [h, c, rr = 1] = f(r, a);
+      pos.push(Math.cos(a) * r * R * rr, h * Hh, Math.sin(a) * r * R * rr); col.push(c.r, c.g, c.b);
+    }
+    for (let i = 0; i < RINGS; i++) for (let j = 0; j < SEG; j++) {
+      const p = i * (SEG + 1) + j, q = p + SEG + 1;
+      idx.push(p, q, p + 1, p + 1, q, q + 1);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, fog: false }));
+    m.userData.farAway = true;
+    return m;
+  }
+  // Olympus Mons: breiter Schildvulkan – Krater (Caldera) oben, Lavarinnen an den Flanken, steile Randstufe am Fuß
+  function makeShieldVolcano(R, Hh, haze) {
+    const DUST = srgb(0xc58a5e), LAVA = srgb(0x7a3a24), CALD = srgb(0x4e2a1c), CLIFF = srgb(0x6e3826), c = new THREE.Color();
+    return polarMountain(R, Hh, 70, 144, (r, a) => {
+      const streak = fbm2(Math.cos(a) * 14 + r * 1.2, Math.sin(a) * 14 + r * 2.5); // Lavaströme laufen strahlenförmig hinunter
+      let h;
+      if (r < 0.06) h = 0.93 + 0.03 * (r / 0.06) ** 2;                 // Boden der Caldera
+      else if (r < 0.09) h = 0.96 + 0.04 * smooth(0.06, 0.09, r);       // Kraterrand
+      else if (r < 0.78) h = 1 - Math.pow((r - 0.09) / 0.69, 1.6) * 0.76; // breite, flache Flanken
+      else if (r < 0.84) h = 0.24 - 0.21 * smooth(0.78, 0.84, r);       // Randstufe (bis zu 6 km hoch)
+      else h = 0.03 * (1 - smooth(0.84, 1, r));
+      if (r > 0.09 && r < 0.78) h += (streak - 0.5) * 0.025;
+      if (r < 0.06) c.copy(CALD);
+      else if (r < 0.09) c.copy(DUST).lerp(CALD, 0.25);
+      else if (r < 0.78) c.copy(DUST).lerp(LAVA, smooth(0.42, 0.62, streak) * 0.85);
+      else if (r < 0.84) { c.copy(CLIFF); c.multiplyScalar(0.85 + 0.15 * Math.sin(h * 80)); } // Gesteinsschichten an der Steilkante
+      else c.copy(DUST).lerp(LAVA, 0.25);
+      return [h, c.lerp(haze, 0.32)];
+    });
+  }
+  // Felsgipfel mit Graten; snow = Schneegrenze (Anteil der Höhe), rock = Gesteinsfarbe
+  function makeRockPeak(R, Hh, rock, snow, haze, seed) {
+    const ROCK = srgb(rock), SNOW = srgb(0xf2f6fb), SHADE = srgb(0x2f3440), c = new THREE.Color();
+    return polarMountain(R, Hh, 44, 96, (r, a) => {
+      const ridge = Math.pow(Math.abs(Math.cos(a * 2 + seed + fbm2(r * 3 + seed, a) * 1.6)), 3); // vier Grate
+      const n = fbm2(Math.cos(a) * 5 + seed, Math.sin(a) * 5 + r * 4);
+      const h = Math.pow(1 - r, 1.25) * (1 + 0.1 * (n - 0.5)) * (r > 0.98 ? 0 : 1);
+      const rr = 1 + 0.22 * (ridge - 0.5) * (1 - r * 0.4);
+      const snowy = smooth(snow - 0.06, snow + 0.08, h + (n - 0.5) * 0.16) * (0.55 + 0.45 * ridge);
+      c.copy(ROCK).lerp(SHADE, (1 - ridge) * 0.35).lerp(SNOW, snowy);
+      return [h, c.lerp(haze, 0.3), rr];
+    });
+  }
+  // Schild über einem Berg: Name und Höhe
+  function mountainLabel(name, km) {
+    const cv = document.createElement("canvas"); cv.width = 512; cv.height = 160;
+    const x = cv.getContext("2d");
+    x.fillStyle = "rgba(15,23,42,0.82)"; x.beginPath(); x.roundRect ? x.roundRect(8, 8, 496, 144, 36) : x.rect(8, 8, 496, 144); x.fill();
+    x.strokeStyle = "#fbbf24"; x.lineWidth = 6; x.stroke();
+    x.fillStyle = "#ffffff"; x.font = "700 52px Fredoka, sans-serif"; x.textAlign = "center"; x.fillText(name, 256, 76);
+    x.fillStyle = "#fde68a"; x.font = "600 40px Nunito, sans-serif"; x.fillText(km, 256, 126);
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, fog: false, depthTest: false, transparent: true }));
+    sp.renderOrder = 5; sp.visible = false; return sp;
+  }
+
   function makeRover() {
     const g = new THREE.Group();
     const white = new THREE.MeshStandardMaterial({ color: 0xe8e8e4, roughness: 0.5, metalness: 0.2 });
@@ -2911,8 +3153,8 @@ window.Surface = (function () {
     motor.position.y = 2.1; motor.castShadow = true; g.add(motor);
     const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.02, 2.0, 8), new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.8, roughness: 0.3 }));
     rod.position.y = 1.05; g.add(rod);
-    const ice = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), new THREE.MeshStandardMaterial({ color: 0xdff4ff, emissive: 0x7dd3fc, emissiveIntensity: 0.5, roughness: 0.2, flatShading: true }));
-    ice.position.set(-0.45, 0.1, -0.45); ice.visible = false; g.add(ice); // auf der Kamera-Seite des Bohrers
+    const ice = makeIceCrystals(1);
+    ice.position.set(-0.45, 0.02, -0.45); ice.visible = false; g.add(ice); // auf der Kamera-Seite des Bohrers
     g.userData = { rod, ice };
     return g;
   }
@@ -3015,8 +3257,51 @@ window.Surface = (function () {
     }
   }
   // Natürlicher Fels: Kugel mit Beulen, Kanten und abgeflachter Unterseite; dunklere Flecken per Vertex-Farbe
-  function naturalRockGeo(seed) {
-    const geo = new THREE.IcosahedronGeometry(1, 3), p = geo.attributes.position, v = new V(), col = new Float32Array(p.count * 3);
+  // Eiskristalle: durchscheinend und bläulich (k = Größe)
+  function makeIceCrystals(k) {
+    const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: srgb(0xc6ecff), emissive: srgb(0x38bdf8), emissiveIntensity: 0.25, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.82, flatShading: true });
+    for (const [x, z, sx, sy, r] of [[0, 0, 0.16, 0.26, 0.2], [0.17, 0.06, 0.11, 0.17, -0.5], [-0.12, 0.12, 0.09, 0.14, 0.9], [0.05, -0.15, 0.1, 0.12, 0.3], [-0.16, -0.08, 0.07, 0.1, 1.4]]) {
+      const c = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), mat); c.scale.set(sx * k, sy * k, sx * k * 0.8); c.position.set(x * k, sy * k * 0.6, z * k); c.rotation.set(0.2, r, 0.15); g.add(c);
+    }
+    return g;
+  }
+  // Vulkan auf der Venus: dunkles Basaltgestein, oben ein Krater, an den Flanken glühende Lavaströme
+  function makeVenusVolcano(R, Hh) {
+    const ROCK = srgb(0x4a3322), ASH = srgb(0x6b4a30), LAVA = srgb(0xff6a1a), c = new THREE.Color();
+    const m = polarMountain(R, Hh, 40, 96, (r, a) => {
+      const streak = fbm2(Math.cos(a) * 11 + r, Math.sin(a) * 11 + r * 3);
+      let h = r < 0.08 ? 0.86 + 0.14 * smooth(0, 0.08, r) : Math.pow(1 - (r - 0.08) / 0.92, 1.4);
+      if (r > 0.1) h += (streak - 0.5) * 0.05 * (1 - r);
+      c.copy(ROCK).lerp(ASH, smooth(0.3, 0.7, fbm2(a * 3, r * 5)));
+      const lava = smooth(0.62, 0.7, streak) * (1 - smooth(0.25, 0.75, r)); // frische Lava nahe am Gipfel
+      c.lerp(LAVA, lava);
+      return [h, c];
+    });
+    return m;
+  }
+  // Kleiner Mond wie eine Kartoffel: unregelmäßig, mit Kratern (big = ein großer Krater wie „Stickney“ auf Phobos)
+  function potatoMoonGeo(seed, big) {
+    const geo = new THREE.IcosahedronGeometry(1, 4), p = geo.attributes.position, v = new V(), col = new Float32Array(p.count * 3);
+    const craters = [];
+    for (let i = 0; i < 14; i++) { const d = new V(hash2(i, seed) - 0.5, hash2(i, seed + 1) - 0.5, hash2(i, seed + 2) - 0.5).normalize(); craters.push([d, 0.18 + hash2(i, seed + 3) * 0.25]); }
+    if (big) craters.push([new V(1, 0.2, 0.3).normalize(), 0.62]);
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i).normalize();
+      let r = 1 + (fbm2(v.x * 2 + seed, v.y * 2 + v.z * 1.7) - 0.5) * 0.45, shade = 0.8 + 0.25 * fbm2(v.x * 6 + seed, v.z * 6 - v.y * 4);
+      for (const [c, cr] of craters) {
+        const ang = Math.acos(Math.max(-1, Math.min(1, v.dot(c)))) / cr;
+        if (ang < 1.3) { r -= 0.12 * cr * (ang < 1 ? 1 - ang * ang : 0) - 0.05 * cr * Math.exp(-Math.pow((ang - 1) / 0.18, 2)); if (ang < 1) shade *= 0.85; }
+      }
+      v.multiplyScalar(r); v.x *= 1.35; v.z *= 0.9; // länglich wie eine Kartoffel
+      p.setXYZ(i, v.x, v.y, v.z);
+      col[i * 3] = shade * 1.04; col[i * 3 + 1] = shade * 0.96; col[i * 3 + 2] = shade * 0.9;
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    return geo;
+  }
+  function naturalRockGeo(seed, detail = 3) {
+    const geo = new THREE.IcosahedronGeometry(1, detail), p = geo.attributes.position, v = new V(), col = new Float32Array(p.count * 3);
     for (let i = 0; i < p.count; i++) {
       v.fromBufferAttribute(p, i);
       const n = fbm2(v.x * 1.6 + seed * 3.1, v.z * 1.6 + v.y * 1.3 - seed) - 0.5;
@@ -3241,7 +3526,7 @@ window.Surface = (function () {
     const sign = put(g, new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.5), signMat("🤖 ROVER-LEITSTAND", "#c84a12", 640, 120, 58)), 0, 0.55, r * Math.cos(0.27) + 0.03, false);
     sign.rotation.x = -0.27;
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 6), M.steel), -1.2, r + 0.45, 0);
-    const dish = put(g, new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 8, 0, Math.PI * 2, 0, 0.8), M.std({ color: srgb(0xf8fafc), roughness: 0.35, side: THREE.DoubleSide })), -1.2, r + 1.35, 0.1);
+    const dish = put(g, dishCap(M, 0.7, 0.8), -1.2, r + 1.35, 0.1);
     dish.rotation.x = Math.PI + 0.6;
     return g;
   }
@@ -3428,23 +3713,27 @@ window.Surface = (function () {
     const { scene, height, on, rocket } = B;
 
     // Himmel: die beiden kleinen Monde (kartoffelförmig) und in der Ferne der Olympus Mons
-    const moonMat = new THREE.MeshStandardMaterial({ color: 0x8a7f76, roughness: 1, flatShading: true, fog: false });
-    const phobos = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), moonMat); phobos.scale.set(9, 7, 6.5);
+    const moonMat = new THREE.MeshStandardMaterial({ color: 0x6f6157, roughness: 1, vertexColors: true, fog: false });
+    const phobos = new THREE.Mesh(potatoMoonGeo(3, true), moonMat); phobos.scale.set(8, 7, 6.5);
     phobos.position.copy(PHOBOS_DIR).multiplyScalar(900);
-    const deimos = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), moonMat); deimos.scale.set(3.2, 2.6, 2.4);
+    const deimos = new THREE.Mesh(potatoMoonGeo(9, false), moonMat); deimos.scale.set(2.8, 2.5, 2.3);
     deimos.position.copy(DEIMOS_DIR).multiplyScalar(900);
     const flat = (c) => new THREE.MeshBasicMaterial({ color: c, fog: false });
     const volcanoAt = VOLCANO_DIR.clone().multiplyScalar(1500), side = new V().crossVectors(VOLCANO_DIR, new V(0, 1, 0));
-    const volcano = new THREE.Mesh(new THREE.CylinderGeometry(130, 600, VOLCANO_H, 40), flat(0xb88d6a));
-    volcano.position.copy(volcanoAt).setY(VOLCANO_H / 2 - 10);
+    const haze = srgb(0xd8ab82); // ferner Staubdunst
+    const volcano = makeShieldVolcano(860, VOLCANO_H, haze);
+    volcano.position.copy(volcanoAt).setY(-12);
+    const volcanoLabel = mountainLabel("Olympus Mons", "22 km hoch"); volcanoLabel.position.copy(volcanoAt).setY(VOLCANO_H + 70); volcanoLabel.scale.set(240, 75, 1);
     // Vergleichsberge im selben Maßstab (erst im Hubschrauber sichtbar)
-    const peak = (km, r, color, shift) => {
-      const hgt = (km / REAL_H) * VOLCANO_H, m = new THREE.Mesh(new THREE.ConeGeometry(r, hgt, 6), flat(color));
-      m.position.copy(volcanoAt).addScaledVector(VOLCANO_DIR, -650).addScaledVector(side, shift).setY(hgt / 2 - 10);
+    const peak = (km, r, rock, snow, shift, seed, name, label) => {
+      const hgt = (km / REAL_H) * VOLCANO_H, m = makeRockPeak(r, hgt, rock, snow, haze, seed);
+      m.position.copy(volcanoAt).addScaledVector(VOLCANO_DIR, -720).addScaledVector(side, shift).setY(-6);
+      const l = mountainLabel(name, label); l.position.copy(m.position).setY(hgt + 34); l.scale.set(120, 38, 1); m.userData.label = l; scene.add(l);
       m.visible = false; return m;
     };
-    const everest = peak(8.85, 150, 0x5d6b7a, -170), zugspitze = peak(2.96, 60, 0x3f6b4c, 120);
-    scene.add(phobos, deimos, volcano, everest, zugspitze);
+    const everest = peak(8.85, 150, 0x5c5450, 0.42, -190, 1.3, "Mount Everest", "8,8 km");
+    const zugspitze = peak(2.96, 70, 0x9c9a94, 0.62, 150, 4.1, "Zugspitze", "3 km");
+    scene.add(phobos, deimos, volcano, volcanoLabel, everest, zugspitze);
 
     // Stationen – jede gehört zu einem Gebäude des Außenpostens
     const M = colonyMats();
@@ -3495,7 +3784,7 @@ window.Surface = (function () {
     // Landschaft mit Charakter: Himmelsverlauf, Tafelberge am Horizont, Felsgruppen, Staubschleier, ein Rover auf Patrouille
     const skyDome = makeSkyDome(1.12, 0.74); skyDome.material.color.copy(MARS_SKY); scene.add(skyDome);
     const bands = bandTexture(["#8a4a33", "#9b5a3f", "#7a3f2b", "#a8694a", "#8f5038", "#b37757"], 3); // gedämpfte Rottöne, die im Dunst verschwimmen
-    const buttes = [[-150, 120, 34, 42], [175, 95, 26, 30], [135, -165, 40, 36], [-185, -105, 30, 48], [60, 215, 44, 28], [-60, -205, 24, 26]];
+    const buttes = [[-150, 120, 34, 42], [175, 95, 26, 30], [135, -165, 40, 36], [-195, -28, 30, 48], [60, 215, 44, 28], [-60, -205, 24, 26]];
     buttes.slice(0, rich ? 6 : 3).forEach(([x, z, r, h], i) => on(makeButte(r, h, bands, i * 7 + 1), x, z, h / 2 - 3));
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x6a3a26, roughness: 0.95, vertexColors: true });
     rockMat.userData.natural = true;
@@ -3523,15 +3812,15 @@ window.Surface = (function () {
       ...marsCampColliders(L.station), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
     for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
-    return { ...B, L, station, scale, telescope, phobos, deimos, volcano, everest, zugspitze, heli, heliY: heli.position.y, rover, roverGoal, drill,
+    return { ...B, L, station, scale, telescope, phobos, deimos, volcano, volcanoLabel, everest, zugspitze, heli, heliY: heli.position.y, rover, roverGoal, drill,
       devil, magnetTable, skyDome, veils, patrol, patrolCol, npcs, shuttle, observatory, weather, blink: [...station.userData.blink, ...console_.userData.blink, ...field.userData.lights, weather.userData.lamp],
       stations, colliders, shadowCasters: [rocket, station] };
   }
 
   // Himmel und Licht zwischen Mittag (f = 0) und Sonnenuntergang (f = 1): Auf dem Mars wird es abends BLAU um die Sonne
   const DUSK_GLOW = new THREE.Color(0x8fc4ff), WHITE = new THREE.Color(0xffffff);
-  function marsSky(f) {
-    sunNow.copy(SUN_DIR).applyAxisAngle(SUN_AXIS, -0.2 * f); // Sonne sinkt bis hinter die Hügel am Horizont
+  function marsSky(f, end = -0.2) {
+    sunNow.copy(SUN_DIR).applyAxisAngle(SUN_AXIS, end * f); // Sonne sinkt (end = wie weit, siehe duskEnd)
     world.scene.background.copy(MARS_SKY).lerp(MARS_DUSK, f);
     world.scene.fog.color.copy(world.scene.background);
     world.skyDome.material.color.copy(world.scene.background);
@@ -3583,7 +3872,7 @@ window.Surface = (function () {
   }
   function heliUi(last) {
     const sp = view.special, T = cfg.heli, both = sp.seen.everest && sp.seen.zugspitze;
-    const show = (key) => () => { sp.seen[key] = true; world[key].visible = true; heliUi(key); };
+    const show = (key) => () => { sp.seen[key] = true; world[key].visible = world[key].userData.label.visible = true; heliUi(key); };
     const btns = [];
     if (!sp.seen.everest) btns.push([T.everestBtn, show("everest"), true]);
     if (!sp.seen.zugspitze) btns.push([T.zugspitzeBtn, show("zugspitze"), !btns.length]);
@@ -3592,20 +3881,23 @@ window.Surface = (function () {
   }
   function updateHeli(dt) {
     const sp = view.special, c = world.camera, h = world.heli, d = VOLCANO_DIR; sp.t += dt;
-    const k = smooth(0.3, 5, sp.t);
+    const k = smooth(0.3, 5.5, sp.t), turn = smooth(4.5, 7.5, sp.t); // erst steigen und hinunterschauen, dann zum Vulkan schwenken
     h.position.y = world.heliY + k * 60;
     if (h.userData.spin) h.userData.spin(dt); else h.userData.rotor.rotation.y += dt * 42;
-    c.position.lerp(tmp.set(h.position.x - d.x * 9, h.position.y + 2.4, h.position.z - d.z * 9), 1 - Math.exp(-dt * 4));
-    // erst dem Hubschrauber nachschauen, oben dann zum Vulkan
-    tmp2.set(h.position.x + d.x * 20, h.position.y + 1, h.position.z + d.z * 20).lerp(tmp.set(d.x * 1500, VOLCANO_H * 0.24, d.z * 1500), k);
-    view.look.lerp(tmp2, 1 - Math.exp(-dt * 4));
+    // Kamera schräg über dem Hubschrauber; die Rakete unten wird immer kleiner
+    const back = 4 + 5 * turn;
+    c.position.lerp(tmp.set(h.position.x - d.x * back, h.position.y + 3 - 0.6 * turn, h.position.z - d.z * back), 1 - Math.exp(-dt * 4));
+    tmp2.set(0, world.rocketY + 3, 0).lerp(tmp.set(d.x * 1500, VOLCANO_H * 0.42, d.z * 1500), turn);
+    view.look.lerp(tmp2, 1 - Math.exp(-dt * (turn > 0 && turn < 1 ? 2.5 : 4)));
     c.lookAt(view.look);
-    const fov = 60 - 28 * k;
+    const fov = 58 - 26 * turn;
     c.fov += (fov - c.fov) * Math.min(1, dt * 2.5); c.updateProjectionMatrix();
-    if (k >= 1 && !sp.top) { sp.top = true; Sound.correct(); heliUi(); }
+    world.volcanoLabel.visible = turn > 0.85;
+    if (turn >= 1 && !sp.top) { sp.top = true; Sound.correct(); heliUi(); }
   }
   function endHeli() {
-    world.everest.visible = world.zugspitze.visible = false;
+    world.everest.visible = world.zugspitze.visible = world.volcanoLabel.visible = false;
+    world.everest.userData.label.visible = world.zugspitze.userData.label.visible = false;
     world.heli.position.y = world.heliY;
     leaveExhibit();
   }
@@ -3615,8 +3907,8 @@ window.Surface = (function () {
     const T = cfg.moons;
     world.observatory.userData.target = 1; // Kuppel klappt auf
     startTour("monde", T, [
-      { pos: world.phobos.position, fov: 4.5, text: T.phobos },
-      { pos: world.deimos.position, fov: 2.2, text: T.deimos, btn: T.deimosBtn, slow: true }
+      { pos: world.phobos.position, fov: 2.4, text: T.phobos },
+      { pos: world.deimos.position, fov: 1.15, text: T.deimos, btn: T.deimosBtn, slow: true }
     ], { end: () => { world.observatory.userData.target = 0; } });
   }
 
@@ -3630,7 +3922,8 @@ window.Surface = (function () {
   }
   function eisUi() {
     const sp = view.special, T = cfg.drill;
-    if (sp.depth >= 3) scopeSay(T.steps[3], [[T.done, endEis, true]]);
+    if (sp.depth >= 3) scopeSay(guessed(T.steps[3]), [[T.done, endEis, true]]);
+    else if (sp.depth === 0 && !sp.guessQ) askGuess(T.guess, T.steps[0], drillOnce);
     else scopeSay(T.steps[sp.depth], [[T.drill, drillOnce, true]]);
   }
   function drillOnce() {
@@ -3662,7 +3955,7 @@ window.Surface = (function () {
     enterExhibit("rost", { update: updateRost, t: 0, run: false });
     world.astronaut.visible = false;
     resetMagnet();
-    scopeSay(cfg.magnet.ready, [[cfg.magnet.go, runRost, true]]);
+    askGuess(cfg.magnet.guess, cfg.magnet.ready, runRost);
   }
   function runRost() {
     const sp = view.special; sp.t = 0; sp.run = true;
@@ -3687,7 +3980,7 @@ window.Surface = (function () {
     });
     if (sp.t > 3.6) {
       sp.run = false; Sound.correct();
-      scopeSay(cfg.magnet.end, [[cfg.magnet.again, runRost], [cfg.magnet.done, endRost, true]]);
+      scopeSay(guessed(cfg.magnet.end), [[cfg.magnet.again, runRost], [cfg.magnet.done, endRost, true]]);
     }
   }
   function endRost() { world.astronaut.visible = true; leaveExhibit(); }
@@ -3695,25 +3988,38 @@ window.Surface = (function () {
   // --- Himmelskamera: Zeit vorspulen bis zum (blauen!) Sonnenuntergang ---
   const DUSK_TIME = 7;
   function startAbend() { enterExhibit("abend", { update: updateAbend }); runAbend(); }
+  // Wie tief darf die Sonne sinken, ohne hinter Hügeln oder Tafelbergen zu verschwinden? (einmal ausrechnen)
+  function duskEnd() {
+    if (world.duskEnd != null) return world.duskEnd;
+    const st = world.stations.abend, from = new V(st.x, world.height(st.x, st.z) + 2.2, st.z), big = [];
+    world.scene.traverse((o) => { if (o.isMesh && o.visible && o !== world.skyDome && !o.userData.farAway) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); if (o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) > 6) big.push(o); } });
+    const r = new THREE.Raycaster(); r.far = 2500; let end = 0;
+    for (let a = -0.24; a <= 0; a += 0.01) {
+      r.set(from, tmp.copy(SUN_DIR).applyAxisAngle(SUN_AXIS, a));
+      if (!r.intersectObjects(big, false).length) { end = Math.min(0, a + 0.05); break; } // ganze Sonnenscheibe frei
+    }
+    return (world.duskEnd = end);
+  }
   function runAbend() {
-    const sp = view.special; sp.t = -1.5; sp.run = true; sp.said = false;
+    const sp = view.special; sp.t = 0; sp.run = false; sp.said = false;
     marsSky(0);
-    scopeSay(cfg.dusk.ready);
+    askGuess(cfg.dusk.guess, cfg.dusk.ready, () => { sp.run = true; sp.t = -0.4; });
   }
   function updateAbend(dt) {
     const c = world.camera, sp = view.special, st = world.stations.abend, y = world.height(st.x, st.z);
     const h = Math.hypot(SUN_DIR.x, SUN_DIR.z), dx = SUN_DIR.x / h, dz = SUN_DIR.z / h;
     c.position.lerp(tmp.set(st.x - dx * 5, y + 2.2, st.z - dz * 5), 1 - Math.exp(-dt * 3));
-    view.look.lerp(tmp2.set(st.x + dx * 40, y + 7, st.z + dz * 40), 1 - Math.exp(-dt * 4));
+    view.look.lerp(tmp2.copy(sunNow).multiplyScalar(60).add(tmp.set(st.x - dx * 5, y + 2.2, st.z - dz * 5)), 1 - Math.exp(-dt * 4)); // die Sonne im Blick behalten
     c.lookAt(view.look);
+    c.fov += (44 - c.fov) * Math.min(1, dt * 2); c.updateProjectionMatrix();
     if (!sp.run) return;
     sp.t += dt;
     if (sp.t < 0) return;
     if (!sp.said) { sp.said = true; $("scopeText").textContent = cfg.dusk.running; }
-    marsSky(smooth(0, DUSK_TIME, sp.t));
+    marsSky(smooth(0, DUSK_TIME, sp.t), duskEnd());
     if (sp.t > DUSK_TIME + 0.6) {
       sp.run = false; Sound.correct();
-      scopeSay(cfg.dusk.end, [[cfg.dusk.again, runAbend], [cfg.dusk.done, endAbend, true]]);
+      scopeSay(guessed(cfg.dusk.end), [[cfg.dusk.again, runAbend], [cfg.dusk.done, endAbend, true]]);
     }
   }
   function endAbend() { marsSky(0); leaveExhibit(); }
@@ -3823,7 +4129,7 @@ window.Surface = (function () {
     enterExhibit("jahr", { update: updateOrrery, t: 0, run: false, last: "" });
     world.astronaut.visible = false;
     setOrrery(world.orrery, 0, 0);
-    scopeSay(cfg.orrery.ready, [[cfg.orrery.go, runOrrery, true]]);
+    askGuess(cfg.orrery.guess, cfg.orrery.ready, runOrrery);
   }
   function runOrrery() { const sp = view.special; sp.t = 0; sp.run = true; sp.last = ""; scopeSay(""); }
   function updateOrrery(dt) {
@@ -3837,7 +4143,7 @@ window.Surface = (function () {
     setOrrery(world.orrery, f * O.earthLaps * Math.PI * 2, f * O.planetLaps * Math.PI * 2);
     if (f >= 1) {
       sp.run = false; Sound.correct();
-      scopeSay(T.end, [[T.again, runOrrery], [T.done, endHidden, true]]);
+      scopeSay(guessed(T.end), [[T.again, runOrrery], [T.done, endHidden, true]]);
       return;
     }
     const text = fmtVars(T.run, O.vars(f));
@@ -3891,7 +4197,7 @@ window.Surface = (function () {
     const white = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.5, side: THREE.DoubleSide });
     const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.12, 1, 8), new THREE.MeshStandardMaterial({ color: 0x4b5563 })); stand.position.y = 0.5; g.add(stand);
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 0.6), gold); body.position.y = 1.2; body.castShadow = true; g.add(body);
-    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.55, 20, 8, 0, Math.PI * 2, 0, 0.8), white); dish.rotation.x = Math.PI; dish.position.y = 2.0; dish.castShadow = true; g.add(dish);
+    const dish = dishCap(PROBE_M, 0.55, 0.8); dish.rotation.x = Math.PI; dish.position.y = 2.0; g.add(dish);
     for (const x of [-0.85, 0.85]) {
       const panel = new THREE.Mesh(new THREE.BoxGeometry(1, 0.03, 0.5), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 }));
       panel.position.set(x, 1.2, 0); panel.castShadow = true; g.add(panel);
@@ -4006,7 +4312,7 @@ window.Surface = (function () {
       if (wrecked) p.rotation.set(s * 0.5, 0, s * (s > 0 ? 0.7 : -0.3));
     }
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.2, 6), M.steel), 0, 0.9, -1.4).rotation.x = Math.PI / 2;
-    const dish = put(g, new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 6, 0, Math.PI * 2, 0, 0.9), M.std({ color: srgb(0xf8fafc), side: THREE.DoubleSide })), 0.4, 1.5, -0.3);
+    const dish = put(g, dishCap(M, 0.45, 0.9), 0.4, 1.5, -0.3);
     dish.rotation.x = -0.6;
     if (wrecked) { g.rotation.set(0.35, 0.8, -0.25); g.position.y = -0.3; }
     return g;
@@ -4031,13 +4337,8 @@ window.Surface = (function () {
     mercModule(g, M, 12, 12, Math.atan2(-5, -12), 10, "🔬 LABOR");
     mercModule(g, M, 0, 22, Math.PI, 12, "⚙️ TECHNIK");
     for (const [x, z, r] of [[-22, 20, 0.5], [21, 22, -0.4], [8, 30, 0.2]]) { const rd = mercRadiators(M, 7); rd.position.set(x, 0, z); rd.rotation.y = r; g.add(rd); }
-    // Sonnenschild: steht zur Sonne hin (vorn links) und wirft seinen Schatten über die Station
-    const shield = mercShield(M, 30, 10), sh = Math.hypot(SUN_DIR.x, SUN_DIR.z);
-    shield.position.set((SUN_DIR.x / sh) * 26, 0, 14 + (SUN_DIR.z / sh) * 26); shield.rotation.y = Math.atan2(-SUN_DIR.x, -SUN_DIR.z); g.add(shield);
-    g.userData.shield = shield;
     for (const [x, z, s, c, r, y] of [[16, 3, 1.1, M.orange, 0.3, 0], [17.2, 4.3, 0.9, M.teal, -0.2, 0]]) colonyCrate(g, M, x, z, s, c, r, y);
     for (const [x, z] of [[-9.5, 3], [9.5, 3]]) colonyLamp(g, M, x, z);
-    g.userData.blink.push(blinkLamp(shield, 0xff3b30, 0, 11.2, 0));
   }
   function mercCampColliders([sx, sz]) {
     const c = [[sx - 12, sz + 12, 3.3], [sx + 12, sz + 12, 3.3], [sx, sz + 22, 3.3], [sx, sz + 27, 3.3], [sx - 22, sz + 20, 3.2], [sx + 21, sz + 22, 3.2], [sx + 8, sz + 30, 3.2],
@@ -4081,9 +4382,10 @@ window.Surface = (function () {
     const common = addCommon(B, L, "Merkurstation", "merkur");
     const M = colonyMats("merkur");
     // Sonnenschutz-Unterstand über der Waage (tiefe Seite zur Sonne)
-    on(mercShelter(M), ...L.waage).rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
+    const shelter = on(mercShelter(M), ...L.waage); shelter.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
 
-    const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0x5f5a54, roughness: 1, flatShading: true }));
+    const boulder = new THREE.Mesh(naturalRockGeo(23, 5), new THREE.MeshStandardMaterial({ color: 0x86807a, roughness: 1, vertexColors: true, map: regolithTexture() }));
+    boulder.material.map.repeat.set(3, 3);
     boulder.scale.set(7, 8.5, 6.5); boulder.rotation.set(0.2, 0.7, 0.1); boulder.castShadow = boulder.receiveShadow = true;
     on(boulder, ...L.boulder, 5.5);
 
@@ -4124,8 +4426,7 @@ window.Surface = (function () {
     const iceProbe = on(mercIceProbe(M), L.eis[0] - 2.5, L.eis[1] - 2); iceProbe.rotation.y = Math.atan2(2.5, 2);
     const shadeSign = on(makeSignBoard(M, "🌡️ SCHATTEN: −180 °C", "#475569", 2.6), L.shadowSpot[0] + 2.5, L.shadowSpot[1] - 2);
     shadeSign.rotation.y = Math.atan2(-shadeSign.position.x, -shadeSign.position.z);
-    const ice = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({ color: 0xdff4ff, emissive: 0x7dd3fc, emissiveIntensity: 0.6, roughness: 0.2, flatShading: true }));
-    on(ice, ...L.eis, 0.3);
+    const ice = makeIceCrystals(2.2); on(ice, ...L.eis, 0.02);
     const orrery = on(makeOrrery("merkur", 0.75, 1.7), ...L.jahr);
     const rack = on(makeSizeRack(["mond", "merkur", "erde"]), ...L.groesse);
 
@@ -4140,14 +4441,13 @@ window.Surface = (function () {
     clusters.forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 19 + 5));
     common.station.updateMatrixWorld(true);
     const wall = [];
-    common.station.userData.shield.traverse((o) => { if (o.userData.wall) { const p = o.getWorldPosition(new V()); wall.push([p.x, p.z, o.userData.wall / 2 + 0.3]); } });
     const colliders = [...common.colliders, [...L.boulder, 6.8], [...L.sonne, 1.9], [...L.krater, 1], [...L.wegweiser, 0.3], [...L.sonde, 1.6],
       [...L.eis, 0.5], [iceProbe.position.x, iceProbe.position.z, 1.1], [...L.jahr, 1.2], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1],
       ...seismos.map((s) => [s.position.x, s.position.z, 0.5]), ...wall, ...npcs.map((n) => n.col),
       ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2])];
 
     return { ...B, ...common, L, telescope, sunBig, sunSmall, sunAt, meteor, decal, orrery, rack, stations, colliders, npcs, blink: common.station.userData.blink,
-      shadowCasters: [boulder, rocket, common.station, tower] };
+      shadowCasters: [boulder, rocket, common.station, tower, shelter] };
   }
   function startSunScope() {
     const T = cfg.sunScope, w = world;
@@ -4159,7 +4459,7 @@ window.Surface = (function () {
   // --- Einschlag: ein Brocken aus dem All fällt ungebremst herunter ---
   function startMeteor() {
     enterExhibit("krater", { update: updateMeteor, t: 0, run: false });
-    scopeSay(cfg.impact.ready, [[cfg.impact.go, runMeteor, true]]);
+    askGuess(cfg.impact.guess, cfg.impact.ready, runMeteor);
   }
   function runMeteor() {
     const sp = view.special; sp.t = 0; sp.run = true; sp.hit = false;
@@ -4181,7 +4481,7 @@ window.Surface = (function () {
     }
     if (sp.t > 3.4) {
       sp.run = false; Sound.correct();
-      scopeSay(cfg.impact.end, [[cfg.impact.again, runMeteor], [cfg.impact.done, leaveExhibit, true]]);
+      scopeSay(guessed(cfg.impact.end), [[cfg.impact.again, runMeteor], [cfg.impact.done, leaveExhibit, true]]);
     }
   }
 
@@ -4512,16 +4812,16 @@ window.Surface = (function () {
   const SIGNAL_TIME = 7, SIGNAL_HOURS = 5.5;
   function startSignal() { enterExhibit("funk", { update: updateSignal }); runSignal(); }
   function runSignal() {
-    const sp = view.special; sp.t = -1.8; sp.end = false; sp.last = "";
+    const sp = view.special; sp.t = 0; sp.end = false; sp.last = ""; sp.go = false;
     world.beam.visible = world.pulse.visible = false;
-    scopeSay(cfg.signal.ready);
+    askGuess(cfg.signal.guess, cfg.signal.ready, () => { sp.go = true; sp.t = -0.4; });
   }
   function updateSignal(dt) {
     const c = world.camera, sp = view.special, T = cfg.signal, M = world.signalFrom, h = Math.hypot(SUN_DIR.x, SUN_DIR.z);
     c.position.lerp(tmp.set(M.x - (SUN_DIR.x / h) * 7, M.y + 1, M.z - (SUN_DIR.z / h) * 7), 1 - Math.exp(-dt * 3));
     view.look.lerp(tmp2.copy(M).addScaledVector(SUN_DIR, 16), 1 - Math.exp(-dt * 4));
     c.lookAt(view.look);
-    if (sp.end) return;
+    if (sp.end || !sp.go) return;
     sp.t += dt;
     if (sp.t < 0) return;
     const f = Math.min(1, sp.t / SIGNAL_TIME), far = 880 * f;
@@ -4530,7 +4830,7 @@ window.Surface = (function () {
     world.pulse.scale.setScalar(0.7 + far * 0.03);
     if (f >= 1) {
       sp.end = true; world.pulse.visible = false; Sound.correct();
-      scopeSay(T.end, [[T.again, runSignal], [T.done, endSignal, true]]);
+      scopeSay(guessed(T.end), [[T.again, runSignal], [T.done, endSignal, true]]);
       return;
     }
     const min = Math.floor((f * SIGNAL_HOURS * 60) / 10) * 10, text = `${T.run} ⏱️ ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
@@ -4567,8 +4867,12 @@ window.Surface = (function () {
     stand.position.y = 0.55; stand.castShadow = true; g.add(stand);
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.55, 32, 22), new THREE.MeshStandardMaterial({ map: W.bodies[id].mesh.material.map, roughness: 0.9 }));
     ball.position.y = 1.65; ball.castShadow = true; g.add(ball);
-    const pin = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
-    pin.rotation.x = Math.PI / 2; pin.position.z = 0.62; ball.add(pin);
+    // gut sichtbares Fähnchen am Äquator: Stab und rotes Wimpel-Tuch
+    const pin = new THREE.Group(); pin.position.z = 0.55; ball.add(pin);
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 6), new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.5, roughness: 0.4 }));
+    stick.rotation.x = Math.PI / 2; stick.position.z = 0.2; pin.add(stick);
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.16), new THREE.MeshStandardMaterial({ color: 0xef4444, side: THREE.DoubleSide, roughness: 0.8 }));
+    cloth.rotation.y = Math.PI / 2; cloth.position.set(0, 0.09, 0.3); pin.add(cloth);
     g.userData = { ball };
     return g;
   }
@@ -4732,7 +5036,13 @@ window.Surface = (function () {
     }
     // Druck-Versuch: Blechdose unter einer Schutzglocke
     const press = on(makeTable(), ...L.druck);
-    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.34, 20), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.85, roughness: 0.3 }));
+    const labelTex = canvasTex(256, 128, (c) => { // Etikett einer Konservendose
+      c.fillStyle = "#dc2626"; c.fillRect(0, 0, 256, 128); c.fillStyle = "#fef3c7"; c.fillRect(0, 34, 256, 60);
+      c.fillStyle = "#b91c1c"; c.font = "bold 40px sans-serif"; c.textAlign = "center"; c.fillText("BOHNEN", 128, 78);
+      c.fillStyle = "#fbbf24"; for (let x = 0; x < 256; x += 32) c.fillRect(x, 106, 16, 8);
+    });
+    const canSide = new THREE.MeshStandardMaterial({ map: labelTex, metalness: 0.3, roughness: 0.45 }), canTop = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.9, roughness: 0.25 });
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.34, 24), [canSide, canTop, canTop]);
     can.position.y = 1.2; press.add(can);
     const dome = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2),
       new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.35, roughness: 0.1, side: THREE.DoubleSide }));
@@ -4750,7 +5060,7 @@ window.Surface = (function () {
     const [sx2, sz2] = L.abendstern, radar = new THREE.Group(); on(radar, sx2 + 3.2, sz2 + 1.5);
     put(radar, new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.45, 1.8, 12), venusMetal(M, 1, 1)), 0, 0.9, 0);
     const radarHead = new THREE.Group(); radarHead.position.y = 2; radar.add(radarHead);
-    const radarDish = put(radarHead, new THREE.Mesh(new THREE.SphereGeometry(1.4, 24, 8, 0, Math.PI * 2, 0, 0.9), M.std({ color: srgb(0xe7e0d2), side: THREE.DoubleSide, roughness: 0.4 })), 0, 1.1, 0.4);
+    const radarDish = put(radarHead, dishCap(M, 1.4, 0.9), 0, 1.1, 0.4);
     radarDish.rotation.x = -2.2;
     on(makeSignBoard(M, "📡 RADAR & INFRAROT", "#0f766e", 2.6), sx2 - 2.6, sz2 - 1.8).rotation.y = Math.atan2(-sx2, -sz2);
     const dot = (inner, outer, size) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(inner, outer), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false })); s.scale.setScalar(size); s.visible = false; scene.add(s); return s; };
@@ -4789,8 +5099,8 @@ window.Surface = (function () {
     }
     const lavaCol = []; for (let x = -46; x <= 40; x += 2.6) if (Math.abs(x - L.lava[0]) > 1.6) lavaCol.push([x, VENUS_LAVA_Z(x), 1.5]);
     // Vulkan in der Ferne (auf der Venus gibt es Tausende)
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(70, 45, 32), new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 1 }));
-    cone.position.set(L.lava[0] - 110, 18, L.lava[1] - 90); scene.add(cone);
+    const cone = makeVenusVolcano(85, 42); cone.material.fog = true;
+    cone.position.set(L.lava[0] - 110, height(L.lava[0] - 110, L.lava[1] - 90) - 2, L.lava[1] - 90); scene.add(cone);
     const lavaGlow = new THREE.PointLight(0xff6a1a, 1.2, 12, 1.5); lavaGlow.position.set(L.lava[0], height(...L.lava) + 1, L.lava[1]); scene.add(lavaGlow);
     const board2 = on(makeInfoBoard(M, "VENUS-AUSSENPOSTEN", ["☀️ Sonne: 108 Mio. km", "🌍 Erde: 38 – 261 Mio. km", "🌡️ 465 °C · 92-facher Druck"]), ...L.wegweiser);
     board2.rotation.y = Math.atan2(L.spawn[0] - L.wegweiser[0], L.spawn[1] - L.wegweiser[1]);
@@ -4846,14 +5156,14 @@ window.Surface = (function () {
   // --- Treibhaus: Wolken wegschieben und zusehen, wie die Temperatur fällt ---
   function startHeat() {
     enterExhibit("hitze", { update: updateHeat, c: 0, clear: false, tried: 0 });
-    scopeSay(cfg.heat.intro, [[cfg.heat.off, () => setClouds(false), true]]);
+    askGuess(cfg.heat.guess, cfg.heat.intro, () => setClouds(false));
   }
   function setClouds(on) {
     const sp = view.special, T = cfg.heat;
     sp.clear = !on;
     if (!on) sp.tried = 1; else if (sp.tried) sp.tried = 2;
     Sound.whoosh();
-    if (!on) scopeSay(T.offText, [[T.on, () => setClouds(true), true]]);
+    if (!on) scopeSay(guessed(T.offText), [[T.on, () => setClouds(true), true]]);
     else scopeSay(T.onText, [[T.off, () => setClouds(false)], [T.done, () => { venusSky(0); leaveExhibit(); }, true]]);
   }
   function updateHeat(dt) {
@@ -4869,7 +5179,7 @@ window.Surface = (function () {
   function startPress() {
     enterExhibit("druck", { update: updatePress, t: 0, run: false });
     world.astronaut.visible = false; resetCan();
-    scopeSay(cfg.press.ready, [[cfg.press.go, runPress, true]]);
+    askGuess(cfg.press.guess, cfg.press.ready, runPress);
   }
   function runPress() { const sp = view.special; sp.t = 0; sp.run = true; sp.hit = false; resetCan(); scopeSay(cfg.press.running); }
   function updatePress(dt) {
@@ -4883,14 +5193,14 @@ window.Surface = (function () {
     const k = smooth(1.1, 1.35, sp.t);                      // … und die Dose gibt schlagartig nach
     world.can.scale.set(1 + 0.25 * k, 1 - 0.78 * k, 1 + 0.25 * k); world.can.position.y = 1.2 - 0.13 * k;
     if (k > 0.5 && !sp.hit) { sp.hit = true; Sound.land(); }
-    if (sp.t > 2.4) { sp.run = false; Sound.correct(); scopeSay(cfg.press.end, [[cfg.press.again, runPress], [cfg.press.done, endHidden, true]]); }
+    if (sp.t > 2.4) { sp.run = false; Sound.correct(); scopeSay(guessed(cfg.press.end), [[cfg.press.again, runPress], [cfg.press.done, endHidden, true]]); }
   }
   // --- Dreh-Vergleich: 10 Erdtage lang drehen sich beide Globen ---
   const SPIN_TIME = 12, SPIN_DAYS = 10;
   function startSpin() {
     enterExhibit("tag", { update: updateSpin, t: 0, run: false, last: "" });
     world.astronaut.visible = false;
-    scopeSay(cfg.spin.ready, [[cfg.spin.go, runSpin, true]]);
+    askGuess(cfg.spin.guess, cfg.spin.ready, runSpin);
   }
   function runSpin() { const sp = view.special; sp.t = 0; sp.run = true; sp.last = ""; scopeSay(""); }
   function updateSpin(dt) {
@@ -4903,7 +5213,7 @@ window.Surface = (function () {
     const f = Math.min(1, sp.t / SPIN_TIME), days = f * SPIN_DAYS;
     world.globeE.rotation.y = days * Math.PI * 2;            // Erde: eine Drehung pro Tag
     world.globeV.rotation.y = -(days / 243) * Math.PI * 2;   // Venus: 243 Tage für eine Drehung – und andersherum
-    if (f >= 1) { sp.run = false; Sound.correct(); scopeSay(T.end, [[T.again, runSpin], [T.done, endHidden, true]]); return; }
+    if (f >= 1) { sp.run = false; Sound.correct(); scopeSay(guessed(T.end), [[T.again, runSpin], [T.done, endHidden, true]]); return; }
     const text = fmtVars(T.run, { erde: Math.floor(days) });
     if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
   }
@@ -5071,14 +5381,52 @@ window.Surface = (function () {
   };
   const ERDE_SKY = new THREE.Color(0x7ec0ee), ERDE_NIGHT = new THREE.Color(0x04060e), ERDE_DUSK = new THREE.Color(0xf08a3c);
   const ERDE_MOON_DIR = new V(-0.55, 0.5, 0.65).normalize();
-  function makeTree(s) {
-    const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.22 * s, 1.6 * s, 8), new THREE.MeshStandardMaterial({ color: srgb(0x6b4423), roughness: 1 }));
-    trunk.position.y = 0.8 * s; trunk.castShadow = true; g.add(trunk);
-    const green = new THREE.MeshStandardMaterial({ color: srgb(0x2f7d32), roughness: 1, flatShading: true });
-    for (let i = 0; i < 3; i++) {
-      const c = new THREE.Mesh(new THREE.ConeGeometry((1.5 - i * 0.35) * s, 1.8 * s, 9), green);
-      c.position.y = (1.9 + i * 1.05) * s; c.castShadow = true; g.add(c);
+  // Bäume: Nadelbäume mit vielen unregelmäßigen Zweig-Etagen und Laubbäume mit runder, buschiger Krone (Farben im Gitter: innen dunkler)
+  const TREE = { geos: {}, mats: null };
+  function treeMats() {
+    if (TREE.mats) return TREE.mats;
+    const bark = new THREE.MeshStandardMaterial({ color: srgb(0x5a3a22), roughness: 1 });
+    const leaf = [0x2e6b30, 0x3d7d34, 0x2a5f3a].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.95, vertexColors: true }));
+    const crown = [0x4f8f3a, 0x5c9a3c, 0x6b9f3a, 0x3f7f3a].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.95, vertexColors: true }));
+    return (TREE.mats = { bark, leaf, crown });
+  }
+  // gezackte Zweig-Etage (Kegel mit ausgefranstem Rand) bzw. buschiger Ballen, jeweils mit dunklerem Inneren
+  function treeGeo(kind, v) {
+    const key = kind + v; if (TREE.geos[key]) return TREE.geos[key];
+    const geo = kind === "tier" ? new THREE.ConeGeometry(1, 1, 14, 3) : new THREE.IcosahedronGeometry(1, 2);
+    const p = geo.attributes.position, q = new V(), col = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) {
+      q.fromBufferAttribute(p, i);
+      const a = Math.atan2(q.z, q.x), n = fbm2(q.x * 2.3 + v * 3, q.z * 2.3 + q.y * 2);
+      if (kind === "tier") {
+        const rim = q.y < -0.3 ? 1 + 0.22 * Math.sin(a * 7 + v) + 0.12 * (n - 0.5) : 1 + 0.1 * (n - 0.5); // Zweigspitzen
+        q.x *= rim; q.z *= rim; if (q.y < -0.3) q.y -= 0.12 * Math.abs(Math.sin(a * 7 + v)); // Spitzen hängen leicht
+      } else q.multiplyScalar(1 + (n - 0.5) * 0.5);
+      p.setXYZ(i, q.x, q.y, q.z);
+      const k = kind === "tier" ? 0.62 + 0.45 * (q.y + 0.5) + 0.15 * n : 0.6 + 0.35 * (q.y + 1) / 2 + 0.25 * n;
+      col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = Math.min(1.15, k);
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    return (TREE.geos[key] = geo);
+  }
+  function makeTree(s, seed = 0) {
+    const g = new THREE.Group(), M = treeMats(), v = Math.floor(hash2(seed, 5) * 3), conifer = hash2(seed, 9) < 0.62;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.24 * s, (conifer ? 1.8 : 2.4) * s, 8), M.bark);
+    trunk.position.y = (conifer ? 0.9 : 1.2) * s; trunk.castShadow = true; g.add(trunk);
+    if (conifer) { // Nadelbaum: 5 Etagen, nach oben kleiner
+      const mat = M.leaf[v];
+      for (let i = 0; i < 5; i++) {
+        const r = (1.55 - i * 0.27) * s, h = (1.35 - i * 0.12) * s, t = new THREE.Mesh(treeGeo("tier", (v + i) % 3), mat);
+        t.scale.set(r, h, r); t.position.y = (1.6 + i * 0.72) * s; t.rotation.y = hash2(seed, i) * 6; t.castShadow = i < 2; g.add(t);
+      }
+    } else { // Laubbaum: ein paar runde Ballen um die Krone
+      const mat = M.crown[(v + seed) % 4];
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + hash2(seed, i), r = i ? 0.7 * s : 0, b = new THREE.Mesh(treeGeo("ball", (v + i) % 3), mat);
+        b.scale.setScalar((i ? 0.95 : 1.35) * s * (0.85 + hash2(seed, i + 7) * 0.3));
+        b.position.set(Math.cos(a) * r, (i ? 2.9 : 3.5) * s + hash2(seed, i + 3) * 0.4 * s, Math.sin(a) * r); b.castShadow = i === 0; g.add(b);
+      }
     }
     return g;
   }
@@ -5086,7 +5434,7 @@ window.Surface = (function () {
     const L = { ...ERDE_LAYOUT };
     const craters = [[...L.see, 18, 2.4]]; // die Senke für den See
     const hills = [[L.mond[0], L.mond[1] + 2, 16, 4.5], [L.station[0], L.station[1] + 8, 34, 3]]; // Sternwarten-Hügel und Hügel des Besucherzentrums
-    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 12, 20, "auto"], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 5, "auto", 3], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 3], [...L.wald, 9, "auto"], [...L.tag, 6, "auto"]];
+    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 12, 20, "auto"], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 6, "auto"]];
     const B = buildBase({
       height: makeHeight(craters, flats, 200, null, hills),
       // Luft: blauer Himmel, leichter Dunst in der Ferne, am Tag keine Sterne
@@ -5109,12 +5457,12 @@ window.Surface = (function () {
     const trees = new THREE.Group();
     for (let i = 0; i < 16; i++) {
       const a = hash2(i, 11) * Math.PI * 2, r = 3.5 + hash2(i, 12) * 7, x = L.wald[0] + Math.cos(a) * r, z = L.wald[1] + Math.sin(a) * r;
-      const t = makeTree(0.8 + hash2(i, 13) * 0.7); t.position.set(x, height(x, z), z); trees.add(t);
+      const t = makeTree(0.8 + hash2(i, 13) * 0.7, i * 7 + 1); t.position.set(x, height(x, z), z); trees.add(t);
     }
     for (let i = 0; i < 14; i++) { // einzelne Bäume in der Landschaft
       const x = (hash2(i, 21) - 0.5) * 240, z = (hash2(i, 22) - 0.5) * 240;
       if (Math.hypot(x, z) < 70 || Math.hypot(x - L.see[0], z - L.see[1]) < 22) continue;
-      const t = makeTree(0.9 + hash2(i, 23) * 0.8); t.position.set(x, height(x, z), z); trees.add(t);
+      const t = makeTree(0.9 + hash2(i, 23) * 0.8, i * 11 + 3); t.position.set(x, height(x, z), z); trees.add(t);
     }
     scene.add(trees);
     // Wolken
@@ -5154,7 +5502,7 @@ window.Surface = (function () {
       for (const [dx, dz, r] of [[-2.6, 1.4, 2.1], [2.4, 2, -2.2]]) on(earthBench(M), tx + dx, tz + dz).rotation.y = r;
       const petal = [0xf472b6, 0xfacc15, 0xef4444, 0xa78bfa].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.7 }));
       for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2; on(new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), petal[i % 4]), tx + Math.sin(a) * 1.7, tz + Math.cos(a) * 1.7, 0.15); }
-      for (const [dx, dz] of [[4, 4], [-4, 4.5]]) { const t = makeTree(0.9); t.position.set(tx + dx, height(tx + dx, tz + dz), tz + dz); trees.add(t); }
+      for (const [dx, dz] of [[4, 4], [-4, 4.5]]) { const t = makeTree(0.9, dx > 0 ? 4 : 13); t.position.set(tx + dx, height(tx + dx, tz + dz), tz + dz); trees.add(t); }
     }
     { // Waage mit Schild „So viel wiegst du wirklich“
       on(makeSignBoard(M, "⚖️ WAAGE – WIE SCHWER BIST DU?", "#2563eb", 3.2), L.waage[0] + 2.4, L.waage[1] + 1).rotation.y = Math.atan2(-L.waage[0], -L.waage[1]);
@@ -5212,14 +5560,14 @@ window.Surface = (function () {
   // --- Luft an/aus: Was die Lufthülle für uns tut ---
   function startAir() {
     enterExhibit("luft", { update: updateAir, a: 1, on: true, tried: 0 });
-    scopeSay(cfg.air.intro, [[cfg.air.off, () => setEarthAir(false), true]]);
+    askGuess(cfg.air.guess, cfg.air.intro, () => setEarthAir(false));
   }
   function setEarthAir(on) {
     const sp = view.special, T = cfg.air;
     sp.on = on;
     if (!on) sp.tried = 1; else if (sp.tried) sp.tried = 2;
     Sound.whoosh();
-    if (!on) scopeSay(T.offText, [[T.on, () => setEarthAir(true), true]]);
+    if (!on) scopeSay(guessed(T.offText), [[T.on, () => setEarthAir(true), true]]);
     else scopeSay(T.onText, [[T.off, () => setEarthAir(false)], [T.done, () => { erdeSky(1); leaveExhibit(); }, true]]);
   }
   function updateAir(dt) {
@@ -5233,7 +5581,7 @@ window.Surface = (function () {
   // --- Sternschnuppe: Derselbe Brocken wie auf dem Merkur – aber hier bremst ihn die Luft, er verglüht ---
   function startShooting() {
     enterExhibit("stern", { update: updateShooting, t: 0, run: false });
-    scopeSay(cfg.shooting.ready, [[cfg.shooting.go, runShooting, true]]);
+    askGuess(cfg.shooting.guess, cfg.shooting.ready, runShooting);
   }
   function runShooting() { const sp = view.special; sp.t = 0; sp.run = true; world.meteor.visible = true; scopeSay(cfg.shooting.running); }
   function updateShooting(dt) {
@@ -5249,25 +5597,26 @@ window.Surface = (function () {
     world.meteor.scale.setScalar(Math.max(0.03, 3 * (1 - burn)));
     world.fire.scale.setScalar((1 + 3 * Math.sin(Math.min(1, f / 0.75) * Math.PI)) / Math.max(0.03, 1 - burn)); // Glut um den Brocken (gleicht sein Schrumpfen aus)
     if (f >= 0.78) world.meteor.visible = false;
-    if (sp.t > 3) { sp.run = false; Sound.correct(); scopeSay(cfg.shooting.end, [[cfg.shooting.again, runShooting], [cfg.shooting.done, leaveExhibit, true]]); }
+    if (sp.t > 3) { sp.run = false; Sound.correct(); scopeSay(guessed(cfg.shooting.end), [[cfg.shooting.again, runShooting], [cfg.shooting.done, leaveExhibit, true]]); }
   }
   // --- Sonnenuhr: ein ganzer Tag im Zeitraffer ---
   const DAY_TIME = 14;
   function startDay() { enterExhibit("tag", { update: updateDay }); runDay(); }
-  function runDay() { const sp = view.special; sp.t = -1.5; sp.run = true; sp.last = ""; setSun(0); erdeSky(1); scopeSay(cfg.day.ready); }
+  function runDay() { const sp = view.special; sp.t = 0; sp.run = false; sp.last = ""; setSun(0); erdeSky(1); askGuess(cfg.day.guess, cfg.day.ready, () => { sp.run = true; sp.t = -0.4; }); }
   function updateDay(dt) {
     const c = world.camera, sp = view.special, [x, z] = world.L.tag, y = world.height(x, z), T = cfg.day;
     // Blick über die Sonnenuhr dorthin, wo die Sonne untergeht (gegenüber von dort, wo sie jetzt steht)
     const h = Math.hypot(SUN_DIR.x, SUN_DIR.z), dx = -SUN_DIR.x / h, dz = -SUN_DIR.z / h;
-    c.position.lerp(tmp.set(x - dx * 6, y + 3.4, z - dz * 6), 1 - Math.exp(-dt * 3));
-    view.look.lerp(tmp2.set(x + dx * 30, y + 8, z + dz * 30), 1 - Math.exp(-dt * 4));
+    c.position.lerp(tmp.set(x - dx * 5, y + 3, z - dz * 5), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(x + dx * 20, y + 3 - 20 * 0.2, z + dz * 20), 1 - Math.exp(-dt * 4)); // leicht nach unten: Sonnenuhr unten im Bild
     c.lookAt(view.look);
+    c.fov += (72 - c.fov) * Math.min(1, dt * 3); c.updateProjectionMatrix();
     if (!sp.run) return;
     sp.t += dt;
     if (sp.t < 0) return;
     const f = Math.min(1, sp.t / DAY_TIME);
     setSun(f * Math.PI * 2); erdeSky(1);
-    if (f >= 1) { sp.run = false; setSun(0); erdeSky(1); Sound.correct(); scopeSay(T.end, [[T.again, runDay], [T.done, leaveExhibit, true]]); return; }
+    if (f >= 1) { sp.run = false; setSun(0); erdeSky(1); Sound.correct(); scopeSay(guessed(T.end), [[T.again, runDay], [T.done, leaveExhibit, true]]); return; }
     const hour = Math.floor(9 + f * 24) % 24;
     const text = fmtVars(sunNow.y > 0 ? T.day : T.night, { uhr: hour });
     if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
@@ -5292,7 +5641,7 @@ window.Surface = (function () {
     const gold = new THREE.MeshStandardMaterial({ color: 0xd4a73a, metalness: 0.7, roughness: 0.35 });
     const white = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.5, side: THREE.DoubleSide });
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 1.1), gold); g.add(body);
-    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.8, 20, 8, 0, Math.PI * 2, 0, 0.8), white);
+    const dish = dishCap(PROBE_M, 0.8, 0.8);
     dish.rotation.x = Math.PI / 2; dish.position.z = -0.25; g.add(dish); // Schüssel zeigt nach hinten – zur Erde
     for (const x of [-1.4, 1.4]) {
       const panel = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.04, 0.8), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.25 }));
@@ -5713,7 +6062,6 @@ window.Surface = (function () {
         applySky(0);
       },
       update(dt, busy, elapsed) {
-        if (!busy && Math.hypot(ast.pos.x - world.L.apollo[0], ast.pos.z - world.L.apollo[1]) < 9) discover("apollo");
         updateExperiment(dt);
         updateLife(dt, elapsed, busy);
         world.earth.rotation.y += dt * 0.02;
@@ -5769,7 +6117,6 @@ window.Surface = (function () {
         setOrrery(world.orrery, 0, 0);
       },
       update(dt, busy, elapsed) {
-        if (!busy && !view.special && inHeart(ast.pos.x, ast.pos.z)) discover("eis"); // auf dem glatten Stickstoff-Eis
         updateLife(dt, elapsed, busy);
       },
       grip: () => (inHeart(ast.pos.x, ast.pos.z) ? 0.16 : 1),
@@ -5797,13 +6144,12 @@ window.Surface = (function () {
       update(dt, busy, elapsed) {
         updateLife(dt, elapsed, busy);
         const [sx, sz] = world.L.see;
-        if (!busy && !view.special && Math.hypot(ast.pos.x - sx, ast.pos.z - sz) < 19) discover("wasser"); // am Ufer des Sees
         world.clouds.rotation.y += dt * 0.004;
       },
       actions: { luft: startAir, stern: startShooting, tag: startDay, groesse: startGuess, mond: startMoonScope }
     }
   };
 
-  if (/[?&]test/.test(location.search)) S._test = { ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, discover, startAction, showFound, POSE, setBone, HATCH };
+  if (/[?&]test/.test(location.search)) S._test = { navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, discover, startAction, showFound, POSE, setBone, HATCH };
   return S;
 })();

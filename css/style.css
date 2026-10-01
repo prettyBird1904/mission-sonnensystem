@@ -489,7 +489,7 @@ kbd {
 #scope { position: fixed; inset: 0; z-index: 9; pointer-events: none; background: radial-gradient(circle at 50% 50%, transparent 0, transparent 30vmin, rgba(0,0,0,.96) 31vmin); }
 #scope.aim::after { content: ""; position: absolute; left: 50%; top: 50%; width: 9vmin; height: 9vmin; transform: translate(-50%, -50%); border: 2px solid rgba(125, 211, 252, .85); border-radius: 50%; box-shadow: 0 0 12px rgba(125, 211, 252, .5); }
 .scope-ui { position: fixed; left: 50%; bottom: 2vh; transform: translateX(-50%); z-index: 11; width: min(680px, calc(100% - 28px)); padding: 10px 16px 12px; border-radius: 18px; text-align: center; }
-#scopeText { font-size: 17px; line-height: 1.4; }
+#scopeText { font-size: 17px; line-height: 1.4; white-space: pre-line; }
 .scope-ui .row-gap { margin-top: 8px; }
 #surfaceHud.scoping > :not(#surfLabels) { display: none; }
 /* Sprechblase eines Mitbewohners */

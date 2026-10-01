@@ -300,7 +300,7 @@ window.SPACE_DATA = {
       temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["sprung", "wegweiser", "waage", "apollo", "fallversuch", "spiegel", "temperatur", "himmel", "mondstein", "antenne"],
+        order: ["sprung", "wegweiser", "waage", "fallversuch", "apollo", "spiegel", "temperatur", "himmel", "mondstein", "antenne"],
         hello: "Da sind wir, {name}! Warte, ich klettere auch runter.",
         welcome: "Wir sind auf dem Mond! Ich bleibe die ganze Zeit bei dir. Heute machen wir einen Rundgang: alte Spuren, einen riesigen Krater und die Mondbasis von Lea und Tom. Spring zuerst mal – aber vorsichtig!",
         jump: "Na los, spring! Hier wiegst du fast nichts.",
@@ -367,9 +367,9 @@ window.SPACE_DATA = {
       stations: {
         // action = Knopf an der Station · again = Knopf, um schon Entdecktes nochmal anzusehen · reach = Reichweite in Metern
         // hint = Tipp in der Liste „Meine Entdeckungen“ · small + auto = Fundstück: kleines Licht, Entdeckung beim Hingehen (Meter)
-        apollo:      { label: "Landestelle von 1969", hint: "Geh zur Mondfähre hinter der Absperrung", again: "👣 Nochmal ansehen", reach: 6 },
+        apollo:      { label: "Landestelle von 1969", hint: "Stell dich in den Kreis an der Absperrung vor der Mondfähre", again: "👣 Nochmal ansehen", auto: true },
         himmel:      { label: "Erdblick", hint: "Schau vom Aussichtsturm „Erdblick“ durchs Fernrohr", action: "🔭 Durchschauen" },
-        temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Schatten des großen Felsens", again: "🌡️ Nochmal ansehen", reach: 5 },
+        temperatur:  { label: "Schatten am Felsen", hint: "Stell dich in den Kreis im Schatten des großen Felsens", again: "🌡️ Nochmal ansehen" },
         fallversuch: { label: "Hammer & Feder", hint: "Probier den berühmten Versuch an der Apollo-Landestelle aus", action: "🪶 Hammer & Feder fallen lassen" },
         waage:       { label: "Frachtwaage", hint: "Stell dich auf die Frachtwaage am Frachtlander", action: "⚖️ Auf die Waage stellen" },
         wegweiser:   { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
@@ -398,13 +398,17 @@ window.SPACE_DATA = {
         airOffText: "Ohne Luft: Nichts verteilt das Sonnenlicht. Der Himmel bleibt schwarz – sogar mitten am Tag!",
         done: "Fertig ✓"
       },
+      // Hammer und Feder: erst vermuten, dann fallen lassen
+      fall: { guess: { "q": "Hammer und Feder fallen gleichzeitig los. Was kommt zuerst unten an?", "a": ["Der Hammer", "Die Feder", "Beide gleichzeitig"], "c": 2 } },
       // Waage: eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf dem Mond zeigt ({mond})
       weigh: {
+        guess: { "q": "Was zeigt die Waage hier auf dem Mond?", "a": ["Mehr als auf der Erde", "Genauso viel", "Viel weniger"], "c": 2 },
         text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Mond zeigt die Waage nur {mond} Kilo!",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
       // Laser-Spiegel: Licht von der Erde zum Spiegel und zurück, die Stoppuhr läuft in echter Zeit mit
       laser: {
+        guess: { "q": "Wie lange braucht das Licht von der Erde zum Mond und wieder zurück?", "a": ["Etwa 2,6 Sekunden", "Etwa 1 Stunde", "Etwa 1 Tag"], "c": 0 },
         ready: "Die Bodenstation schickt gleich einen Laserstrahl von der Erde zu diesem Spiegel. Stopp die Zeit mit: Achtung … fertig …",
         hin: "Los! Das Licht rast von der Erde zum Mond …",
         zurueck: "Treffer! Der Spiegel wirft das Licht zurück zur Erde …",
@@ -413,6 +417,7 @@ window.SPACE_DATA = {
       },
       // Antenne: Zeitraffer über einen Mond-Tag ({tag} von {tage} Erdtagen)
       lapse: {
+        guess: { "q": "Was glaubst du: Wandert die Erde am Himmel – so wie die Sonne?", "a": ["Ja, sie wandert mit", "Nein, sie bleibt stehen"], "c": 1 },
         ready: "Die Antenne zeigt genau zur Erde. Jetzt spulen wir die Zeit vor: Beobachte die Sonne, die Schatten – und die Erde!",
         day: "Erdtag {tag} von {tage}: Die Sonne wandert über den Himmel. Und die Erde?",
         night: "Erdtag {tag} von {tage}: Jetzt ist Mondnacht – zwei Wochen lang! Und die Erde?",
@@ -516,11 +521,12 @@ window.SPACE_DATA = {
         monde:     { label: "Sternwarte", hint: "Geh in die Sternwarte neben deiner Rakete", action: "🔭 Kuppel öffnen und durchschauen" },
         abend:     { label: "Wetterstation", hint: "An der Wetterstation steht eine Himmelskamera", action: "⏩ Zeit vorspulen bis zum Abend" },
         eis:       { label: "Wasser-Anlage", hint: "Bohr an der Wasser-Anlage nach Eis", action: "⛏️ Bohrer benutzen" },
-        teufel:    { label: "Staubteufel", hint: "Fang den Staubteufel – er wirbelt draußen hinter der Wetterstation herum", again: "🌪️ Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
+        teufel:    { label: "Staubteufel", hint: "Fang den Staubteufel – er wirbelt draußen hinter der Wetterstation herum", again: "🌪️ Nochmal ansehen", small: true, auto: true, zone: 2 },
         wegweiser: { label: "Anzeigetafel", hint: "Such ein ✨ am Landeplatz deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
+        guess: { "q": "Was zeigt die Waage hier auf dem Mars?", "a": ["Mehr als auf der Erde", "Genauso viel", "Weniger – etwa ein Drittel"], "c": 2 },
         text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Mars zeigt die Waage nur {mond} Kilo!",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
@@ -550,6 +556,7 @@ window.SPACE_DATA = {
         done: "Fertig ✓"
       },
       drill: {
+        guess: { "q": "Was liegt wohl unter dem roten Staub?", "a": ["Gold", "Eis", "Lava"], "c": 1 },
         steps: [
           "Unter dem roten Staub ist vielleicht etwas versteckt. Bohr nach!",
           "10 Zentimeter tief: nur roter Staub. Weiter!",
@@ -559,6 +566,7 @@ window.SPACE_DATA = {
         drill: "⛏️ Bohren", done: "Fertig ✓"
       },
       magnet: {
+        guess: { "q": "Bleibt der rote Marsstaub am Magneten hängen?", "a": ["Ja", "Nein"], "c": 0 },
         ready: "In der Schale liegt Marsstaub. Warum ist er so rot? Halte einen Magneten hinein!",
         go: "🧲 Magnet in den Staub halten",
         running: "Der Magnet senkt sich in den Staub …",
@@ -566,7 +574,8 @@ window.SPACE_DATA = {
         again: "🧲 Nochmal", done: "Fertig ✓"
       },
       dusk: {
-        ready: "Am Tag ist der Marshimmel gelbbraun vom Staub. Welche Farbe hat wohl der Sonnenuntergang? Wir spulen die Zeit vor …",
+        guess: { "q": "Welche Farbe hat wohl der Sonnenuntergang auf dem Mars?", "a": ["Rot-orange wie bei uns", "Blau", "Grün"], "c": 1 },
+        ready: "Am Tag ist der Marshimmel gelbbraun vom Staub. Gleich spulen wir die Zeit bis zum Abend vor.",
         running: "Die Sonne sinkt … es wird Abend auf dem Mars.",
         end: "Der Sonnenuntergang auf dem Mars ist blau! Bei uns ist es genau umgekehrt: tagsüber blau, abends rot.",
         again: "⏩ Nochmal", done: "Fertig ✓"
@@ -620,7 +629,7 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Kofi. Gut, dass du einen Raumanzug trägst – in der Sonne ist es hier heißer als in einem Backofen!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Du hast alles entdeckt! Jetzt weißt du mehr über den Merkur als fast alle Menschen.",
-          facts: ["Siehst du den großen weißen Schild? Er wirft Schatten auf unsere Station. Ohne ihn würde sie in der Sonne glühend heiß.",
+          facts: ["Unsere Station steht unten im Krater. Der Kraterrand wirft seinen Schatten auf uns – sonst wäre es hier glühend heiß!",
             "Die weißen Rippen sind Kühler. Sie strahlen die Wärme aus unserer Station ins All ab.",
             "Von einem Sonnenaufgang bis zum nächsten vergehen hier 176 Erdtage. Ein Tag auf dem Merkur ist länger als sein Jahr!",
             "Der Merkur hat einen riesigen Kern aus Eisen – fast wie eine Kanonenkugel mit einer dünnen Schale aus Stein."] }
@@ -650,7 +659,7 @@ window.SPACE_DATA = {
       stations: {
         wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         waage:      { label: "Schatten-Platz", hint: "Die Waage steht unter dem Sonnenschutz-Dach", action: "⚖️ Auf die Waage stellen" },
-        temperatur: { label: "Schatten am Felsen", hint: "Stell dich in den Schatten des großen Felsens", again: "🌡️ Nochmal ansehen", reach: 5 },
+        temperatur: { label: "Schatten am Felsen", hint: "Stell dich in den Kreis im Schatten des großen Felsens", again: "🌡️ Nochmal ansehen" },
         sonne:      { label: "Sonnenturm", hint: "Oben auf dem Sonnenturm steht ein Fernrohr mit Sonnenfilter", action: "🔭 Durchschauen" },
         krater:     { label: "Einschlag-Messfeld", hint: "Probier den Einschlag-Versuch am Messpult aus", action: "☄️ Einschlag-Versuch starten" },
         jahr:       { label: "Planeten-Rennen", hint: "Geh zur Merkurstation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
@@ -661,6 +670,7 @@ window.SPACE_DATA = {
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
+        guess: { "q": "Was zeigt die Waage auf dem kleinen Merkur?", "a": ["Fast nichts", "Etwa ein Drittel", "Genauso viel wie auf der Erde"], "c": 1 },
         text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Merkur zeigt die Waage nur {mond} Kilo!",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
@@ -675,16 +685,18 @@ window.SPACE_DATA = {
         done: "Fertig ✓"
       },
       impact: {
-        ready: "Auf der Erde verglühen Brocken aus dem All meistens in der Luft – als Sternschnuppen. Und hier, ganz ohne Luft?",
+        guess: { "q": "Der Merkur hat keine Luft. Was passiert mit dem Brocken?", "a": ["Er verglüht wie eine Sternschnuppe", "Er schlägt ein und macht einen Krater"], "c": 1 },
+        ready: "Auf der Erde verglühen Brocken aus dem All meistens in der Luft – als Sternschnuppen.",
         go: "☄️ Brocken fallen lassen",
         running: "Achtung, er kommt …",
         end: "Eingeschlagen – ohne zu verglühen! So sind alle Krater auf dem Merkur entstanden.",
         again: "☄️ Nochmal", done: "Fertig ✓"
       },
       orrery: {
-        ready: "Merkur (innen) und die Erde (außen) laufen um die Sonne. Wer ist schneller? Starte das Rennen!",
+        guess: { "q": "Wer schafft mehr Runden um die Sonne?", "a": ["Der Merkur", "Die Erde", "Beide gleich viele"], "c": 0 },
+        ready: "Merkur (innen) und die Erde (außen) laufen um die Sonne – ein Rennen über ein ganzes Erdjahr.",
         go: "🏁 Rennen starten",
-        run: "Erdtage: {erde} · Merkur hat schon {planet} Runden geschafft",
+        run: "Erdtage: {erde} · Runden des Merkur: {planet}",
         end: "Die Erde hat eine Runde geschafft – der Merkur schon mehr als vier! Ein Merkur-Jahr dauert nur 88 Erdtage.",
         again: "🏁 Nochmal", done: "Fertig ✓"
       },
@@ -780,12 +792,13 @@ window.SPACE_DATA = {
         funk:      { label: "Große Antenne", hint: "Schick an der großen Antenne einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
         jahr:      { label: "Planeten-Rennen", hint: "Geh zur Plutostation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:   { label: "Größenvergleich", hint: "Geh zur Plutostation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
-        eis:       { label: "Eisfläche", hint: "Lauf auf die große helle Eisfläche, das Herz", again: "⛸️ Nochmal ansehen", small: true, reach: 8 },
+        eis:       { label: "Eisfläche", hint: "Lauf auf das glatte Eis und stell dich in den Kreis", again: "⛸️ Nochmal ansehen", small: true, auto: true },
         sonde:     { label: "New Horizons", hint: "Such ein ✨ hinter deiner Rakete – dort steht ein Denkmal", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
         wegweiser: { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
+        guess: { "q": "Was zeigt die Waage auf dem winzigen Pluto?", "a": ["Etwa die Hälfte", "Fast nichts – wie eine Flasche Wasser", "Genauso viel"], "c": 1 },
         text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf Pluto zeigt die Waage nur {mond} Kilo!",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
@@ -807,13 +820,15 @@ window.SPACE_DATA = {
         done: "Landen ✓"
       },
       signal: {
+        guess: { "q": "Wie lange braucht ein Funkspruch von Pluto bis zur Erde?", "a": ["1 Sekunde", "8 Minuten", "5½ Stunden"], "c": 2 },
         ready: "Wir funken zur Erde: „Hallo von Pluto!“ Die Antenne zeigt zur Sonne, denn die Erde steht von hier aus ganz dicht daneben. Achtung …",
         run: "Der Funkspruch rast mit Lichtgeschwindigkeit los … schon unterwegs seit",
         end: "Angekommen – nach 5½ Stunden! Und die Antwort von der Erde braucht noch einmal so lange.",
         again: "📡 Nochmal", done: "Fertig ✓"
       },
       orrery: {
-        ready: "Die Erde (innen) und Pluto (außen) laufen um die Sonne. Wer braucht länger für eine Runde? Starte das Rennen!",
+        guess: { "q": "Wer braucht länger für eine Runde um die Sonne?", "a": ["Pluto", "Die Erde", "Beide gleich lange"], "c": 0 },
+        ready: "Die Erde (innen) und Pluto (außen) laufen um die Sonne – ein Rennen über 12 Erdjahre.",
         go: "🏁 Rennen starten",
         run: "Erdjahre: {erde} · Pluto hat sich kaum bewegt …",
         end: "Die Erde ist 12-mal um die Sonne gelaufen – Pluto hat nur ein winziges Stück geschafft. Für eine ganze Runde braucht er 248 Erdjahre!",
@@ -915,25 +930,29 @@ window.SPACE_DATA = {
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
+        guess: { "q": "Die Venus ist fast so groß wie die Erde. Was zeigt die Waage?", "a": ["Viel weniger", "Fast genauso viel", "Doppelt so viel"], "c": 1 },
         text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf der Venus zeigt die Waage {mond} Kilo – fast dasselbe!",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
       heat: {
-        intro: "465 °C – heißer als in jedem Backofen, sogar im Schatten! Schuld ist die dicke Wolkendecke. Was wäre ohne sie?",
+        guess: { "q": "Was passiert, wenn wir die Wolken wegschieben?", "a": ["Es wird noch heißer", "Es wird kühler"], "c": 1 },
+        intro: "465 °C – heißer als in jedem Backofen, sogar im Schatten! Schuld ist die dicke Wolkendecke.",
         off: "☁️ Wolken wegschieben", on: "☁️ Wolken zurückholen",
         offText: "Ohne Wolken: Die Wärme kann ins All entweichen. Schau aufs Thermometer – es wird viel kühler!",
         onText: "Mit Wolken: Das Sonnenlicht kommt herein, aber die Wärme kommt nicht mehr hinaus – wie unter einer dicken Decke.",
         done: "Fertig ✓"
       },
       press: {
-        ready: "Unter der Glocke steht eine Blechdose, geschützt vor der Venusluft. Was passiert, wenn wir die Glocke öffnen?",
+        guess: { "q": "Was passiert mit der Blechdose, wenn die Glocke aufgeht?", "a": ["Nichts", "Sie wird zerquetscht", "Sie fliegt davon"], "c": 1 },
+        ready: "Unter der Glocke steht eine Blechdose, geschützt vor der Venusluft. Gleich öffnen wir die Glocke.",
         go: "🔔 Glocke öffnen",
         running: "Die Glocke hebt sich …",
         end: "Zerquetscht! Die Venusluft drückt 90-mal so stark wie die Luft auf der Erde.",
         again: "🔔 Nochmal", done: "Fertig ✓"
       },
       spin: {
-        ready: "Links die Venus, rechts die Erde. Wir lassen beide 10 Erdtage lang drehen. Achte auf die roten Fähnchen!",
+        guess: { "q": "Wer dreht sich in 10 Tagen öfter um sich selbst?", "a": ["Die Venus", "Die Erde", "Beide gleich oft"], "c": 1 },
+        ready: "Links die Erde, rechts die Venus. Wir lassen beide 10 Erdtage lang drehen. Achte auf die roten Fähnchen!",
         go: "🔄 Drehen lassen",
         run: "Erdtage: {erde} · Die Erde dreht sich jeden Tag einmal. Und die Venus?",
         end: "In 10 Tagen hat sich die Venus nur ein winziges Stück gedreht – und andersherum! Für eine ganze Drehung braucht sie 243 Erdtage.",
@@ -1037,30 +1056,34 @@ window.SPACE_DATA = {
         tag:       { label: "Sonnenuhr im Park", hint: "Spul im Park an der Sonnenuhr die Zeit vor", action: "⏩ Einen Tag vorspulen" },
         groesse:   { label: "Größenvergleich", hint: "Geh zum Besucherzentrum und schau dir die Kugeln an", action: "📏 Größe schätzen" },
         mond:      { label: "Volkssternwarte", hint: "In der Volkssternwarte rollt das Dach zur Seite – schau durchs Fernrohr", action: "🔭 Dach öffnen und durchschauen" },
-        wasser:    { label: "See", hint: "Lauf ans Ufer des Sees vor deiner Rakete", again: "💧 Nochmal ansehen", small: true, reach: 6 },
-        wald:      { label: "Wald", hint: "Lauf in den Wald links vom See", again: "🌳 Nochmal ansehen", small: true, auto: 5, reach: 6 },
+        wasser:    { label: "See", hint: "Lauf ans Ufer des Sees und stell dich in den Kreis", again: "💧 Nochmal ansehen", small: true, auto: true },
+        wald:      { label: "Wald", hint: "Lauf in den Wald links vom See", again: "🌳 Nochmal ansehen", small: true, auto: true },
         wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       weigh: {
+        guess: { "q": "Was zeigt die Waage hier auf der Erde an?", "a": ["Dein richtiges Gewicht", "Die Hälfte", "Das Doppelte"], "c": 0 },
         text: "Stell ein, wie viel du wiegst: {erde} Kilo. Hier auf der Erde zeigt die Waage genau {mond} Kilo!",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
       air: {
-        intro: "Die Luft um die Erde nennt man Atmosphäre. Was wäre, wenn sie plötzlich weg wäre?",
+        guess: { "q": "Was passiert mit dem Himmel, wenn die Luft weg ist?", "a": ["Er bleibt blau", "Er wird schwarz", "Er wird rot"], "c": 1 },
+        intro: "Die Luft um die Erde nennt man Atmosphäre. Gleich nehmen wir sie einfach weg.",
         off: "🚫 Luft wegnehmen", on: "🌬️ Luft zurückholen",
         offText: "Ohne Luft: Der Himmel ist schwarz wie auf dem Mond, die Schatten sind tiefschwarz – und atmen könnte hier niemand.",
         onText: "Mit Luft: Der Himmel ist blau. Die Luft schützt uns wie ein Schild und hält die Erde angenehm warm.",
         done: "Fertig ✓"
       },
       shooting: {
-        ready: "Auf dem Merkur schlägt ein Brocken aus dem All einfach ein. Und hier, wo es Luft gibt?",
+        guess: { "q": "Derselbe Brocken fällt jetzt auf die Erde. Was passiert?", "a": ["Er schlägt ein", "Er verglüht in der Luft"], "c": 1 },
+        ready: "Auf dem Merkur schlägt ein Brocken aus dem All einfach ein. Jetzt fällt er auf die Erde.",
         go: "🌠 Brocken fallen lassen",
         running: "Achtung, er kommt … schau zum Himmel!",
         end: "Verglüht, bevor er unten ankommt! Die Luft hat ihn gebremst und zum Glühen gebracht – eine Sternschnuppe.",
         again: "🌠 Nochmal", done: "Fertig ✓"
       },
       day: {
+        guess: { "q": "Was passiert eigentlich an einem Tag?", "a": ["Die Sonne wandert um die Erde", "Die Erde dreht sich um sich selbst"], "c": 1 },
         ready: "Die Sonnenuhr zeigt mit ihrem Schatten die Uhrzeit. Wir spulen einen ganzen Tag vor – schau auf Sonne, Schatten und Himmel!",
         day: "{uhr} Uhr: Es ist Tag. Die Sonne wandert über den Himmel.",
         night: "{uhr} Uhr: Es ist Nacht. Jetzt sieht man die Sterne!",
