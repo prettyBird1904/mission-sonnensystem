@@ -4240,10 +4240,17 @@ window.Surface = (function () {
     }
     return 1 - smooth(0, 1.6, d2 - d1);
   }
+  // Pluto: Die Rakete landet zwischen Eisbergen und dem „Herz“, einer riesigen Ebene aus Stickstoff-Eis. Der Weg führt hinauf
+  // auf eine Eis-Terrasse zur Iglu-Sternwarte, hinunter zum Herz (rutschen!), zur Station am Fuß der Berge und über den Grat zurück.
   const PLUTO_LAYOUT = {
-    spawn: [-6.9, 4], waage: [-12, 20], charon: [12, 20], herz: [24, 38], funk: [16, 2], wegweiser: [-16, 8], sonde: [26, -22],
-    eis: [0, 82], heart: [0, 120], // das „Herz“: eine riesige glatte Eisfläche, beginnt ein Stück hinter den Stationen
-    station: [-44, 34], jahr: [-50, 27], groesse: [-38, 27]
+    spawn: [-6.9, 4], waage: [12, 16], charon: [32, 30], herz: [28, 54], funk: [-38, 22], wegweiser: [6, 5], sonde: [-20, 6],
+    eis: [8, 62], heart: [0, 92], // das „Herz“: eine riesige glatte Eisfläche direkt vor der Station
+    station: [-34, 56], jahr: [-40, 49], groesse: [-28, 49], meet: [-14, 24],
+    route: {
+      wegweiser: [[4, 2.5]], waage: [[8, 9], [15.5, 12]], charon: [[22, 18], [28, 24]], herz: [[30, 40], [25, 49.5]], eis: [[16, 54], [8, 58]],
+      jahr: [[-14, 50], [-33, 45], [-40, 45]], groesse: [[-28, 45]], funk: [[-30, 38], [-35, 28], [-34, 19]], sonde: [[-26, 12], [-17, 9]],
+      wand: [[-24, 24], [-30, 44], [-31, 51]], rakete: [[-30, 40], [-20, 16], [-4, 5]]
+    }
   };
   const CHARON_DIR = new V(-0.55, 0.5, 0.65).normalize(), HEART_SIZE = 48;
   // Herzform (von oben gesehen): (x² + y² − 1)³ − x²·y³ ≤ 0
@@ -4271,9 +4278,10 @@ window.Surface = (function () {
   function buildPluto() {
     const L = { ...PLUTO_LAYOUT };
     const craters = [[60, 20, 12, 1.6], [-75, -40, 16, 2], [50, -70, 14, 2], [-95, 75, 12, 1.6], [90, -20, 9, 1.2], [-30, -80, 10, 1.4]];
-    const flats = [[0, 0, 11], [...L.station, 18], [L.station[0], L.station[1] + 14, 20], [...L.waage, 4], [...L.charon, 5], [...L.herz, 7], [...L.funk, 5], [L.heart[0], L.heart[1] + 5, 62]];
+    const flats = [[0, 0, 11], [...L.station, 18], [L.station[0], L.station[1] + 14, 20], [...L.waage, 4], [...L.charon, 5, "auto", 4], [...L.herz, 7], [...L.funk, 5, "auto", 4], [L.heart[0], L.heart[1] + 5, 62]];
+    const hills = [[L.charon[0] + 2, L.charon[1] + 2, 18, 6], [L.funk[0] - 3, L.funk[1], 16, 5], [-58, 40, 26, 8]]; // Eis-Terrasse, Grat, Bergfuß
     const B = buildBase({
-      height: makeHeight(craters, flats, 120),
+      height: makeHeight(craters, flats, 120, null, hills),
       // fast keine Luft, schwarzer Himmel – die Sonne ist so weit weg, dass sie nur noch ein sehr heller Stern ist
       sky: 0x000000, stars: true, sunSize: 34,
       ground: 0xa89680, rock: 0x8a7a68,
@@ -4323,14 +4331,13 @@ window.Surface = (function () {
     for (let i = 0; i < 9; i++) {
       const m = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), iceMat); // zerklüftete Gipfel
       m.scale.set(26 + hash2(i, 1) * 20, 45 + hash2(i, 2) * 40, 24 + hash2(i, 4) * 18);
-      const a = -0.9 + i * 0.22; m.position.set(Math.sin(a) * 300, 8, 120 + Math.cos(a) * 200); m.rotation.set(hash2(i, 5) * 0.4, hash2(i, 3) * 3, hash2(i, 6) * 0.3); scene.add(m);
+      const [px, pz] = [[-80, -14], [-88, 18], [-82, 50], [-94, 82], [-72, 116], [58, -54], [18, -74], [-32, -68], [96, 14]][i];
+      m.position.set(px, 6, pz); m.rotation.set(hash2(i, 5) * 0.4, hash2(i, 3) * 3, hash2(i, 6) * 0.3); scene.add(m);
     }
     const hazeTex = canvasTex(8, 128, (c) => { const gr = c.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "rgba(90,150,255,0)"); gr.addColorStop(0.6, "rgba(110,165,255,0.45)"); gr.addColorStop(1, "rgba(150,195,255,0.85)"); c.fillStyle = gr; c.fillRect(0, 0, 8, 128); });
     const haze = new THREE.Mesh(new THREE.CylinderGeometry(430, 430, 70, 48, 1, true), new THREE.MeshBasicMaterial({ map: hazeTex, transparent: true, side: THREE.BackSide, depthWrite: false, fog: false }));
     haze.position.y = 22; scene.add(haze);
-    const beige = [206, 196, 182];
-    for (const p of [[[0, 5], [L.charon[0] - 2.5, L.charon[1] - 3.5]], [[-3, 5], [L.waage[0] + 1, L.waage[1] - 3]], [[3, 4], [L.funk[0] - 3, L.funk[1] - 1]],
-      [[L.charon[0] + 2, L.charon[1] + 2], [L.herz[0] - 3, L.herz[1] - 2.5]], [[-4, 6], [L.station[0] + 8, L.station[1] - 9]]]) makePath(B, p, 1.8, beige);
+    drawTour(B, L, [206, 196, 182], 1.8);
     const npcs = addNpcs(B);
     const orrery = on(makeOrrery("pluto", 1.95, 0.6), ...L.jahr);
     const rack = on(makeSizeRack(["pluto", "mond", "erde"]), ...L.groesse);
@@ -4927,10 +4934,17 @@ window.Surface = (function () {
     return c;
   }
 
+  // Erde: Die Rakete landet auf einer Wiese am See. Ein Rundweg führt links herum am Ufer entlang durch den Wald,
+  // hinauf zur Sternwarte auf dem Hügel, zum Besucherzentrum und rechts am Ufer zurück.
   const ERDE_LAYOUT = {
-    spawn: [-6.9, 4], waage: [-12, 20], luft: [10, 18], stern: [24, 30], mond: [-24, 34],
-    see: [44, -12], wasser: [31, -8], wald: [-36, -16], wegweiser: [14, 4],
-    station: [0, 56], tag: [18, 46], groesse: [0, 49] // Sonnenuhr rechts neben der Station: freier Blick zum Sonnenuntergang
+    spawn: [-6.9, 4], waage: [-14, 14], luft: [18, 18], stern: [24, 40], mond: [-30, 68],
+    see: [0, 40], wasser: [-17, 38], wald: [-38, 44], wegweiser: [6, 5],
+    station: [0, 84], tag: [24, 70], groesse: [0, 77], meet: [16, 26],
+    route: {
+      wegweiser: [[4, 2.5]], waage: [[-6, 8], [-11, 9]], wasser: [[-18, 24], [-20, 34]], wald: [[-26, 42], [-30, 46]],
+      mond: [[-32, 54], [-26.5, 60.5]], groesse: [[-18, 70], [-6, 72], [-3, 73]], tag: [[10, 72], [19, 67.5]],
+      stern: [[24, 58], [27, 46]], luft: [[24, 30], [21.5, 23.5]], wand: [[24, 40], [20, 62], [4, 78]], rakete: [[14, 62], [24, 40], [16, 10], [-4, 5]]
+    }
   };
   const ERDE_SKY = new THREE.Color(0x7ec0ee), ERDE_NIGHT = new THREE.Color(0x04060e), ERDE_DUSK = new THREE.Color(0xf08a3c);
   const ERDE_MOON_DIR = new V(-0.55, 0.5, 0.65).normalize();
@@ -4948,9 +4962,10 @@ window.Surface = (function () {
   function buildErde() {
     const L = { ...ERDE_LAYOUT };
     const craters = [[...L.see, 18, 2.4]]; // die Senke für den See
-    const flats = [[0, 0, 11], [...L.station, 20], [L.station[0], L.station[1] + 12, 20], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6], [L.mond[0] + 5, L.mond[1] + 2, 6], [...L.wald, 9], [...L.tag, 6]];
+    const hills = [[L.mond[0], L.mond[1] + 2, 16, 4.5], [L.station[0], L.station[1] + 8, 34, 3]]; // Sternwarten-Hügel und Hügel des Besucherzentrums
+    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 12, 20, "auto"], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 5, "auto", 3], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 3], [...L.wald, 9, "auto"], [...L.tag, 6, "auto"]];
     const B = buildBase({
-      height: makeHeight(craters, flats, 200),
+      height: makeHeight(craters, flats, 200, null, hills),
       // Luft: blauer Himmel, leichter Dunst in der Ferne, am Tag keine Sterne
       sky: ERDE_SKY.getHex(), fog: [160, 560], stars: false, sunSize: 150,
       ground: 0x4f9440, rock: 0x7a7a76,
@@ -5035,9 +5050,7 @@ window.Surface = (function () {
     // Windräder am Horizont, Vögel am Himmel
     const turbines = [[140, 160], [175, 120], [110, 195]].map(([x, z]) => { const t = earthTurbine(M, 36); t.position.set(x, height(x, z) - 1, z); t.rotation.y = -2.4; scene.add(t); return t; });
     const birds = earthBirds(7); scene.add(birds);
-    const gravel = [200, 192, 172];
-    for (const p of [[[0, 5], [L.station[0], L.station[1] - 9]], [[-3, 5], [L.mond[0] + 3, L.mond[1] - 4]], [[3, 5], [L.luft[0] - 2, L.luft[1] - 3]], [[L.luft[0] + 2, L.luft[1] + 2], [L.stern[0] - 2, L.stern[1] - 2]],
-      [[4, 3], [lx - 17, lz + 2.5]], [[-2, 5], [L.waage[0] + 1, L.waage[1] - 3]], [[4, L.station[1] - 9], [L.tag[0] - 2, L.tag[1] - 2]], [[-4, 4], [L.wald[0] + 8, L.wald[1] + 6]]]) makePath(B, p, 1.8, gravel);
+    drawTour(B, L, [200, 192, 172], 1.8); // Rundweg um den See
     const anim = [(dt, t) => {
       const ob = rollRoof.userData; if (ob.open !== ob.target) { ob.open += Math.sign(ob.target - ob.open) * Math.min(Math.abs(ob.target - ob.open), dt * 0.6); ob.set(smooth(0, 1, ob.open)); }
       weather.userData.cups.rotation.y += dt * (4 + 2 * Math.sin(t * 0.4));
@@ -5053,10 +5066,11 @@ window.Surface = (function () {
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, luft: L.luft, stern: L.stern, tag: L.tag, groesse: L.groesse, mond: L.mond,
       wasser: L.wasser, wald: L.wald, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { mond: MARS_SCOPE_DOOR(L.mond) });
-    const colliders = [...common.colliders, [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 0.4],
+    const npcs = addNpcs(B);
+    const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 0.4],
       [L.groesse[0] - 1.6, L.groesse[1], 1], [L.groesse[0], L.groesse[1], 1], [L.groesse[0] + 1.6, L.groesse[1], 1]];
 
-    return { ...B, ...common, L, water, trees, clouds, cloudMat: white, moon, telescope, meteor, fire, rack, stations, colliders, rollRoof, anim, shadowCasters: [rocket, common.station, trees, rollRoof] };
+    return { ...B, ...common, L, water, trees, clouds, cloudMat: white, moon, telescope, meteor, fire, rack, stations, colliders, rollRoof, anim, npcs, shadowCasters: [rocket, common.station, trees, rollRoof] };
   }
   // Himmel der Erde: air = wie viel Luft (1 = normal, 0 = keine, wie auf dem Mond); dazu die Tageszeit aus der Sonnenhöhe
   function erdeSky(air) {
@@ -5454,7 +5468,7 @@ window.Surface = (function () {
     W.renderer.shadowMap.enabled = false;
     setupInput(); S.resize(); resetJoy();
     probe = { x: 0, y: 0, z: 0, vx: 0, vy: 0, t: 0, f: 0, shake: 0, bumpAt: -9, missAt: -9 };
-    world.gates.forEach((g, i) => placeGate(g, i, 150 + i * GATE_GAP));
+    world.gates.forEach((g, i) => { placeGate(g, i, 150 + i * GATE_GAP); g.userData.told = false; });
     for (const s of world.puffs) s.userData.z = -1e9;
     for (const r of world.rocks) r.userData.z = -1e9;
     world.camera.position.set(0, 2.4, -9.5);
@@ -5469,7 +5483,7 @@ window.Surface = (function () {
     S.active = true;
     Sound.engine(0.35);
     const rest = cfg.discoveries.length - foundCount();
-    setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : foundCount() === 0 ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
+    setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : foundCount() === 0 ? cfg.radio.start : cfg.radio.back, { rest }, cfg.flight && cfg.flight.who); }, 700);
   }
   function updateProbe(dt, elapsed) {
     const p = probe, w = world, C = PROBES[bodyId], c = w.camera;
@@ -5503,6 +5517,8 @@ window.Surface = (function () {
         }
       });
 
+      // Flugleiterin kündigt das nächste Tor an
+      if (cfg.flight) { const g = w.gates.filter((x) => !x.userData.passed).sort((x, y) => x.userData.z - y.userData.z)[0]; if (g && g.userData.z - p.z < 75 && !g.userData.told) { g.userData.told = true; radio(cfg.flight.gates[w.gates.indexOf(g)], null, cfg.flight.who); } }
       // Teilchen: was hinter der Sonde verschwindet, taucht vorn wieder auf
       const showPuffs = p.f >= C.puff.from;
       for (const s of w.puffs) {
@@ -5658,7 +5674,7 @@ window.Surface = (function () {
       update(dt, busy, elapsed) {
         updateLife(dt, elapsed, busy);
         const [sx, sz] = world.L.see;
-        if (!busy && !view.special && Math.hypot(ast.pos.x - sx, ast.pos.z - sz) < 15) discover("wasser"); // am Ufer des Sees
+        if (!busy && !view.special && Math.hypot(ast.pos.x - sx, ast.pos.z - sz) < 19) discover("wasser"); // am Ufer des Sees
         world.clouds.rotation.y += dt * 0.004;
       },
       actions: { luft: startAir, stern: startShooting, tag: startDay, groesse: startGuess, mond: startMoonScope }

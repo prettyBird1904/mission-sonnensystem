@@ -256,7 +256,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "13",
+  version: "14",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
@@ -685,8 +685,33 @@ window.SPACE_DATA = {
       moveGravity: 1.2, // fürs Laufen und Springen stärker, sonst schwebt man ewig
       jump: 1.6,
       temp: { sun: -228, shade: -233, sunText: "☀️ Sonne – sie wärmt kaum!", shadeText: "❄️ Schatten – eisig!" },
+      guide: {
+        npc: 0, order: ["sprung", "wegweiser", "waage", "charon", "herz", "eis", "jahr", "groesse", "funk", "sonde"],
+        hello: "Hallo {name}! Willkommen am Rand des Sonnensystems! Bleib stehen, ich komme zu dir.",
+        welcome: "Ich bin Yuki. Hier auf Pluto ist es so kalt, dass sogar die Luft gefroren ist! Ich zeige dir die Eisberge, das riesige Herz und unsere Station. Spring zuerst mal – aber halt dich fest!",
+        jump: "Na los, spring! Pluto ist so klein, dass du richtig hoch fliegst.",
+        wait: "Hier lang, {name}! Ich warte auf dich.",
+        next: "Toll! Weiter geht's – als Nächstes: {ziel}.",
+        arrive: {
+          wegweiser: "Lauf zur Anzeigetafel – wie weit sind wir wohl von der Sonne weg?",
+          waage: "Im Wärme-Pavillon steht unsere Waage. Stell dich drauf – du wirst lachen!",
+          charon: "Unsere Iglu-Sternwarte ist aus Eisblöcken gebaut. Schau durchs Fernrohr: Da hängt ein großer Mond am Himmel!",
+          herz: "Am Drohnen-Start wartet unsere Kameradrohne. Flieg hoch und schau dir die Eisfläche von oben an!",
+          eis: "Jetzt du! Lauf auf das glatte Eis – aber pass auf, es ist rutschig!",
+          jahr: "Hier kannst du ein Rennen um die Sonne starten: Pluto gegen Erde. Rate mal, wer gewinnt!",
+          groesse: "Schau dir die Kugeln an: Wie groß ist Pluto im Vergleich?",
+          funk: "Mit der großen Antenne funken wir zur Erde. Schick einen Funkspruch – und miss, wie lange er braucht!",
+          sonde: "Hier steht ein Denkmal für eine berühmte Raumsonde. Lauf ganz nah heran!",
+          wand: "An der Wand unserer Station siehst du alles, was du entdeckt hast.",
+          rakete: "Hier ist deine Rakete. Gute Reise, {name} – der Weg nach Hause ist lang!"
+        },
+        quiz: "Du hast alles entdeckt! Komm mit zur Station – die Bodenstation hat Fragen an dich.",
+        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
+        again: "🧭 Yuki, zeig mir den Weg"
+      },
       npcs: [
-        { name: "Forscherin Yuki", color: "#8b5cf6", path: [[-40, 26], [-30, 24], [-34, 16], [-46, 20]],
+        { name: "Forscherin Yuki", color: "#8b5cf6", path: [[-40, 44], [-30, 44], [-34, 38]],
           hello: "Hallo {name}! Ich bin Yuki. Willkommen am kältesten Ort, den du je besucht hast!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Du hast alles entdeckt – bis zum Rand des Sonnensystems! Toll gemacht.",
@@ -725,7 +750,7 @@ window.SPACE_DATA = {
         funk:      { label: "Große Antenne", hint: "Schick an der großen Antenne einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
         jahr:      { label: "Planeten-Rennen", hint: "Geh zur Plutostation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
         groesse:   { label: "Größenvergleich", hint: "Geh zur Plutostation und schau dir die Kugeln an", action: "📏 Größe schätzen" },
-        eis:       { label: "Eisfläche", hint: "Lauf geradeaus zur großen hellen Eisfläche", again: "⛸️ Nochmal ansehen", small: true, reach: 8 },
+        eis:       { label: "Eisfläche", hint: "Lauf auf die große helle Eisfläche, das Herz", again: "⛸️ Nochmal ansehen", small: true, reach: 8 },
         sonde:     { label: "New Horizons", hint: "Such ein ✨ hinter deiner Rakete – dort steht ein Denkmal", again: "🛰️ Nochmal ansehen", small: true, auto: 2.8 },
         wegweiser: { label: "Anzeigetafel", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
@@ -915,6 +940,41 @@ window.SPACE_DATA = {
     erde: {
       gravity: 9.81, jump: 0.11,
       temp: { sun: 22, shade: 15, sunText: "☀️ Sonne – angenehm warm!", shadeText: "🌳 Schatten – schön kühl!" },
+      // Jana arbeitet im Besucherzentrum und trainiert selbst für einen Flug ins All – darum trägt sie einen Trainingsanzug
+      npcs: [
+        { name: "Astronautin Jana", color: "#2563eb", path: [[-6, 74], [8, 74], [2, 70]],
+          hello: "Hallo {name}! Willkommen zu Hause! Warte, ich komme zu dir.",
+          hint: "Warst du schon bei „{ziel}“? Folge dem Weg um den See!",
+          done: "Du hast alles entdeckt! Siehst du jetzt, wie besonders unsere Erde ist?",
+          facts: ["Ich trainiere gerade für einen Flug ins All. Das Training dauert mehrere Jahre!",
+            "Die Erde ist der einzige Planet, den wir kennen, auf dem es Leben gibt.",
+            "Im Besucherzentrum lernen Kinder alles über die Raumfahrt – so wie du heute."] }
+      ],
+      guide: {
+        npc: 0, order: ["sprung", "wegweiser", "waage", "wasser", "wald", "mond", "groesse", "tag", "stern", "luft"],
+        hello: "Hallo {name}! Willkommen zu Hause! Warte, ich komme zu dir.",
+        welcome: "Ich bin Jana und trainiere hier für meinen ersten Flug ins All. Heute machen wir einen Rundweg um den See. Du wirst staunen, wie besonders unsere Erde ist! Spring zuerst mal – wie hoch kommst du?",
+        jump: "Spring mal! Und vergleich das mit dem Mond oder dem Mars.",
+        wait: "Hier lang, {name}! Ich warte auf dich.",
+        next: "Prima! Weiter auf dem Rundweg – als Nächstes: {ziel}.",
+        arrive: {
+          wegweiser: "Siehst du den Wegweiser? Lauf mal ganz nah heran!",
+          waage: "Hier ist eine Waage. Was zeigt sie dir auf der Erde an?",
+          wasser: "Das ist unser See. Geh bis ans Ufer!",
+          wald: "Jetzt geht's in den Wald. Hörst du die Vögel? Lauf zwischen die Bäume!",
+          mond: "Hier oben auf dem Hügel steht die Volkssternwarte. Das Dach rollt zur Seite – such den Mond!",
+          groesse: "Vor dem Besucherzentrum stehen Planetenkugeln. Welche ist am größten?",
+          tag: "Willkommen im Park! An der Sonnenuhr spulen wir einen ganzen Tag vor.",
+          stern: "In dieser Vitrine liegt ein echter Brocken aus dem All. Was passiert, wenn so einer auf die Erde fällt?",
+          luft: "Das ist unsere Wetterstation. Was wäre, wenn die Erde keine Luft hätte? Probier es aus!",
+          wand: "Im Besucherzentrum siehst du an der Wand alles, was du entdeckt hast.",
+          rakete: "Hier ist deine Rakete. Gute Reise, {name}! Und komm heil wieder nach Hause."
+        },
+        quiz: "Du hast alles entdeckt! Komm mit zum Besucherzentrum – die Bodenstation hat Fragen an dich.",
+        home: "Super gemacht, {name}! Ich bringe dich zurück zu deiner Rakete.",
+        alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
+        again: "🧭 Jana, zeig mir den Weg"
+      },
       discoveries: [
         { key: "sprung", icon: "🦘", title: "Hier bist du am schwersten", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 11 Zentimeter", zeit: "0,3" },
           text: "Nur {hoehe}! Mit dem schweren Raumanzug kommst du auf der Erde kaum vom Boden weg. Auf dem Mond wärst du mit demselben Absprung sechsmal so hoch gekommen. Die Erde ist der größte Gesteinsplanet und zieht am stärksten an dir." },
@@ -945,8 +1005,8 @@ window.SPACE_DATA = {
         tag:       { label: "Sonnenuhr im Park", hint: "Spul im Park an der Sonnenuhr die Zeit vor", action: "⏩ Einen Tag vorspulen" },
         groesse:   { label: "Größenvergleich", hint: "Geh zum Besucherzentrum und schau dir die Kugeln an", action: "📏 Größe schätzen" },
         mond:      { label: "Volkssternwarte", hint: "In der Volkssternwarte rollt das Dach zur Seite – schau durchs Fernrohr", action: "🔭 Dach öffnen und durchschauen" },
-        wasser:    { label: "See", hint: "Lauf zum See hinter deiner Rakete", again: "💧 Nochmal ansehen", small: true, reach: 6 },
-        wald:      { label: "Wald", hint: "Lauf in den Wald hinter deiner Rakete", again: "🌳 Nochmal ansehen", small: true, auto: 5, reach: 6 },
+        wasser:    { label: "See", hint: "Lauf ans Ufer des Sees vor deiner Rakete", again: "💧 Nochmal ansehen", small: true, reach: 6 },
+        wald:      { label: "Wald", hint: "Lauf in den Wald links vom See", again: "🌳 Nochmal ansehen", small: true, auto: 5, reach: 6 },
         wegweiser: { label: "Wegweiser", hint: "Such ein ✨ nahe bei deiner Rakete", again: "🪧 Nochmal ansehen", small: true, auto: 2.6 },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
@@ -1008,6 +1068,7 @@ window.SPACE_DATA = {
        jedes Tor ist eine Entdeckung (in dieser Reihenfolge). course = Texte für den Flug. ---------- */
     jupiter: {
       probe: true,
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier, deine Flugleiterin! Erstes Tor voraus: Es misst, wie groß der Jupiter wirklich ist.","Schau nach unten – gleich kommt ein Tor über einem riesigen roten Wirbel!","Das nächste Tor liegt zwischen den Wolkenstreifen. Halt drauf zu!","Achtung, nächstes Tor: Es misst, wie schnell sich der Jupiter dreht.","Wir sinken tiefer. Das Tor da vorn sucht nach festem Boden …","Nächstes Tor: Es zählt die Monde, die um den Jupiter kreisen.","Siehst du die Blitze? Dort vorn ist ein Tor mitten im Gewitter!","Letztes Tor! Es wird ganz dunkel und der Druck steigt – halte durch!"] },
       course: { note: "🪂 Kapsel wie „Galileo“ – Abstieg in die Wolken", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "groesse", icon: "🟠", title: "Der größte Planet", photo: "jupiter.jpg",
@@ -1043,6 +1104,7 @@ window.SPACE_DATA = {
 
     saturn: {
       probe: true,
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier, deine Flugleiterin! Erstes Tor voraus: Es misst, woraus die Ringe bestehen.","Nächstes Tor: Wie dick sind die Ringe eigentlich?","Da vorn ist ein Tor in einer großen Lücke zwischen den Ringen!","Nächstes Tor: Es prüft, wie schwer der Saturn ist – rate mal!","Das Tor da vorn schaut tief in den Planeten hinein.","Nächstes Tor: Es misst den größten Saturnmond.","Achtung, Tor voraus über dem Nordpol – dort dreht sich ein seltsamer Sturm!","Letztes Tor! Es erzählt dir von einer echten Sonde."] },
       course: { note: "🛰️ Sonde „Cassini“ – Flug durch die Ringe", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
       discoveries: [
         { key: "ringe", icon: "🧊", title: "Ringe aus Eis", photo: "saturn-1.jpg",
@@ -1078,6 +1140,7 @@ window.SPACE_DATA = {
 
     uranus: {
       probe: true,
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier, deine Flugleiterin! Erstes Tor voraus: Schau dir an, wie der Uranus liegt.","Nächstes Tor: Achte auf die Ringe – fällt dir etwas auf?","Das Tor da vorn misst, woraus der Uranus besteht.","Nächstes Tor: Warum ist er so blau?","Brr – das nächste Tor misst die Temperatur!","Nächstes Tor: Es geht um die Jahreszeiten auf dem Uranus.","Das Tor da vorn erzählt, wie der Uranus entdeckt wurde.","Letztes Tor! Wie oft war schon eine Sonde hier?"] },
       course: { note: "🛰️ Uranus-Sonde – eiskalt hier draußen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "gekippt", icon: "🙃", title: "Auf der Seite",
@@ -1113,6 +1176,7 @@ window.SPACE_DATA = {
 
     neptun: {
       probe: true,
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier, deine Flugleiterin! Spürst du den Wind? Erstes Tor voraus – lenk dagegen!","Nächstes Tor: Es fliegt über einen dunklen Wirbel.","Das Tor da vorn misst, warum der Neptun so blau ist.","Nächstes Tor: Wie weit sind wir von der Sonne weg?","Das Tor da vorn misst, wie lange der Neptun für eine Runde braucht.","Nächstes Tor: Es erzählt, wie der Neptun gefunden wurde – zuerst nur durch Rechnen!","Siehst du den hellen Mond? Das nächste Tor misst ihn!","Letztes Tor! Es erzählt von deiner Sonde, Voyager 2."] },
       course: { note: "🛰️ „Voyager 2“ – der Wind schiebt dich, lenk dagegen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "wind", icon: "💨", title: "Die stärksten Winde",
@@ -1148,6 +1212,7 @@ window.SPACE_DATA = {
 
     sonne: {
       probe: true,
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier, deine Flugleiterin! Hitzeschild bereit? Erstes Tor voraus!","Nächstes Tor: Es misst, wie riesig die Sonne ist.","Das Tor da vorn stoppt die Zeit, die das Licht bis zur Erde braucht.","Achtung, heiß! Das nächste Tor misst die Temperatur.","Nächstes Tor: Es schaut auf dunkle Flecken.","Da vorn – ein Glutbogen! Hinter dem Tor wartet ein Ausbruch.","Nächstes Tor: Es schaut ganz nah auf die brodelnde Oberfläche.","Letztes Tor! Es erzählt von deiner Sonde."] },
       course: { note: "🛡️ „Parker Solar Probe“ – Anflug auf die Sonne", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
       discoveries: [
         { key: "stern", icon: "⭐", title: "Ein Stern",
