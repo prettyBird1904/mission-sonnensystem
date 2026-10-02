@@ -1841,7 +1841,7 @@ window.Surface = (function () {
   function allQuestions() { return cfg.quiz.map((q) => ({ ...q, own: true })); }
   function fmtVars(t, vars) {
     const std = { name: G.state.name, anzahl: cfg.discoveries.length, fragen: allQuestions().length };
-    return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : "")).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung");
+    return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : "")).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung").replace(/\bNoch 1 Mess-Tore\b/g, "Noch 1 Mess-Tor");
   }
 
   function radio(text, vars, who) {
@@ -1850,7 +1850,7 @@ window.Surface = (function () {
     $("radioHead").textContent = who || "📻 Bodenstation";
     const r = $("radio"); r.classList.remove("hidden"); r.classList.remove("ping"); void r.offsetWidth; r.classList.add("ping");
     radioTimer = 14;
-    radioVoice = Voice.say(msg, who && /Nora/.test(who) ? "nora" : "radio");
+    radioVoice = Voice.say(msg, who && /Nora/.test(who) ? "nora" : "radio", { polite: true }); // lässt Bewohner ausreden
   }
 
   function foundMap() { return (G.state.found && G.state.found[bodyId]) || {}; }
@@ -1956,14 +1956,15 @@ window.Surface = (function () {
     };
     const finish = () => {
       quizDone = true;
+      const QE = D.quizEnd, endText = fmtVars(right === qs.length ? QE.all : right ? QE.some : QE.none, { r: right, n: qs.length });
       G.onSurfaceQuiz(bodyId, rightOwn);
       G.onQuizFinished(bodyId, right - rightOwn);
       UI.openModal(`<div class="discovery center">
         <div class="stars-row">${qs.map((_, k) => `<span class="${k < right ? "" : "off"}">⭐</span>`).join("")}</div>
-        <h2>${right} von ${qs.length} richtig</h2><p class="intro">Die Bodenstation ist beeindruckt!</p>
+        <h2>${right} von ${qs.length} richtig</h2><p class="intro">${endText.replace(/^[^!.]*[!.]\s*/, "")}</p>
         <div class="row-gap"><button class="btn primary" id="sqClose">${auto ? "🚀 Weiterfliegen" : "👍 Super"}</button></div></div>`);
       if (right === qs.length) { Sound.fanfare(); UI.confetti(); }
-      Voice.say(`${right} von ${qs.length} richtig! Die Bodenstation ist beeindruckt!`, "radio", { modal: true });
+      Voice.say(endText, "radio", { modal: true });
       $("sqClose").onclick = () => { UI.closeModal(); if (auto) flyHome(); else radio(cfg.radio.quizDone); };
     };
     show();
@@ -3362,7 +3363,7 @@ window.Surface = (function () {
     const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, msg);
     n.talk = Math.min(10, 3 + msg.split(" ").length * 0.38); // lange Sätze bleiben etwas länger stehen
     n.el.classList.remove("pop"); void n.el.offsetWidth; n.el.classList.add("pop");
-    n.voice = Voice.say(msg, "nora");
+    n.voice = Voice.say(msg, "nora", { polite: true }); // lässt Bewohner ausreden
     Sound.click();
   }
   function updateGuideBtn() {
@@ -3541,7 +3542,9 @@ window.Surface = (function () {
     if (guide.pts.length) {
       if (dAst > 11) { // zu weit zurück: stehen bleiben, umdrehen, winken
         face(ast.pos.x, ast.pos.z);
-        if (guide.waitCd <= 0) { guide.waitCd = 12; n.waveT = 2.4; guideSay(GC.wait); }
+        const listening = world.npcs.some((m) => !m.isNora && m.talk > 0 && Math.hypot(m.obj.position.x - ast.pos.x, m.obj.position.z - ast.pos.z) < 9);
+        if (listening) guide.waitCd = Math.max(guide.waitCd, 3); // erst ausreden lassen
+        else if (guide.waitCd <= 0) { guide.waitCd = 12; n.waveT = 2.4; guideSay(GC.wait); }
         return;
       }
       // ohne Halt von Wegpunkt zu Wegpunkt (sonst stockt die Laufbewegung an jedem Punkt für einen Moment)

@@ -173,7 +173,7 @@
       // an einem anderen Himmelskörper vorbei (sparsam: je Himmelskörper nur einmal)
       const n = UI.nearId;
       if (n && n !== m.target && !nora.told["nah" + n]) {
-        if (noraSay([fill(NS.other, { ziel: nameOf(n) }), fill(NS.goal, { text: m.text })])) nora.told["nah" + n] = true;
+        if (noraSay([fill(CAN_LAND.includes(Game.bodyById[n].kind) ? NS.other : NS.otherProbe, { ziel: nameOf(n) }), fill(NS.goal, { text: m.text })])) nora.told["nah" + n] = true;
       }
     }
     // Feststecken: erst ein Hinweis, dann schaltet Nora den gelben Pfeil ein

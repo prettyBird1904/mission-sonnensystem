@@ -251,8 +251,8 @@ window.SPACE_DATA = {
     { target: "neptun",  text: "Fliege zum stürmischen blauen Planeten ganz außen.",
       brief: "Fliege zum stürmischen blauen Planeten ganz außen. Halt dich fest – dort weht der stärkste Wind!",
       hint: "Er ist tiefblau und der letzte Planet. Flieg ganz weit nach außen, noch hinter Uranus!" },
-    { target: "#order",  text: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge!",
-      brief: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge! Tippe oben rechts auf 🧩 „Ordnen“.",
+    { target: "#order",  text: "Bringe alle Planeten in die richtige Reihenfolge!",
+      brief: "Das ist die letzte Mission: Bringe alle Planeten in die richtige Reihenfolge! Tippe oben rechts auf 🧩 „Ordnen“.",
       hint: "Denk an den Merksatz: Mein Vater erklärt mir jeden Sonntag unseren Nachthimmel!" }
   ],
 
@@ -268,6 +268,7 @@ window.SPACE_DATA = {
     mission: "Mission {nr}: {text}",
     sight: "Da ist {ziel}! Flieg ganz nah ran und {aktion}.", sightKey: "drück E", sightTouch: "tippe auf „erforschen“",
     other: "Das ist {ziel}. Du kannst hier gern landen!",
+    otherProbe: "Das ist {ziel}. Landen kann man hier nicht – aber du kannst eine Sonde hinschicken!",
     goal: "Unsere Mission: {text}",
     returned: "Zurück im All!",
     notDone: "Dort gibt es noch etwas zu entdecken ({p} von {n}). Lande nochmal – erst dann ist die Mission geschafft!",
@@ -279,8 +280,10 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "33",
+  version: "34",
 
+  // Ergebnis der Funk-Fragen ({r} von {n} richtig)
+  quizEnd: { all: "{r} von {n} richtig! Die Bodenstation ist beeindruckt!", some: "{r} von {n} richtig! Gut gemacht!", none: "0 von {n} richtig. Macht nichts – beim nächsten Mal klappt's!" },
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unseren Nachthimmel.",
 
   /* Aussteigen & erkunden: pro Ort 3 Entdeckungen (eine davon ein großes Spiel), 3 Funk-Fragen, kurze Texte –
@@ -316,12 +319,12 @@ window.SPACE_DATA = {
       npcs: [
         { name: "Kommandantin Lea", color: "#3b82f6", path: [[30, 38], [40, 34], [36, 28], [26, 32]],
           hello: "Hallo {name}! Ich bin Lea und leite die Mondbasis.",
-          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
+          hint: "Hier lohnt sich noch etwas: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
           done: "Du hast alles entdeckt – toll!",
           facts: ["Unsere Kuppeln sind mit Mondstaub bedeckt. Er schützt uns vor Strahlung."] },
         { name: "Ingenieur Tom", color: "#f59e0b", path: [[60, 66], [68, 66]], work: true,
           hello: "Hi {name}, ich bin Tom! Mein großer Drucker baut gerade eine neue Kuppel.",
-          hint: "Tipp: Probier mal „{ziel}“ aus!",
+          hint: "Mein Tipp für dich: „{ziel}“ – das musst du ausprobieren!",
           done: "Alles entdeckt? Super!",
           facts: ["Der Drucker baut die Kuppel Schicht für Schicht aus Mondstaub."] }
       ],
@@ -364,7 +367,7 @@ window.SPACE_DATA = {
         quit: "Weitsprung abgebrochen. Am Start kannst du neu beginnen."
       },
       // Hammer und Feder: erst vermuten, dann fallen lassen
-      fall: { guess: { "q": "Hammer und Feder fallen gleichzeitig los. Was kommt zuerst unten an?", "a": ["Der Hammer", "Die Feder", "Beide gleichzeitig"], "c": 2 } },
+      fall: { guess: { "q": "Was kommt zuerst unten an?", "a": ["Der Hammer", "Die Feder", "Beide gleichzeitig"], "c": 2 } },
       // {anzahl} = Zahl der Entdeckungen, {fragen} = Zahl der Funk-Fragen am Ende
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es {anzahl} Dinge zu entdecken – der Pfeil oben führt dich hin.",
@@ -389,12 +392,12 @@ window.SPACE_DATA = {
       npcs: [
         { name: "Forscherin Mara", color: "#22c55e", path: [[-12, 50], [-12, 58], [-4, 46], [-16, 44]],
           hello: "Hallo {name}! Ich bin Mara und erforsche den Mars. Schön, dass du da bist!",
-          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
+          hint: "Hier lohnt sich noch etwas: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
           done: "Wow, du hast alles entdeckt! Du bist ein echter Mars-Profi!",
           facts: ["In unserem Gewächshaus wächst Salat unter Lampen. Draußen würde er sofort erfrieren.", "Weißt du, warum der Mars rot ist? Im Staub steckt verrostetes Eisen. Probier es im Proben-Labor mit dem Magneten aus!"] },
         { name: "Techniker Bennett", color: "#3b82f6", path: [[14, 50], [19, 45], [12, 43]], work: true,
           hello: "Hi {name}, ich bin Bennett! Ich kümmere mich um Strom, Luft und Wasser.",
-          hint: "Tipp von mir: Probier mal „{ziel}“ aus!",
+          hint: "Mein Tipp: „{ziel}“ – das macht richtig Spaß!",
           done: "Alles entdeckt? Klasse!",
           facts: ["Unseren Strom machen Solarzellen. Nach einem Staubsturm muss ich sie putzen!"] }
       ],
@@ -461,10 +464,10 @@ window.SPACE_DATA = {
         doneBtn: "Was hat der Rover entdeckt? ▶"
       },
       curling: {
-        aim: "Eis-Curling! Ziel mit ⬅️ ➡️ (oder A und D) auf die Zielscheibe.",
+        aim: "Eis-Curling! Ziel mit den Pfeiltasten ⬅️ ➡️ oder mit A und D auf die Zielscheibe.",
         aimTouch: "Eis-Curling! Ziel mit dem Joystick auf die Zielscheibe.",
         aimBtn: "🎯 Richtung passt!",
-        power: "Der Pfeil zeigt den Schwung: grün = sanft, rot = kräftig. Drück im richtigen Moment!",
+        power: "Der Pfeil zeigt den Schwung: Grün ist sanft, Rot ist kräftig. Drück im richtigen Moment!",
         throwBtn: "🥌 Jetzt schieben!",
         slide: "Der Stein rutscht und rutscht … auf dem Mars bremst er viel weniger als bei uns!",
         r3: "🎯 Volltreffer – mitten im Ziel!", r2: "Super, im Ziel!", r1: "Knapp – aber im Ziel!",
@@ -528,7 +531,7 @@ window.SPACE_DATA = {
       npcs: [
         { name: "Forscher Kofi", color: "#b45309", path: [[-6, 58], [6, 56], [2, 52]],
           hello: "Hallo {name}! Ich bin Kofi. Gut, dass du einen Raumanzug trägst!",
-          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
+          hint: "Hier lohnt sich noch etwas: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
           done: "Du hast alles entdeckt! Jetzt weißt du mehr über den Merkur als fast alle Menschen.",
           facts: ["Unsere Station steht unten im Krater. Der Kraterrand wirft seinen Schatten auf uns."] }
       ],
@@ -605,7 +608,7 @@ window.SPACE_DATA = {
       npcs: [
         { name: "Pilotin Sara", color: "#f97316", path: [[-20, 64], [-8, 64], [-14, 60]],
           hello: "Hallo {name}! Ich bin Sara und fliege das Luftschiff oben in den Wolken.",
-          hint: "Warst du schon bei „{ziel}“? Folge den Leitlichtern!",
+          hint: "Schau dir noch das an: „{ziel}“! Folge einfach den Leitlichtern.",
           done: "Du hast alles entdeckt! Jetzt kennst du den heißesten Planeten.",
           facts: ["Wir wohnen im Luftschiff, 50 Kilometer hoch in den Wolken. Dort ist es angenehm warm."] }
       ],
@@ -703,7 +706,7 @@ window.SPACE_DATA = {
       npcs: [
         { name: "Astronautin Jana", color: "#2563eb", path: [[-6, 74], [8, 74], [2, 70]],
           hello: "Hallo {name}! Ich bin Jana und trainiere hier für meinen ersten Flug ins All.",
-          hint: "Warst du schon bei „{ziel}“? Folge dem Weg um den See!",
+          hint: "Schau dir noch das an: „{ziel}“! Folge dem Weg um den See.",
           done: "Du hast alles entdeckt! Siehst du jetzt, wie besonders unsere Erde ist?",
           facts: ["Das Training für einen Flug ins All dauert mehrere Jahre!"] }
       ],
@@ -817,7 +820,7 @@ window.SPACE_DATA = {
           text: "Kein Boden! Jupiter ist ein Gasriese. Nach unten wird das Gas nur immer dichter und heißer – landen kann man hier nicht." }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, auf dem Jupiter kann man nicht landen – er hat keinen festen Boden. Steuere deine Kapsel durch die {anzahl} leuchtenden Mess-Tore!",
+        start: "{name}, auf dem Jupiter kann man nicht landen – er hat keinen festen Boden. Steuere deine Kapsel durch die {anzahl} leuchtenden Mess-Tore!",
         found: "Klasse! Noch {rest} übrig.",
         back: "Deine Kapsel ist wieder beim Jupiter, {name}! Noch {rest} Mess-Tore.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
@@ -843,7 +846,7 @@ window.SPACE_DATA = {
           text: "Am Nordpol des Saturn tobt ein Sturm in Form eines Sechsecks! Jede Seite ist länger, als die Erde breit ist." }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, deine Sonde fliegt mitten durch die Ringe des Saturn. Flieg durch die {anzahl} Mess-Tore und weich den Eisbrocken aus!",
+        start: "{name}, deine Sonde fliegt mitten durch die Ringe des Saturn. Flieg durch die {anzahl} Mess-Tore und weich den Eisbrocken aus!",
         found: "Klasse! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder beim Saturn, {name}! Noch {rest} Mess-Tore.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
@@ -869,7 +872,7 @@ window.SPACE_DATA = {
           text: "Bis zu −224 °C: Uranus ist der kälteste Planet – sogar kälter als Neptun!" }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Steuere deine Sonde durch die {anzahl} Mess-Tore!",
+        start: "{name}, Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Steuere deine Sonde durch die {anzahl} Mess-Tore!",
         found: "Klasse! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder beim Uranus, {name}! Noch {rest} Mess-Tore.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
@@ -895,7 +898,7 @@ window.SPACE_DATA = {
           text: "Neptun wurde zuerst berechnet und dann entdeckt! 1846 fand man ihn in einer Sternwarte in Berlin – genau dort, wo Forscher es ausgerechnet hatten." }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, du bist am äußersten Planeten. Steuere Voyager 2 durch die {anzahl} Mess-Tore – der Sturm drückt dich zur Seite!",
+        start: "{name}, du bist am äußersten Planeten. Steuere Voyager 2 durch die {anzahl} Mess-Tore – der Sturm drückt dich zur Seite!",
         found: "Klasse! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder beim Neptun, {name}! Noch {rest} Mess-Tore.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
@@ -921,7 +924,7 @@ window.SPACE_DATA = {
           text: "Die dunklen Punkte heißen Sonnenflecken. Dort ist die Sonne etwas kühler als ringsum. Viele sind größer als die ganze Erde!" }
       ],
       radio: {
-        start: "Hier ist die Bodenstation! {name}, auf der Sonne kann niemand landen – sie ist glühendes Gas. Flieg mit deiner Hitzeschild-Sonde durch die {anzahl} Mess-Tore!",
+        start: "{name}, auf der Sonne kann niemand landen – sie ist glühendes Gas. Flieg mit deiner Hitzeschild-Sonde durch die {anzahl} Mess-Tore!",
         found: "Klasse! Noch {rest} übrig.",
         back: "Deine Sonde ist wieder bei der Sonne, {name}! Noch {rest} Mess-Tore.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",

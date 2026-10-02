@@ -13,6 +13,7 @@ window.Voice = (function () {
   const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const set = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* egal */ } };
   let enabled = get("ms-vorlesen") !== "0";
+  const TEST = typeof location !== "undefined" && /[?&]test/.test(location.search); // Tests: fehlende Aufnahmen mitschreiben (window.__voiceMiss)
   let childName = "";
 
   // ---------- Text so aufbereiten, wie er gesprochen wird ----------
@@ -27,7 +28,7 @@ window.Voice = (function () {
       .replace(/km\/h/g, "Kilometer pro Stunde").replace(/(\d)\s*km\b/g, "$1 Kilometer").replace(/(\d)\s*kg\b/g, "$1 Kilo").replace(/(\d)\s*m\b/g, "$1 Meter")
       .replace(/\bMio\./g, "Millionen").replace(/\bMrd\./g, "Milliarden").replace(/\bz\. ?B\./g, "zum Beispiel").replace(/\bca\./g, "circa")
       .replace(/\b([A-ZÄÖÜ]{3,})\b/g, (w) => (/^(NASA|ESA|ISS)$/.test(w) ? w : w[0] + w.slice(1).toLowerCase())) // „ALLE“ nicht buchstabieren
-      .replace(/[„“"«»]/g, "").replace(/\s*[–—·]\s*/g, ", ").replace(/…/g, ", ").replace(/\.\s*\./g, ".")
+      .replace(/[„“"«»]/g, "").replace(/\s*[–—·]\s*/g, ", ").replace(/…/g, ", ").replace(/\.\s*\./g, ".").replace(/([!?])\s*\./g, "$1").replace(/\s=\s/g, " ist ")
       .replace(/\s+([,.!?])/g, "$1").replace(/,{2,}/g, ",").replace(/,([.!?])/g, "$1")
       .replace(/^[\s,]+/, "").replace(/[\s,]+$/, "").replace(/\s{2,}/g, " ").trim();
   }
@@ -145,6 +146,7 @@ window.Voice = (function () {
   function on() { return OK && enabled && (!window.Sound || Sound.enabled); }
   // text = ein Text oder mehrere Teile (werden nacheinander gesprochen) · role: nora | radio | card | narrator | npcF | npcM
   // opt.who = Name des Bewohners · opt.queue = hinten anstellen statt unterbrechen · opt.modal = gehört zu einem Fenster
+  // opt.polite = wartet, bis ein Bewohner ausgeredet hat (Nora unterwegs, Bodenstation) · Bewohner selbst warten kurz, wenn Wichtigeres läuft
   function say(text, role = "nora", opt = {}) {
     if (!on()) return 0;
     const parts = (Array.isArray(text) ? text : [text]).filter((t) => t && spoken(t, childName));
@@ -153,11 +155,17 @@ window.Voice = (function () {
     const now = performance.now();
     if (last.text && last.text.startsWith(said) && now - last.at < 25000) return cur ? cur.id : 0; // eben schon gesagt (z. B. derselbe Text ohne die Frage)
     const prio = (ROLE[role] || ROLE.nora).prio;
-    if (cur && !opt.queue && cur.prio > prio && now < cur.until) return 0; // Wichtigeres läuft gerade (z. B. eine Entdeckung)
+    const npc = role === "npcF" || role === "npcM", talking = cur && now < cur.until;
+    if (talking && !opt.queue && cur.prio > prio && !npc) return 0; // Wichtigeres läuft gerade (z. B. eine Entdeckung)
     const clips = HAS_CLIPS ? parts.map((t) => clipOf(t, role, opt.who)) : [];
     const job = { id: ++seq, prio, role, who: opt.who, modal: !!opt.modal, text: said, clips: clips.length && clips.every(Boolean) ? clips : null, until: 0 };
+    if (HAS_CLIPS && !job.clips && TEST) (window.__voiceMiss = window.__voiceMiss || []).push(role + (opt.who ? " " + opt.who : "") + ": " + said);
     last = { text: said, at: now };
     if (opt.queue && cur) { queue.push(job); return job.id; }
+    if (talking && npc && cur.prio > prio) { queue = queue.filter((j) => !j.npcWait); job.npcWait = true; job.expire = now + 6000; queue.push(job); return job.id; } // Bewohner warten kurz, bis das Wichtigere vorbei ist
+    if (talking && opt.polite && (cur.role === "npcF" || cur.role === "npcM")) { // Nora und Bodenstation lassen Bewohner ausreden – es wartet immer nur der neueste Satz
+      queue = queue.filter((j) => !j.polite); job.polite = true; job.expire = now + 15000; queue.push(job); return job.id;
+    }
     halt(); start(job);
     return job.id;
   }
@@ -165,7 +173,11 @@ window.Voice = (function () {
     cur = job; job.until = performance.now() + (job.text.length / 9 + 6) * 1000; // spätestens dann gilt der Text als fertig
     if (job.clips && audio() && ac.state === "running") playClips(job, 0); else speakTTS(job); // Ton noch gesperrt (kein Tippen bisher): Gerätestimme
   }
-  function done(job) { if (cur !== job) return; cur = null; const next = queue.shift(); if (next) start(next); }
+  function done(job) {
+    if (cur !== job) return; cur = null;
+    let next; while ((next = queue.shift()) && next.expire && performance.now() > next.expire); // zu lange gewartet: nicht mehr passend
+    if (next) start(next);
+  }
   function playClips(job, i) {
     if (cur !== job) return;
     if (i >= job.clips.length) { done(job); return; }

@@ -29,7 +29,7 @@ vm.createContext(box);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "js/data.js"), "utf8"), box);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8"), box);
 const D = box.window.SPACE_DATA, V = box.window.Voice;
-const fill = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung"); // Einzahl wie fmtVars() in surface.js
+const fill = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung").replace(/\bNoch 1 Mess-Tore\b/g, "Noch 1 Mess-Tor"); // Einzahl wie fmtVars() in surface.js
 
 // ---------- Alle Sätze sammeln (genau so zusammengesetzt wie im Spiel) ----------
 const lines = new Map(); // Schlüssel → { said, voice, tags }
@@ -106,7 +106,7 @@ for (const [id, S] of Object.entries(D.surfaces)) {
   if (S.sizes) say(S.sizes.text);
 }
 // Ergebnis der Funk-Fragen (für alle gleich)
-for (let r = 0; r <= 3; r++) add(`${r} von 3 richtig! Die Bodenstation ist beeindruckt!`, "radio", "common");
+for (let r = 0; r <= 3; r++) add(fill(r === 3 ? D.quizEnd.all : r ? D.quizEnd.some : D.quizEnd.none, { r, n: 3 }), "radio", "common"); // wie startQuiz() in surface.js
 // Probe in der Hilfe
 add("Hallo {name}! Ich bin Nora, deine Flugleiterin. Bist du bereit für das nächste Abenteuer?", "nora", "common");
 
@@ -121,7 +121,7 @@ D.missions.forEach((m, i) => {
 });
 for (const b of D.bodies) {
   for (const a of [NS.sightKey, NS.sightTouch]) add(fill(NS.sight, { ziel: nameOf(b.id), aktion: a }), "nora", "space");
-  add(fill(NS.other, { ziel: nameOf(b.id) }), "nora", "space");
+  add(fill(["Gesteinsplanet", "Mond der Erde"].includes(b.kind) ? NS.other : NS.otherProbe, { ziel: nameOf(b.id) }), "nora", "space"); // wie CAN_LAND in game.js
 }
 for (let p = 0; p < 3; p++) add(fill(NS.notDone, { p, n: 3 }), "nora", "space");
 
