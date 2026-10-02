@@ -2677,8 +2677,8 @@ window.Surface = (function () {
   // Antenne: Zeit vorspulen – die Sonne wandert in einem Mond-Tag einmal über den Himmel, die Erde bleibt stehen
   const sunNow = SUN_DIR.clone();
   const SUN_AXIS = new V().crossVectors(SUN_DIR, new V(0, 1, 0)).normalize(); // Drehung um diese Achse: die Sonne steigt zuerst höher
-  function setSun(angle) {
-    sunNow.copy(SUN_DIR).applyAxisAngle(SUN_AXIS, angle);
+  function setSun(angle, axis = SUN_AXIS) {
+    sunNow.copy(SUN_DIR).applyAxisAngle(axis, angle);
     world.sunGlow.position.copy(sunNow).multiplyScalar(1200);
     // Unter dem Horizont: Nacht auf dem Mond. Die Erde bleibt hell – sie wird ja weiter von der Sonne beschienen.
     const day = smooth(-0.06, 0.08, sunNow.y);
@@ -3669,35 +3669,63 @@ window.Surface = (function () {
     g.userData.blink = [lamp];
     return g;
   }
-  // Solar-Rover wie „Spirit“ und „Opportunity“ (2004 – 2018): breites Solarzellen-Deck, Kameramast, sechs Räder, Roboterarm (vorn = +Z).
+  // Solar-Rover wie „Spirit“ und „Opportunity“ (2004 – 2018), vorn = +Z: ein flaches Solarzellen-Deck aus Mittelteil und fünf Flügeln,
+  // darunter der Elektronik-Kasten in Goldfolie, sechs Räder an der Rocker-Bogie-Schwinge, vorn der Kameramast mit zwei „Augen“,
+  // hinten die flache Hochgewinn-Antenne und der Stab der Rundstrahl-Antenne, vorn eingeklappt der Roboterarm.
   // userData.cells = Material der Solarzellen (färbt sich bei Staub rotbraun)
   function makeSolarRover(M) {
     const g = new THREE.Group(), cells = marsCellMat(M).clone();
     const gold = new THREE.MeshStandardMaterial({ map: foilTex(), roughness: 0.35, metalness: 0.7 });
-    const white = M.std({ color: srgb(0xeef0f2), roughness: 0.5 }), dark = M.std({ color: srgb(0x2b2e34), roughness: 0.75, metalness: 0.3 });
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.44, 1.3), gold), 0, 0.78, 0); // Elektronik-Kasten in Goldfolie
-    const deck = new THREE.Group(); deck.position.y = 1.03; g.add(deck); // Solarzellen-Deck: Mittelteil und fünf Flügel
-    for (const [w, d, x, z, rz] of [[1.25, 1.45, 0, 0, 0], [0.8, 1.15, -1.02, 0.1, 0.06], [0.8, 1.15, 1.02, 0.1, -0.06], [1.15, 0.5, 0, -0.97, 0], [0.55, 0.45, -0.8, -0.78, 0.04], [0.55, 0.45, 0.8, -0.78, -0.04]])
-      put(deck, new THREE.Mesh(new THREE.BoxGeometry(w, 0.035, d), [white, white, cells, white, white, white]), x, 0, z).rotation.z = rz;
-    const wheels = [];
-    for (const x of [-0.78, 0.78]) {
-      for (const z of [-0.62, 0.02, 0.62]) {
-        const w = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.2, 16), dark), x, 0.25, z); w.rotation.z = Math.PI / 2; wheels.push(w);
-        put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.21, 10), white), x, 0.25, z, false).rotation.z = Math.PI / 2;
+    const white = M.std({ color: srgb(0xeef0f2), roughness: 0.5 }), grey = M.std({ color: srgb(0x9aa3ad), roughness: 0.4, metalness: 0.5 });
+    const dark = M.std({ color: srgb(0x2b2e34), roughness: 0.8, metalness: 0.2 }), alu = M.std({ color: srgb(0xc3c8cf), roughness: 0.35, metalness: 0.75 });
+    const lens = M.std({ color: srgb(0x0f1216), roughness: 0.12, metalness: 0.6 });
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.44, 1.4), gold), 0, 0.8, 0); // Elektronik-Kasten
+    // Solarzellen-Deck: alle Teile in einer Ebene, mit schmalen Fugen dazwischen (nichts überlappt)
+    const deckY = 1.045;
+    for (const [w, d, x, z] of [[1.24, 1.5, 0, -0.03], [0.56, 1.17, -0.9, 0.035], [0.56, 1.17, 0.9, 0.035], [1.2, 0.42, 0, -1.0], [0.46, 0.44, -0.86, -0.83], [0.46, 0.44, 0.86, -0.83]])
+      put(g, new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, d), [white, white, cells, white, white, white]), x, deckY, z);
+    // Räder an der Rocker-Bogie-Schwinge: jedes Rad hängt an einem Bein, so fahren die echten Rover über Steine
+    const wheels = [], WX = 0.95, WR = 0.22, BX = 0.8;
+    for (const s of [-1, 1]) {
+      for (const z of [-0.72, 0.02, 0.72]) {
+        const w = put(g, new THREE.Mesh(new THREE.CylinderGeometry(WR, WR, 0.18, 20), [dark, alu, alu]), s * WX, WR, z); w.rotation.z = Math.PI / 2; wheels.push(w);
+        put(w, new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.2, 12), grey), 0, 0, 0, false); // Nabe (dreht sich mit)
       }
-      pipeSeg(g, M, new V(x * 0.8, 0.62, -0.62), new V(x * 0.8, 0.7, 0.62), 0.03, M.steel); // Schwinge (Rocker-Bogie)
-      pipeSeg(g, M, new V(x * 0.8, 0.7, 0), new V(x * 0.62, 0.78, 0), 0.03, M.steel);
+      const x = s * BX, F = new V(x, 0.62, 0.55), P = new V(x, 0.8, 0.06), Bm = new V(x, 0.52, 0.02), Br = new V(x, 0.52, -0.72);
+      pipeSeg(g, M, F, P, 0.035, white); pipeSeg(g, M, P, new V(x, 0.52, -0.35), 0.035, white); // Rocker bis zum Drehpunkt des Bogies
+      pipeSeg(g, M, Bm, Br, 0.035, white); // Bogie
+      for (const [top, z] of [[F, 0.72], [Bm, 0.02], [Br, -0.72]]) pipeSeg(g, M, top, new V(s * (WX - 0.1), WR, z), 0.03, white); // Beine zu den Naben
+      pipeSeg(g, M, P, new V(s * 0.55, 0.8, 0.06), 0.045, grey); // Gelenk am Kasten
     }
-    // Kameramast vorn links mit „Augen“ (Panoramakamera), Antenne, Roboterarm
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.95, 8), white), -0.32, 1.5, 0.58);
-    const head = put(g, new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.16, 0.18), white), -0.32, 2.0, 0.6);
-    for (const x of [-0.09, 0.09]) put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.06, 12), dark), x, 0, 0.1, false).rotation.x = Math.PI / 2;
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), M.steel), 0.35, 1.3, -0.3);
-    put(g, dishCap(M, 0.2, 0.9), 0.35, 1.56, -0.3).rotation.x = -0.7;
-    pipeSeg(g, M, new V(0.3, 0.75, 0.68), new V(0.3, 0.55, 1.05), 0.035, M.steel);
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.16), M.metal), 0.3, 0.5, 1.12);
+    // Kameramast vorn rechts: Kamerakopf mit zwei Panoramakameras („Augen“) und obendrauf die Navigationskamera
+    const mx = -0.42, mz = 0.5;
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.16), grey), mx, deckY + 0.075, mz);
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.78, 10), white), mx, deckY + 0.48, mz);
+    const head = new THREE.Group(); head.position.set(mx, deckY + 0.92, mz); g.add(head);
+    put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.12, 10), grey), 0, -0.06, 0);
+    put(head, new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.11, 0.13), grey), 0, 0.03, 0);
+    put(head, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 0.1), white), 0, 0.12, 0);
+    for (const x of [-0.17, 0.17]) put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.04, 14), lens), x, 0.03, 0.075, false).rotation.x = Math.PI / 2;
+    // Hochgewinn-Antenne (flache Scheibe zur Erde) und Rundstrahl-Antenne (dünner Stab)
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.2, 8), grey), 0.4, deckY + 0.12, -0.42);
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.035, 24), white), 0.4, deckY + 0.24, -0.42).rotation.x = -0.6;
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.55, 6), grey), 0.62, deckY + 0.3, -0.05, false);
+    // Roboterarm vorn unter dem Deck eingeklappt, am Ende der Werkzeugkopf
+    pipeSeg(g, M, new V(0.3, 0.7, 0.7), new V(0.3, 0.55, 0.95), 0.035, white);
+    pipeSeg(g, M, new V(0.3, 0.55, 0.95), new V(-0.1, 0.55, 0.98), 0.03, white);
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.16), grey), -0.16, 0.55, 0.98);
     g.userData = { wheels, heading: 0, speed: 0, cells, clean: cells.color.clone() };
     return g;
+  }
+  // Rover liegt mit allen Rädern auf dem Gelände: Neigung aus der Bodenhöhe vorn/hinten und links/rechts (sanft nachgeführt)
+  function roverTilt(r, heading, dt = 1, half = 0.75, side = 0.95) {
+    const H = world.height, p = r.position, u = r.userData, fx = Math.sin(heading), fz = Math.cos(heading);
+    const hf = H(p.x + fx * half, p.z + fz * half), hb = H(p.x - fx * half, p.z - fz * half);
+    const hl = H(p.x + fz * side, p.z - fx * side), hr = H(p.x - fz * side, p.z + fx * side), k = Math.min(1, dt * 8);
+    u.pitch = (u.pitch || 0) + (Math.atan2(hf - hb, 2 * half) - (u.pitch || 0)) * k;
+    u.roll = (u.roll || 0) + (Math.atan2(hl - hr, 2 * side) - (u.roll || 0)) * k;
+    p.y = (hf + hb + hl + hr) / 4;
+    r.rotation.set(-u.pitch, heading, u.roll, "YXZ");
   }
   // Fundstellen der Rover-Expedition: 0 = Kügelchen („Blaubeeren“, entstehen im Wasser), 1 = Schichtgestein (Grund eines Sees), 2 = Gestein für ein Proben-Röhrchen
   function makeSampleRock(i) {
@@ -4201,6 +4229,7 @@ window.Surface = (function () {
     const r = world.rover, [x, z] = world.L.roverStart;
     r.position.set(x, world.height(x, z), z);
     r.userData.heading = MARS_ROVER_PARK; // steht schräg in der Garage – das Kind muss selbst lenken
+    roverTilt(r, MARS_ROVER_PARK);
     r.userData.speed = 0; r.userData.cells.color.copy(r.userData.clean);
     for (const s of world.samples) { s.done = false; s.mk.visible = true; }
     world.devil.userData.goal = null;
@@ -4281,9 +4310,11 @@ window.Surface = (function () {
     // Fundstellen: Hologramme schweben, aus der Ferne größer
     for (const s of world.samples) if (s.mk.visible) { const h = s.mk.userData.holo; h.position.y = 2.9 + Math.sin(sp.t * 2 + s.i) * 0.15; h.scale.setScalar(Math.min(4, 1.3 + c.position.distanceTo(s.mk.position) * 0.022) / s.mk.scale.x); }
     if (sp.phase !== "done") roverHud();
-    r.rotation.y = u.heading;
-    const fx = Math.sin(u.heading), fz = Math.cos(u.heading);
-    c.position.lerp(tmp.set(r.position.x - fx * 6.5, r.position.y + 3.4, r.position.z - fz * 6.5), 1 - Math.exp(-dt * 3));
+    roverTilt(r, u.heading, dt);
+    const fx = Math.sin(u.heading), fz = Math.cos(u.heading), want = tmp.set(r.position.x - fx * 6.5, r.position.y + 3.4, r.position.z - fz * 6.5);
+    const [gx, gz] = world.L.roverStart; // unter dem Dach der Rover-Garage hindurch (sonst sieht man beim Losfahren nur das Dach)
+    if (Math.hypot(want.x - gx, want.z - gz) < 4.6) want.y = Math.min(want.y, world.height(gx, gz) + 1.9); // unter dem Schild (ab 2,1 m) durch
+    c.position.lerp(want, 1 - Math.exp(-dt * 3));
     view.look.lerp(tmp2.set(r.position.x + fx * 3, r.position.y + 1, r.position.z + fz * 3), 1 - Math.exp(-dt * 5));
     c.lookAt(view.look);
   }
@@ -4461,7 +4492,7 @@ window.Surface = (function () {
     u.a = (u.a || 0) + dt * 0.1; // etwa 1,3 m/s
     const x = cx + Math.cos(u.a) * 16, z = cz + Math.sin(u.a) * 10;
     const hx = -Math.sin(u.a) * 16, hz = Math.cos(u.a) * 10; // Fahrtrichtung
-    r.position.set(x, world.height(x, z), z); r.rotation.y = Math.atan2(hx, hz);
+    r.position.set(x, 0, z); roverTilt(r, Math.atan2(hx, hz), dt, 1.3, 1.2); // folgt dem Gelände
     for (const w of u.wheels) w.rotation.x += dt * 4.5;
     world.patrolCol[0] = x; world.patrolCol[1] = z;
     u.puff = (u.puff || 0) - dt;
@@ -6045,6 +6076,41 @@ window.Surface = (function () {
   };
   const ERDE_SKY = new THREE.Color(0x7ec0ee), ERDE_NIGHT = new THREE.Color(0x04060e), ERDE_DUSK = new THREE.Color(0xf08a3c);
   const ERDE_MOON_DIR = new V(-0.55, 0.5, 0.65).normalize();
+  // Sonnenlauf auf der Erde (Sonnenuhr): Die Morgensonne um 9 Uhr ist SUN_DIR (Südost), der Himmelspol steht 50° hoch im Norden.
+  // Die Sonne zieht von Osten über Süden nach Westen – so dreht sich der Schatten wie bei einer echten Sonnenuhr.
+  const ERDE_SOUTH = (() => { const b = Math.atan2(SUN_DIR.x, SUN_DIR.z) - Math.PI / 4; return new V(Math.sin(b), 0, Math.cos(b)); })();
+  const ERDE_POLE = ERDE_SOUTH.clone().multiplyScalar(-Math.cos(0.87)).add(new V(0, Math.sin(0.87), 0)).normalize();
+  const erdeSunAt = (hour, out = new V()) => out.copy(SUN_DIR).applyAxisAngle(ERDE_POLE, -(hour - 9) * Math.PI / 12);
+  // Sonnenuhr: Steinsockel, Zifferblatt mit Stundenzahlen dort, wohin der Schatten zur jeweiligen Stunde zeigt, dreieckiger Schattenwerfer
+  function earthSundial(M) {
+    const g = new THREE.Group(), R = 1.15, TOP = 0.46, N = ERDE_SOUTH.clone().negate(), U = new V(0, 1, 0);
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.38, 0.44, 40), M.std({ color: srgb(0xb9a382), roughness: 0.9, envMapIntensity: 0.4 })), 0, 0.22, 0).receiveShadow = true; // Sandstein
+    const tex = canvasTex(1024, 1024, (c) => {
+      const px = (wx) => (wx / R + 1) * 512, pz = (wz) => (wz / R + 1) * 512;
+      c.fillStyle = "#c9b48c"; c.fillRect(0, 0, 1024, 1024); // nicht zu hell, sonst sieht man den Schatten kaum
+      c.strokeStyle = "#6b4f2a"; c.lineWidth = 12; c.beginPath(); c.arc(512, 512, 494, 0, 7); c.stroke();
+      const d = new V(), up = Math.atan2(N.x, -N.z); // Zahlen stehen aufrecht, wenn man von Süden auf die Uhr schaut
+      for (let h = 6; h <= 18; h++) {
+        erdeSunAt(h, d); if (d.y < 0.03) continue;
+        const k = ERDE_POLE.y / d.y, sx = ERDE_POLE.x - k * d.x, sz = ERDE_POLE.z - k * d.z, l = Math.hypot(sx, sz), ux = sx / l, uz = sz / l; // Schattenrichtung des Stabs
+        c.strokeStyle = "#4a3418"; c.lineWidth = h % 2 ? 5 : 9;
+        c.beginPath(); c.moveTo(px(ux * 0.1), pz(uz * 0.1)); c.lineTo(px(ux * (h % 2 ? 0.7 : 0.76)), pz(uz * (h % 2 ? 0.7 : 0.76))); c.stroke();
+        if (h % 2) continue; // Zahlen nur zu den geraden Stunden – sonst stehen sie zu eng
+        c.save(); c.translate(px(ux * 0.88), pz(uz * 0.88)); c.rotate(up);
+        c.fillStyle = "#2f210d"; c.font = "bold 92px serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(h), 0, 0);
+        c.restore();
+      }
+    });
+    const face = put(g, new THREE.Mesh(new THREE.CircleGeometry(R, 64), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 })), 0, TOP, 0, false);
+    face.rotation.x = -Math.PI / 2; face.receiveShadow = true;
+    const fs = new THREE.Shape(); fs.moveTo(0, 0); fs.lineTo(0.78, 0); fs.lineTo(0.78, 0.78 * Math.tan(0.87)); fs.closePath();
+    const gGeo = new THREE.ExtrudeGeometry(fs, { depth: 0.035, bevelEnabled: false }); gGeo.translate(0, 0, -0.0175);
+    const gnomon = new THREE.Mesh(gGeo, M.std({ color: srgb(0x9a6b2f), roughness: 0.35, metalness: 0.8 })); // Bronze
+    gnomon.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(N, U, N.clone().cross(U)));
+    gnomon.position.y = TOP; gnomon.castShadow = true; g.add(gnomon);
+    g.name = "sonnenuhr"; g.userData = { face, gnomon };
+    return g;
+  }
   // Bäume: Nadelbäume mit vielen unregelmäßigen Zweig-Etagen und Laubbäume mit runder, buschiger Krone (Farben im Gitter: innen dunkler)
   const TREE = { geos: {}, mats: null };
   function treeMats() {
@@ -6158,15 +6224,18 @@ window.Surface = (function () {
     on(makeSignTree(M, [["☀️ SONNE 150 Mio. km", Math.atan2(SUN_DIR.x, SUN_DIR.z), "#ca8a04"], ["🌙 MOND 384.400 km", Math.atan2(ERDE_MOON_DIR.x, ERDE_MOON_DIR.z), "#475569"],
       ["🏛️ BESUCHERZENTRUM", Math.atan2(L.station[0] - wx, L.station[1] - wz), "#2563eb"], ["🦆 SEE", Math.atan2(L.see[0] - wx, L.see[1] - wz), "#16a34a"]]), wx, wz);
     // Sonnenuhr: Der Schatten des Stabs wandert im Lauf des Tages
-    const dial = new THREE.Group();
-    const plate = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.12, 32), new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.8 })); plate.position.y = 0.06; plate.receiveShadow = true;
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 8), new THREE.MeshStandardMaterial({ color: 0x374151 })); rod.position.y = 0.75; rod.castShadow = true;
-    dial.add(plate, rod); on(dial, ...L.tag);
-    { // Park rund um die Sonnenuhr: Bänke, Blumen, zwei Bäume
-      const [tx, tz] = L.tag;
+    on(earthSundial(M), ...L.tag);
+    { // Park rund um die Sonnenuhr: Blumenbeet (nach Süden offen, dort steht man), Bänke, zwei Bäume
+      const [tx, tz] = L.tag, gap = Math.atan2(-ERDE_SOUTH.z, ERDE_SOUTH.x); // Richtung Süden im Ring (Ring liegt flach, y → −z)
+      const bed = on(new THREE.Mesh(new THREE.RingGeometry(1.6, 2.05, 48, 1, gap + 0.55, Math.PI * 2 - 1.1), M.std({ color: srgb(0x5b3a24), roughness: 1 })), tx, tz, 0.03);
+      bed.rotation.x = -Math.PI / 2; bed.receiveShadow = true;
+      const cols = [0xf472b6, 0xfacc15, 0xef4444, 0xa78bfa, 0xffffff, 0xfb923c];
+      for (let i = 0; i < 28; i++) {
+        const a = gap + 0.62 + (i / 27) * (Math.PI * 2 - 1.24), r = 1.7 + hash2(i, 41) * 0.25; // a: Winkel im Ring
+        const f = earthFlower(M, cols[i % cols.length], 0.28 + hash2(i, 42) * 0.14); f.rotation.y = hash2(i, 43) * 6;
+        on(f, tx + Math.cos(a) * r, tz - Math.sin(a) * r);
+      }
       for (const [dx, dz, r] of [[-2.6, 1.4, 2.1], [2.4, 2, -2.2]]) on(earthBench(M), tx + dx, tz + dz).rotation.y = r;
-      const petal = [0xf472b6, 0xfacc15, 0xef4444, 0xa78bfa].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.7 }));
-      for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2; on(new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), petal[i % 4]), tx + Math.sin(a) * 1.7, tz + Math.cos(a) * 1.7, 0.15); }
       for (const [dx, dz] of [[4, 4], [-4, 4.5]]) { const t = makeTree(0.9, dx > 0 ? 4 : 13); t.position.set(tx + dx, height(tx + dx, tz + dz), tz + dz); trees.add(t); }
     }
     { // Waage mit Schild „So viel wiegst du wirklich“
@@ -6225,9 +6294,10 @@ window.Surface = (function () {
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, luft: L.luft, stern: L.stern, tag: L.tag, groesse: L.groesse, mond: L.mond,
-      wasser: L.wasser, wald: L.wald, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { mond: MARS_SCOPE_DOOR(L.mond) });
+      wasser: L.wasser, wald: L.wald, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] },
+      { mond: MARS_SCOPE_DOOR(L.mond), tag: [ERDE_SOUTH.x * 2.6, ERDE_SOUTH.z * 2.6] }); // vor der Sonnenuhr (Süden), nicht auf ihr
     const npcs = addNpcs(B);
-    const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 0.4],
+    const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 1.4],
       ...rackCols];
 
     // Lebewesen: Art, Objekt, Höhe der Bildmitte, Größe (für das Teleobjektiv), größte Foto-Entfernung
@@ -6295,23 +6365,38 @@ window.Surface = (function () {
     if (sp.t > 3) { sp.run = false; Sound.correct(); scopeSay(guessed(cfg.shooting.end), [[cfg.shooting.again, runShooting], [cfg.shooting.done, leaveExhibit, true]]); }
   }
   // --- Sonnenuhr: ein ganzer Tag im Zeitraffer ---
-  const DAY_TIME = 14;
-  function startDay() { enterExhibit("tag", { update: updateDay }); runDay(); }
-  function runDay() { const sp = view.special; sp.t = 0; sp.run = false; sp.last = ""; setSun(0); erdeSky(1); askGuess(cfg.day.guess, cfg.day.ready, () => { sp.run = true; sp.t = -0.4; }); }
+  const DAY_TIME = 18; // Sekunden für 24 Stunden (die Nacht läuft schneller, siehe updateDay)
+  function startDay() { enterExhibit("tag", { update: updateDay }); world.astronaut.visible = false; runDay(); } // freier Blick aufs Zifferblatt
+  // Deutlicher Schatten des Schattenwerfers auf dem Zifferblatt (zusätzlich zum echten, der bei hellem Tag nur schwach zu sehen ist):
+  // das Dreieck des Schattenwerfers, entlang des Sonnenlichts auf das Blatt projiziert und am Rand abgeschnitten
+  function dialShadow(on) {
+    const dial = world.scene.getObjectByName("sonnenuhr"); if (!dial) return;
+    let m = world.dialShadowMesh;
+    if (!m) { m = world.dialShadowMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x2b1d0e, transparent: true, opacity: 0.45, depthWrite: false })); m.rotation.x = -Math.PI / 2; dial.add(m); m.position.y = 0.465; }
+    const d = sunNow; m.visible = on && d.y > 0.02; if (!m.visible) return;
+    const N = ERDE_SOUTH.clone().negate(), h = 0.78 * Math.tan(0.87), k = h / d.y, R = 1.12;
+    const A = [0, 0], B = [N.x * 0.78, N.z * 0.78], C = [B[0] - k * d.x, B[1] - k * d.z], pts = [];
+    for (const [p, q] of [[A, B], [B, C], [C, A]]) for (let i = 0; i < 24; i++) {
+      const t = i / 24, x = p[0] + (q[0] - p[0]) * t, z = p[1] + (q[1] - p[1]) * t, r = Math.hypot(x, z), s = r > R ? R / r : 1;
+      pts.push(new THREE.Vector2(x * s, -z * s)); // Kreisrand: nach innen geschoben (die Form ist vom Mittelpunkt aus sternförmig)
+    }
+    m.geometry.dispose(); m.geometry = new THREE.ShapeGeometry(new THREE.Shape(pts));
+  }
+  function runDay() { const sp = view.special; sp.t = 0; sp.run = false; sp.last = ""; setSun(0); erdeSky(1); dialShadow(false); askGuess(cfg.day.guess, cfg.day.ready, () => { sp.run = true; sp.t = -0.4; }); }
   function updateDay(dt) {
-    const c = world.camera, sp = view.special, [x, z] = world.L.tag, y = world.height(x, z), T = cfg.day;
-    // Blick über die Sonnenuhr dorthin, wo die Sonne untergeht (gegenüber von dort, wo sie jetzt steht)
-    const h = Math.hypot(SUN_DIR.x, SUN_DIR.z), dx = -SUN_DIR.x / h, dz = -SUN_DIR.z / h;
-    c.position.lerp(tmp.set(x - dx * 5, y + 3, z - dz * 5), 1 - Math.exp(-dt * 3));
-    view.look.lerp(tmp2.set(x + dx * 20, y + 3 - 20 * 0.2, z + dz * 20), 1 - Math.exp(-dt * 4)); // leicht nach unten: Sonnenuhr unten im Bild
+    const c = world.camera, sp = view.special, [x, z] = world.L.tag, y = world.height(x, z), T = cfg.day, S = ERDE_SOUTH;
+    // von Süden schräg von oben auf die Sonnenuhr: der Schatten wandert über die Zahlen, oben sieht man den Himmel
+    c.position.lerp(tmp.set(x + S.x * 2.3, y + 2.6, z + S.z * 2.3), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(x - S.x * 0.9, y + 0.15, z - S.z * 0.9), 1 - Math.exp(-dt * 4)); // Zifferblatt in der Bildmitte, über dem Textfeld
     c.lookAt(view.look);
-    c.fov += (72 - c.fov) * Math.min(1, dt * 3); c.updateProjectionMatrix();
+    c.fov += (64 - c.fov) * Math.min(1, dt * 3); c.updateProjectionMatrix();
     if (!sp.run) return;
-    sp.t += dt;
+    sp.t += dt * (sp.t > 0 && sunNow.y < -0.05 ? 2.6 : 1); // die Nacht läuft schneller – am Tag sieht man den Schatten wandern
     if (sp.t < 0) return;
     const f = Math.min(1, sp.t / DAY_TIME);
-    setSun(f * Math.PI * 2); erdeSky(1);
-    if (f >= 1) { sp.run = false; setSun(0); erdeSky(1); Sound.correct(); scopeSay(guessed(T.end), [[T.again, runDay], [T.done, leaveExhibit, true]]); return; }
+    setSun(-f * Math.PI * 2, ERDE_POLE); erdeSky(1); // von Osten über Süden nach Westen (siehe erdeSunAt)
+    dialShadow(f < 1);
+    if (f >= 1) { sp.run = false; setSun(0); erdeSky(1); Sound.correct(); scopeSay(guessed(T.end), [[T.again, runDay], [T.done, endHidden, true]]); return; }
     const hour = Math.floor(9 + f * 24) % 24;
     const text = fmtVars(sunNow.y > 0 ? T.day : T.night, { uhr: hour });
     if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
@@ -6786,7 +6871,7 @@ window.Surface = (function () {
         world.heli.position.y = world.heliY;
         world.drill.userData.rod.position.y = ROD_Y;
         const [x, z] = world.L.roverStart;
-        world.rover.position.set(x, world.height(x, z), z); world.rover.rotation.y = world.rover.userData.heading = MARS_ROVER_PARK;
+        world.rover.position.set(x, world.height(x, z), z); world.rover.userData.heading = MARS_ROVER_PARK; roverTilt(world.rover, MARS_ROVER_PARK);
         world.observatory.userData.open = world.observatory.userData.target = 0; world.observatory.userData.set(0);
       },
       update(dt, busy, elapsed) {
