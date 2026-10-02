@@ -678,11 +678,13 @@ window.UI = (function () {
       </div>
       <div class="row-gap" style="margin-top:22px">
         <button class="btn warm" id="btnCert" ${allDone ? "" : "disabled"}>📜 Meine Urkunde</button>
+        ${G.currentMission() ? "" : `<button class="btn ghost" id="btnOutro">🎬 Abschluss-Kino</button>`}
       </div>
       ${allDone ? "" : `<p class="center" style="color:var(--muted)">Besuche alle 8 Planeten, um deine Urkunde zu bekommen! (${planetsVisited}/8)</p>`}
     `);
     document.querySelectorAll(".stamp").forEach((st) => st.onclick = () => { closeModal(); G.setCompass(st.dataset.id); });
     $("btnCert").onclick = showCert;
+    if ($("btnOutro")) $("btnOutro").onclick = () => { closeModal(); setTimeout(() => G.playOutro(), 400); };
   }
 
   function escapeHtml(t) { return String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
@@ -826,6 +828,6 @@ window.UI = (function () {
   return {
     nearId: null,
     init, onStateReady, showStart, countdown, showHUD, updateHUD, frame, warp, nora, noraFrame, noraVisible,
-    openPanel, closePanel, toast, celebrate, confetti, renderGallery, openModal, closeModal, modalOpen
+    openPanel, closePanel, toast, celebrate, confetti, renderGallery, openModal, closeModal, modalOpen, showCert
   };
 })();

@@ -130,6 +130,11 @@ const intro = fs.readFileSync(path.join(ROOT, "js/intro.js"), "utf8");
 const arr = (name) => vm.runInNewContext("(" + intro.match(new RegExp(`const ${name} = (\\[[\\s\\S]*?\\n  \\]);`))[1] + ")");
 for (const [, , t] of arr("CAPTIONS")) add(t, "narrator", "intro");
 for (const [, , t] of arr("NORA")) add(t, "nora", "intro");
+// Abschluss-Kino – Texte stehen in js/outro.js
+const outro = fs.readFileSync(path.join(ROOT, "js/outro.js"), "utf8");
+const arrO = (name) => vm.runInNewContext("(" + outro.match(new RegExp(`const ${name} = (\\[[\\s\\S]*?\\n  \\]);`))[1] + ")");
+for (const [, , t] of arrO("OUTRO_CAPTIONS")) add(t, "narrator", "intro");
+for (const [, , t] of arrO("OUTRO_NORA")) add(t, "nora", "intro");
 
 // Ein Satz an mehreren Orten → „common“ (wird gleich am Anfang geladen)
 for (const e of lines.values()) e.tag = e.tags.size > 1 ? "common" : [...e.tags][0];

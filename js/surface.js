@@ -552,10 +552,67 @@ window.Surface = (function () {
     setArm(rig, "armL", fwd, downL == null ? down : downL, swingL); setArm(rig, "armR", -fwd, downR == null ? down : downR, swingR);
     setBone(rig, "foreL", 0, 0, elbowL == null ? elbow : elbowL); setBone(rig, "foreR", 0, 0, -(elbowR == null ? elbow : elbowR));
     setBone(rig, "spine", lean, twist, 0);
+    if (st.act && !st.wave) ACT_POSE[st.act](rig, st.t, lean);
     if (st.wave) { // rechten Arm hoch und winken
       setArm(rig, "armR", -0.35, -1.2);
       setBone(rig, "foreR", 0, 0, -(0.45 + 0.45 * Math.sin(st.t * 9)));
     }
+  }
+  // Tätigkeiten der Bewohner (t = Zeit in Sekunden): Gießkanne, Besen für die Solarzellen, Tablet, Werkzeug, Kniebeugen
+  const ACT_POSE = {
+    // (gemessen: Arm nach vorn = fwd ±1,4 – rechts negativ; down 0,25 = waagerecht, größer = tiefer, negativ = hoch)
+    giessen(rig, t) { setArm(rig, "armR", -1.4, 0.8 + 0.06 * Math.sin(t * 1.3)); setBone(rig, "foreR", 0, 0, -0.25); setArm(rig, "armL", 0.08, 1.3); setBone(rig, "spine", -0.12, 0, 0); },
+    putzen(rig, t) { const w = Math.sin(t * 4.2); setArm(rig, "armR", -(1.4 + 0.3 * w), 0.7); setBone(rig, "foreR", 0, 0, -0.35); setArm(rig, "armL", 0.08, 1.3); setBone(rig, "spine", -0.35, 0.1 * w, 0); },
+    tablet(rig, t) { setArm(rig, "armL", 1.4, 0.65); setArm(rig, "armR", -1.4, 0.65); setBone(rig, "foreL", 0, 0, 1.2); setBone(rig, "foreR", 0, 0, -(1.2 + 0.1 * Math.max(0, Math.sin(t * 5)))); setBone(rig, "spine", -0.08, 0, 0); },
+    werkeln(rig, t) { const w = Math.sin(t * 6); setArm(rig, "armR", -1.4, 0.6 + 0.3 * w); setBone(rig, "foreR", 0, 0, -0.7); setArm(rig, "armL", 1.4, 0.8); setBone(rig, "foreL", 0, 0, 0.5); setBone(rig, "spine", -0.4, 0, 0); },
+    sport(rig, t) { // Kniebeugen, die Arme gehen dabei nach vorn hoch
+      const k = 0.5 - 0.5 * Math.cos(t * 3.4);
+      setBone(rig, "legL", 1.15 * k, 0, 0); setBone(rig, "legR", 1.15 * k, 0, 0); setBone(rig, "kneeL", -1.9 * k, 0, 0); setBone(rig, "kneeR", -1.9 * k, 0, 0);
+      setArm(rig, "armL", 1.4, 1.35 - 1.1 * k); setArm(rig, "armR", -1.4, 1.35 - 1.1 * k); setBone(rig, "foreL", 0, 0, 0.1); setBone(rig, "foreR", 0, 0, -0.1);
+      setBone(rig, "spine", -0.25 * k, 0, 0);
+    }
+  };
+  // wer was tut (die übrigen gehen ihre Wege und arbeiten wie bisher)
+  const NPC_ACTS = { "Forscherin Mara": "giessen", "Techniker Bennett": "putzen", "Kommandantin Lea": "tablet", "Ingenieur Tom": "werkeln",
+    "Forscher Kofi": "tablet", "Pilotin Sara": "tablet", "Astronautin Jana": "sport", "Forscherin Yuki": "werkeln" };
+  // Werkzeug zur Tätigkeit, an der Hand bzw. vor der Brust befestigt; userData.drops = Wassertropfen der Gießkanne
+  function makeActProp(g, rig, act) {
+    const keepP = g.position.clone(), keepR = g.rotation.y; g.position.set(0, 0, 0); g.rotation.y = 0; // Anbauteile werden in der Grundhaltung am Nullpunkt angebracht
+    try { return actProp(g, rig, act); } finally { g.position.copy(keepP); g.rotation.y = keepR; g.updateMatrixWorld(true); }
+  }
+  function actProp(g, rig, act) {
+    const M = colonyMats("mars"), hand = rig.bones.foreR, chest = rig.bones.spine2 || rig.bones.spine;
+    if (act === "giessen" && hand) {
+      const can = new THREE.Group(), green = M.std({ color: srgb(0x16a34a), roughness: 0.5 });
+      put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.2, 16), green), 0, -0.12, 0.05);
+      put(can, new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.015, 6, 14, Math.PI), green), 0, -0.02, 0.05);
+      const spout = put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.022, 0.25, 8), green), 0, -0.08, 0.22); spout.rotation.x = 1.1;
+      const drops = new THREE.Group(); drops.position.set(0, -0.15, 0.33); can.add(drops);
+      const dm = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.8 });
+      for (let i = 0; i < 8; i++) drops.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), dm));
+      attachToBone(g, hand, can, new V(-0.82, 1.42, 0.05)); can.userData.drops = drops;
+      return can;
+    }
+    if (act === "putzen" && hand) {
+      const br = new THREE.Group();
+      put(br, new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.9, 8), M.steel), 0, 0, 0.35).rotation.x = Math.PI / 2;
+      put(br, new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.1), M.std({ color: srgb(0xfacc15), roughness: 0.8 })), 0, 0, 0.8);
+      attachToBone(g, hand, br, new V(-0.82, 1.42, 0.05)); return br;
+    }
+    if ((act === "tablet") && chest) {
+      const tab = new THREE.Group();
+      put(tab, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.015), M.metal), 0, 0, 0);
+      const scr = canvasTex(128, 96, (c) => { c.fillStyle = "#0b1220"; c.fillRect(0, 0, 128, 96); c.fillStyle = "#38bdf8"; c.fillRect(10, 12, 70, 8); c.fillStyle = "#4ade80"; for (let i = 0; i < 6; i++) c.fillRect(12 + i * 18, 80 - i * 9, 12, 8 + i * 9); });
+      put(tab, new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.17), new THREE.MeshBasicMaterial({ map: scr, toneMapped: false })), 0, 0, 0.009, false);
+      attachToBone(g, chest, tab, new V(0, 1.12, 0.42), new THREE.Quaternion().setFromAxisAngle(new V(1, 0, 0), -0.9)); return tab;
+    }
+    if (act === "werkeln" && hand) {
+      const w = new THREE.Group();
+      put(w, new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8), M.std({ color: srgb(0xdc2626), roughness: 0.5 })), 0, -0.05, 0.08).rotation.x = 1.2;
+      put(w, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.1), M.steel), 0, -0.1, 0.2);
+      attachToBone(g, hand, w, new V(-0.82, 1.42, 0.05)); return w;
+    }
+    return null;
   }
 
   function makeLander() {
@@ -3014,7 +3071,9 @@ window.Surface = (function () {
       const [x, z] = c.path[0];
       obj.position.set(x, B.height(x, z), z);
       B.scene.add(obj);
-      return { c, obj, rig: obj.userData.rig, i: 0, wait: 1 + i * 2, heading: 0, phase: 0, col: [x, z, 0.7], talk: 0, cool: 0, waveT: 0, said: 0, el: null };
+      const act = NPC_ACTS[c.name] || null, prop = act ? makeActProp(obj, obj.userData.rig, act) : null;
+      if (prop) prop.visible = false;
+      return { c, obj, rig: obj.userData.rig, i: 0, wait: 1 + i * 2, heading: 0, phase: 0, col: [x, z, 0.7], talk: 0, cool: 0, waveT: 0, said: 0, el: null, act, prop };
     }).filter(Boolean);
     if (noraModel) { // Nora, die Co-Pilotin: steht zuerst an der Leiter der Rakete
       const obj = makeModelAstronaut(noraModel, D.nora.color, SUITS.nora), x = HATCH.x * 2.6, z = HATCH.z * 2.6;
@@ -3058,7 +3117,7 @@ window.Surface = (function () {
       } else if (n.wait > 0) n.wait -= dt;
       else {
         const [tx, tz] = n.c.path[(n.i + 1) % n.c.path.length], ex = tx - p.x, ez = tz - p.z, d = Math.hypot(ex, ez);
-        if (d < 0.3) { n.i = (n.i + 1) % n.c.path.length; n.wait = 3 + Math.random() * 5; }
+        if (d < 0.3) { n.i = (n.i + 1) % n.c.path.length; n.wait = n.act ? 7 + Math.random() * 6 : 3 + Math.random() * 5; }
         else {
           moving = true;
           const step = Math.min(d, 1.1 * dt);
@@ -3069,10 +3128,17 @@ window.Surface = (function () {
       const climbing = n.climbY != null;
       p.y = climbing ? n.climbY : world.height(p.x, p.z);
       n.obj.rotation.y = n.heading;
+      const acting = !!n.act && !moving && !climbing && !n.isNora && n.wait > 0.4 && dist > 5.5; // bleibt stehen und tut etwas
+      if (n.prop) {
+        n.prop.visible = acting;
+        const dr = n.prop.userData.drops;
+        if (dr) dr.children.forEach((d, i) => { const k = (elapsed * 1.6 + i / 8) % 1; d.position.set(Math.sin(i * 2.3) * 0.02, -k * 0.9, k * 0.08); d.visible = acting; });
+      }
+      if (acting && n.act === "sport") p.y -= 0.32 * (0.5 - 0.5 * Math.cos((elapsed + n.c.path.length) * 3.4)); // Kniebeugen: der Körper geht mit runter
       const fast = moving && (n.speedNow || 0) > 1.6; // Nora, wenn sie vorausläuft
       n.phase += dt * (fast ? 1.4 + n.speedNow * 2.3 : moving ? 5.3 : climbing ? 6 : 1.5); // Bewohner gehen gemütlich (1,1 m/s)
       poseRig(n.rig, { mode: climbing ? "climb" : fast ? "run" : moving ? "walk" : "stand", speed: fast ? Math.min(1, n.speedNow / 3.8) : moving ? 0.7 : 0, phase: n.phase, t: elapsed + n.c.path.length,
-        air: false, airP: 0, contact: 0, wave: n.waveT > 0, work: !moving && n.c.work && dist > 5.5 });
+        air: false, airP: 0, contact: 0, wave: n.waveT > 0, work: !acting && !moving && n.c.work && dist > 5.5, act: acting ? n.act : null });
       n.col[0] = p.x; n.col[1] = p.z;
       // Sprechblase über dem Kopf – immer ganz im Bild (Noras Blase bleibt am Bildrand, auch wenn sie hinter der Kamera ist)
       if (n.talk > 0 && !view.special && n.obj.visible && !modal) {
@@ -7025,6 +7091,8 @@ window.Surface = (function () {
       for (const s of [-0.85, 0.85]) put(jetty, new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 6.4), wood(M, 1, 0.2)), s, 0.6, 3.6); // Geländer
     }
     const boat = earthSailboat(M); scene.add(boat);
+    const shoreTab = []; for (let k = 0; k < 72; k++) { const a = (k / 72) * Math.PI * 2; let r = 6; while (r < 22 && height(lx + Math.cos(a) * r, lz + Math.sin(a) * r) < WATER) r += 0.2; shoreTab.push(r); }
+    const shoreR = (a) => shoreTab[((Math.round((a / (Math.PI * 2)) * 72) % 72) + 72) % 72]; // Abstand vom Seemittelpunkt zum Ufer in Richtung a
     if (KIT.n_canoe) { // Kanu am Steg und ein kleiner Zeltplatz mit Lagerfeuer am Ufer
       const ry = jetty.rotation.y, side = [Math.cos(ry), -Math.sin(ry)], fwd = [Math.sin(ry), Math.cos(ry)];
       const cx = jetty.position.x + fwd[0] * 4.6 + side[0] * 2.0, cz = jetty.position.z + fwd[1] * 4.6 + side[1] * 2.0;
@@ -7059,9 +7127,34 @@ window.Surface = (function () {
         boat.rotation.set(0, Math.atan2(-Math.sin(a) * 6.5, Math.cos(a) * 5), Math.sin(t * 0.9) * 0.05 - 0.06); }
       water.material.map.offset.set(t * 0.004, t * 0.0025); // Wellen ziehen langsam über den See
       if (B.campFlame) B.campFlame.scale.setScalar(0.95 + 0.25 * Math.abs(Math.sin(t * 7) * Math.sin(t * 3.1))); // Lagerfeuer flackert
-      ducks.forEach((d, i) => { const a = t * 0.08 + i * 0.5; d.position.set(lx - 6 + Math.cos(a) * 5 + i * 0.6, -0.62, lz + Math.sin(a) * 4 + i * 0.4); d.rotation.y = -a; });
+      // Enten: drehen ihre Runden – steht das Kind am Ufer, schwimmen sie neugierig zu ihm heran
+      { const cx = ast.pos.x - lx, cz = ast.pos.z - lz, cd = Math.hypot(cx, cz), ca = Math.atan2(cz, cx), shore = shoreR(ca), atShore = cd < shore + 6 && cd > shore - 0.5;
+        ducks.forEach((d, i) => {
+          const u = d.userData; if (!u.cur) u.cur = new V(lx - 6 + i * 0.6, -0.62, lz + i * 0.4);
+          const a = t * 0.08 + i * 0.5, want = atShore
+            ? tmp2.set(lx + Math.cos(ca + (i - 1.5) * 0.09) * (shore - 1.4 - (i % 2) * 0.7), -0.62, lz + Math.sin(ca + (i - 1.5) * 0.09) * (shore - 1.4 - (i % 2) * 0.7))
+            : tmp2.set(lx - 6 + Math.cos(a) * 5 + i * 0.6, -0.62, lz + Math.sin(a) * 4 + i * 0.4);
+          const ex = want.x - u.cur.x, ez = want.z - u.cur.z, ed = Math.hypot(ex, ez), st = Math.min(ed, dt * (atShore ? 1.3 : 0.9));
+          if (ed > 0.05) { u.cur.x += (ex / ed) * st; u.cur.z += (ez / ed) * st; d.rotation.y = angleLerp(d.rotation.y, Math.atan2(ex, ez), 1 - Math.exp(-dt * 3)); }
+          d.position.set(u.cur.x, -0.62 + Math.sin(t * 2 + i) * 0.015, u.cur.z);
+        }); }
       for (const tb of turbines) tb.userData.rotor.rotation.z += dt * 0.9;
-      for (const d of [doe, fawn]) { const u = d.userData, ph = (t * 0.16 + u.seed) % 1; u.neck.rotation.x = 1.25 * smooth(0.05, 0.15, ph) * (1 - smooth(0.62, 0.72, ph)); } // grasen
+      for (const d of [doe, fawn]) { // Rehe grasen – kommt man zu nah (4,5 m), springen sie ein Stück davon und grasen dann weiter
+        const u = d.userData, p = d.position; if (!u.home) { u.home = p.clone(); u.flee = 0; }
+        const dx = p.x - ast.pos.x, dz = p.z - ast.pos.z, dd = Math.hypot(dx, dz);
+        if (u.flee <= 0 && dd < 4.5) { u.flee = 1.5; const a = Math.atan2(dx, dz) + (Math.random() - 0.5) * 0.8; u.dir = [Math.sin(a), Math.cos(a)]; }
+        if (u.flee > 0) {
+          u.flee -= dt;
+          let [vx, vz] = u.dir; const sp = 4.5 * Math.min(1, u.flee / 0.4 + 0.2), nx = p.x + vx * sp * dt, nz = p.z + vz * sp * dt;
+          if ((world.wet && world.wet(nx, nz)) || Math.hypot(nx, nz) > 140 || Math.hypot(nx - u.home.x, nz - u.home.z) > 16) { const r = [vz, -vx]; u.dir = r; } // Wasser oder zu weit: abbiegen
+          else { p.x = nx; p.z = nz; }
+          d.rotation.y = angleLerp(d.rotation.y, Math.atan2(u.dir[0], u.dir[1]), 1 - Math.exp(-dt * 8));
+          p.y = height(p.x, p.z) + Math.abs(Math.sin(t * 9)) * 0.28 * Math.min(1, u.flee * 2); u.neck.rotation.x = -0.25; // Sprünge, Kopf hoch
+          continue;
+        }
+        p.y = height(p.x, p.z);
+        const ph = (t * 0.16 + u.seed) % 1; u.neck.rotation.x = 1.25 * smooth(0.05, 0.15, ph) * (1 - smooth(0.62, 0.72, ph)); // grasen
+      }
       flies.forEach((b, i) => { // Schmetterlinge flattern über der Wiese
         const u = b.userData, a = t * (0.3 + i * 0.05) + u.o, r = 1.4 + i * 0.6, x = MC[0] + Math.cos(a) * r, z = MC[1] + Math.sin(a * 1.3) * r;
         b.position.set(x, height(x, z) + 0.9 + 0.35 * Math.sin(t * 1.7 + u.o) + 0.08 * Math.sin(t * 9 + u.o), z);
@@ -7734,6 +7827,6 @@ window.Surface = (function () {
     }
   };
 
-  if (/[?&]test/.test(location.search)) S._test = { navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, discover, startAction, showFound, POSE, setBone, HATCH, setJoy: (x, y) => { joy.x = x; joy.y = y; } };
+  if (/[?&]test/.test(location.search)) S._test = { navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, discover, startAction, showFound, POSE, setBone, setArm, poseRig, HATCH, setJoy: (x, y) => { joy.x = x; joy.y = y; } };
   return S;
 })();

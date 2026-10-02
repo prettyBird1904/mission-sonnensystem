@@ -106,7 +106,8 @@
     Sound.fanfare();
     UI.confetti();
     const next = Game.currentMission();
-    UI.celebrate("🏅", "Mission geschafft!", next ? "+1 ⭐ – Deine nächste Mission wartet schon!" : "Du hast ALLE Missionen geschafft! Hol dir deine Urkunde im Forscherpass.");
+    if (next) UI.celebrate("🏅", "Mission geschafft!", "+1 ⭐ – Deine nächste Mission wartet schon!");
+    else nora.outro = true; // alles geschafft: sobald das Fenster zu ist, läuft das Abschluss-Kino
     UI.updateHUD(true);
   }
   Game.completeMission = completeMission;
@@ -138,6 +139,8 @@
   }
   Game.noraStart = (first) => { nora.queue = { at: first ? 0.6 : 1.2, prefix: first ? NS.first : NS.back }; };
   function noraUpdate(dt) {
+    if (nora.outro && Game.mode === "fly" && !UI.modalOpen()) { nora.outro = false; nora.outroWait = 0.8; }
+    if (nora.outroWait > 0 && (nora.outroWait -= dt) <= 0) { nora.outroWait = 0; if (!UI.modalOpen()) playOutro(); else nora.outro = true; }
     nora.quiet -= dt;
     if (UI.modalOpen()) return;
     if (nora.pending.length && !UI.noraVisible()) { UI.nora(nora.pending.shift()); nora.quiet = 20; }
@@ -731,9 +734,10 @@
     adaptQuality(rawDt);
     updateFps(rawDt);
 
-    if (Game.mode === "cinema") { // Intro-Kino
-      Intro.update(dt);
-      if (Intro.scene) W.renderer.render(Intro.scene, Intro.camera);
+    if (Game.mode === "cinema") { // Intro- oder Abschluss-Kino
+      const C = Outro.active ? Outro : Intro;
+      C.update(dt);
+      if (C.scene) W.renderer.render(C.scene, C.camera);
       requestAnimationFrame(loop);
       return;
     }
@@ -832,6 +836,18 @@
     } });
   }
   Game.replayIntro = () => { if (Game.mode === "fly") playIntro(false); };
+  // Abschluss-Kino nach der letzten Mission; danach öffnet sich die Urkunde
+  function playOutro() {
+    Game.mode = "cinema";
+    document.documentElement.classList.add("cinema");
+    Sound.engine(0);
+    Outro.play({ world: W, name: Game.state.name, color: Game.state.color, onDone: () => {
+      document.documentElement.classList.remove("cinema");
+      Game.mode = "fly";
+      UI.showCert();
+    } });
+  }
+  Game.playOutro = () => { if (Game.mode === "fly" && !UI.modalOpen()) playOutro(); };
 
   Game.setTimeRunning = function (run) { W.timeScale = run ? 1 : 0; };
 
