@@ -1857,6 +1857,7 @@ window.Surface = (function () {
 
   S.enter = function (id, exitCb) {
     bodyId = id; cfg = D.surfaces[id]; onExit = exitCb; site = SITES[id];
+    Voice.prefetch(id);
     if (cfg.probe) { enterProbe(); return; }
     probe = null; $("surfaceHud").classList.remove("probing"); $("suitIcon").textContent = "🌡️";
     if (!worlds[id]) worlds[id] = site.build();
@@ -2836,7 +2837,7 @@ window.Surface = (function () {
     n.said++;
     n.el.innerHTML = `<b>${c.name}:</b> ${fmtVars(text)}`;
     n.talk = 7; n.cool = 16; n.waveT = n.greeted && n.said > 1 ? 0 : 2.4;
-    n.voice = Voice.say(fmtVars(text), /^(Forscherin|Kommandantin|Pilotin|Astronautin|Technikerin|Ingenieurin)\b/.test(c.name) ? "npcF" : "npcM");
+    n.voice = Voice.say(fmtVars(text), /^(Forscherin|Kommandantin|Pilotin|Astronautin|Technikerin|Ingenieurin)\b/.test(c.name) ? "npcF" : "npcM", { who: c.name });
     Sound.click();
   }
   function updateNpcs(dt, elapsed, busy) {
@@ -2894,7 +2895,7 @@ window.Surface = (function () {
   //  world.L.route[Schlüssel] = Wegpunkte zur Station (der Weg, den die Person läuft); world.L.meet = wo sie zu Beginn herkommt
   // =========================================================
   let guide = null;
-  const GUIDE_SPEED = 2.3, MAX_SLOPE = 1.35; // MAX_SLOPE: so steil darf es bergauf gehen (Höhe pro Meter) – für Kind und Nora
+  const GUIDE_SPEED = 2.8, MAX_SLOPE = 1.35; // MAX_SLOPE: so steil darf es bergauf gehen (Höhe pro Meter) – für Kind und Nora
   // Steht ein Ausstellungsstück (Hindernis) mitten im Kreis, wird der Kreis größer – sonst bliebe kaum Platz zum Hineintreten
   function fitZones() {
     if (world.zonesFitted) return; world.zonesFitted = true;

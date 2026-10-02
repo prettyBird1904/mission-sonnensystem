@@ -30,7 +30,7 @@ window.Intro = (function () {
     [15.8, 19.6, "Und ganz am Rand: der kleine Pluto."],
     [21.6, 24.6, "Auf einem kleinen, blauen Planeten …"],
     [24.9, 28.0, "… schaut jemand zu den Sternen hinauf."],
-    [28.3, 30.5, "Du, {name}.", "big"]
+    [28.3, 30.5, "Das bist du, {name}!", "big"]
   ];
   const NORA = [
     [31.4, 34.6, "Hier spricht Flugleiterin Nora. Hallo, {name}!"],

@@ -238,14 +238,17 @@ window.UI = (function () {
     $("btnVoice").innerHTML = (on ? "🗣️" : "🤐") + "<span>Vorlesen</span>"; $("btnVoice").classList.toggle("off", !on);
     $("btnVoice2").textContent = on ? "🗣️" : "🤐"; $("btnVoice2").classList.toggle("off", !on);
   }
+  // text = ein Satz oder mehrere Teile (werden nacheinander vorgelesen)
   function nora(text) {
+    const parts = Array.isArray(text) ? text : [text];
+    text = parts.join(" ");
     const el = $("noraBubble"), t = $("noraText"), words = text.split(" ");
     clearInterval(noraTimer);
     t.textContent = ""; el.classList.remove("hidden", "pop"); void el.offsetWidth; el.classList.add("pop");
     let i = 0;
     noraTimer = setInterval(() => { i++; t.textContent = words.slice(0, i).join(" "); if (i >= words.length) clearInterval(noraTimer); }, 110);
     noraT = Math.min(9, 2.5 + words.length * 0.33); // so lange bleibt sie stehen (inkl. Schreiben) – tippen schließt sie sofort
-    noraVoice = Voice.say(text, "nora");
+    noraVoice = Voice.say(parts, "nora");
     el.onclick = () => { noraT = 0; Voice.stop(noraVoice); };
     Sound.click();
   }
@@ -779,7 +782,8 @@ window.UI = (function () {
       </div>
       ${Voice.supported ? `<div class="box" style="margin-top:18px">
         <h3>🗣️ Vorlesen (für Lehrkräfte)</h3>
-        <p>Nora und die Bodenstation lesen alle Texte vor. Am natürlichsten klingen die Stimmen in <b>Microsoft Edge</b> (Name mit „Natural“). Auf dem iPad: Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen → Deutsch → eine Stimme mit „Premium“ oder „Erweitert“ laden.</p>
+        <p>Nora, die Bodenstation und alle Bewohner sprechen mit <b>echt klingenden Stimmen</b>: Alle Texte sind vorab mit natürlichen Microsoft-Stimmen aufgenommen (Nora: Seraphina, Bodenstation: Conrad) und klingen auf jedem Gerät gleich. Die Aufnahmen werden beim Spielen geladen und danach offline gespeichert.</p>
+        <p style="color:var(--muted);font-size:13px">Nur wenn eine Aufnahme fehlt (z. B. offline beim allerersten Besuch), liest die Stimme des Geräts vor – diese Ersatzstimme kannst du hier wählen.</p>
         <div class="settings-row">
           <button class="btn ghost small ${Voice.enabled ? "selected" : ""}" id="voiceOn">🗣️ An</button>
           <button class="btn ghost small ${Voice.enabled ? "" : "selected"}" id="voiceOff">🤐 Aus</button>
@@ -795,7 +799,7 @@ window.UI = (function () {
           <button class="btn ghost small ${World.fast ? "selected" : ""}" id="gfxFast">⚡ Flüssig</button>
           <button class="btn ghost small ${G.fpsVisible() ? "selected" : ""}" id="gfxFps">📊 Bildrate anzeigen</button>
         </div>
-        <p style="color:var(--muted);font-size:12px">Fotos: NASA u. a. (siehe BILDNACHWEIS.md) · Astronaut: „Rigged Astronaut“ von J-Toastie, CC BY 3.0 (poly.pizza)</p>
+        <p style="color:var(--muted);font-size:12px">Fotos: NASA u. a. (siehe BILDNACHWEIS.md) · Astronaut: „Rigged Astronaut“ von J-Toastie, CC BY 3.0 (poly.pizza) · Stimmen: neuronale Microsoft-Stimmen (Seraphina, Conrad, Florian, Katja, Amala, Killian)</p>
         <p style="color:var(--muted);font-size:13px">Version ${D.version} · Auflösung ${World.renderer.getPixelRatio().toFixed(2)} · Bilder/s ${Math.round(1 / G.perf.avg)}</p>
       </div>`);
     const setGfx = (mode) => { try { localStorage.setItem("ms-grafik", mode); } catch (e) { /* egal */ } location.reload(); };

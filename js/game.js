@@ -117,36 +117,38 @@
   const ART = { sonne: "die Sonne", erde: "die Erde", mond: "der Mond", venus: "die Venus" };
   const nameOf = (id) => ART[id] || Game.bodyById[id].name;
   const touchUI = () => document.documentElement.classList.contains("touch-ui");
+  const NS = D.noraSpace, fill = (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => (v[k] != null ? v[k] : "{" + k + "}"));
   function noraFill(t) {
-    return t.replace(/\{name\}/g, Game.state.name)
-      .replace("{steer}", touchUI() ? "Links lenkst du, rechts gibst du GAS." : "Mit W gibst du Gas, mit A und D lenkst du.");
+    return t.replace(/\{name\}/g, Game.state.name).replace("{steer}", touchUI() ? NS.steerTouch : NS.steerKey);
   }
+  // text = ein Satz oder mehrere Teile (sie werden als ein Text angezeigt und nacheinander vorgelesen)
   function noraSay(text, important) {
+    const parts = (Array.isArray(text) ? text : [text]).filter(Boolean).map(noraFill);
     if (!important && (nora.quiet > 0 || UI.noraVisible() || nora.pending.length)) return false;
     // Wichtiges überschreibt nichts, was das Kind gerade liest – es kommt direkt danach
-    if (UI.noraVisible()) { if (nora.pending.length < 3) nora.pending.push(noraFill(text)); return true; }
-    UI.nora(noraFill(text)); nora.quiet = 20;
+    if (UI.noraVisible()) { if (nora.pending.length < 3) nora.pending.push(parts); return true; }
+    UI.nora(parts); nora.quiet = 20;
     return true;
   }
   function noraMission(prefix) {
     const m = Game.currentMission(), i = Game.state.mission;
     nora.mission = i; nora.t = 0; nora.hint = Game.state.hint ? 2 : 0;
-    if (!m) { noraSay((prefix ? prefix + " " : "") + "Du hast ALLE Missionen geschafft, {name}! Hol dir deine Urkunde im Forscherpass 📘 – und flieg, wohin du willst.", true); return; }
-    noraSay((prefix ? prefix + " " : "") + `Mission ${i + 1}: ${m.brief || m.text}`, true);
+    if (!m) { noraSay([prefix, NS.allDone], true); return; }
+    noraSay([prefix, fill(NS.mission, { nr: i + 1, text: m.brief || m.text })], true);
   }
-  Game.noraStart = (first) => { nora.queue = { at: first ? 0.6 : 1.2, prefix: first ? "Ich fliege mit dir, {name}!" : "Willkommen zurück, {name}! Ich bin wieder dabei." }; };
+  Game.noraStart = (first) => { nora.queue = { at: first ? 0.6 : 1.2, prefix: first ? NS.first : NS.back }; };
   function noraUpdate(dt) {
     nora.quiet -= dt;
     if (UI.modalOpen()) return;
     if (nora.pending.length && !UI.noraVisible()) { UI.nora(nora.pending.shift()); nora.quiet = 20; }
     if (nora.queue) { nora.queue.at -= dt; if (nora.queue.at <= 0) { const q = nora.queue; nora.queue = null; noraMission(q.prefix); } return; }
-    if (nora.justDone) { nora.justDone = false; nora.back = null; noraMission(Game.currentMission() ? "Mission geschafft – super, {name}! ⭐ Weiter geht's!" : ""); return; }
+    if (nora.justDone) { nora.justDone = false; nora.back = null; noraMission(Game.currentMission() ? NS.done : ""); return; }
     const m = Game.currentMission();
     if (nora.back) { // zurück im All, aber woanders gewesen als bei der Mission
       const b = nora.back; nora.back = null;
       if (!m) return;
-      if (b.same) { const p = Game.planetFound(b.id); noraSay(`Dort gibt es noch etwas zu entdecken (${p[0]} von ${p[1]}). Lande nochmal – erst dann ist die Mission geschafft!`, true); }
-      else noraSay(`Zurück im All! Unsere Mission wartet noch: ${m.text}`, true);
+      if (b.same) { const p = Game.planetFound(b.id); noraSay(fill(NS.notDone, { p: p[0], n: p[1] }), true); }
+      else noraSay([NS.returned, fill(NS.goal, { text: m.text })], true);
       return;
     }
     if (!m || nora.mission !== Game.state.mission) return;
@@ -156,22 +158,22 @@
       const P = bodyPos(m.target, tmpA), r = Game.bodyById[m.target].radius, d = ship.pos.distanceTo(P), key = "ziel" + Game.state.mission;
       if (!nora.told[key] && d < r * 2.2 + 16) {
         nora.told[key] = true; nora.t = Math.min(nora.t, 20);
-        noraSay(`Da ist ${nameOf(m.target)}! Flieg ganz nah ran und ${touchUI() ? "tippe auf „erforschen“" : "drück E"}.`, true);
+        noraSay(fill(NS.sight, { ziel: nameOf(m.target), aktion: touchUI() ? NS.sightTouch : NS.sightKey }), true);
       }
       // an einem anderen Himmelskörper vorbei (sparsam: je Himmelskörper nur einmal)
       const n = UI.nearId;
       if (n && n !== m.target && !nora.told["nah" + n]) {
-        if (noraSay(`Das ist ${nameOf(n)}. Du kannst hier gern landen – unsere Mission ist aber: ${m.text}`)) nora.told["nah" + n] = true;
+        if (noraSay([fill(NS.other, { ziel: nameOf(n) }), fill(NS.goal, { text: m.text })])) nora.told["nah" + n] = true;
       }
     }
     // Feststecken: erst ein Hinweis, dann schaltet Nora den gelben Pfeil ein
-    if (nora.hint === 0 && nora.t > 40) { nora.hint = 1; noraSay("Kleiner Tipp: " + m.hint, true); }
-    else if (nora.hint === 1 && nora.t > 80) {
+    if (nora.hint === 0 && nora.t > 25) { nora.hint = 1; noraSay(fill(NS.tip, { hint: m.hint }), true); }
+    else if (nora.hint === 1 && nora.t > 45) {
       nora.hint = 2;
-      if (m.target === "#order") noraSay("Tippe oben rechts auf 🧩 „Ordnen“ – das schaffst du!", true);
+      if (m.target === "#order") noraSay(NS.order, true);
       else {
         if (!Game.state.hint) { Game.state.hint = true; Game.save(); UI.updateHUD(); }
-        noraSay("Ich schalte dir den gelben Pfeil ein – folge ihm einfach!", true);
+        noraSay(NS.arrow, true);
       }
     }
   }
@@ -850,6 +852,8 @@
     onResize();
 
     setupInput(canvas);
+    // Sprachaufnahmen fürs Intro, fürs Weltall und alles Gemeinsame schon laden, während das Kind seinen Namen eintippt
+    for (const tag of ["intro", "common", "space"]) Voice.prefetch(tag);
     UI.init(Game);
     Surface.init(Game, W, UI);
     requestAnimationFrame((t) => { last = t; requestAnimationFrame(loop); });
@@ -862,6 +866,7 @@
       const existing = loadStore().profiles[profileKey(name)];
       Game.state = existing || freshState(name, color);
       Game.save();
+      Voice.setName(Game.state.name);
       W.setShipColor(Game.state.color);
       Sound.unlock();
       UI.onStateReady();

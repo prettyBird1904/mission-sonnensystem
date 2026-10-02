@@ -49,6 +49,7 @@ window.Sound = (function () {
 
   return {
     unlock() { if (ensure() && ctx.state === "suspended") ctx.resume(); },
+    context() { return ensure() ? ctx : null; }, // für die Sprachaufnahmen (js/voice.js)
     get enabled() { return enabled; },
     toggle() {
       enabled = !enabled;

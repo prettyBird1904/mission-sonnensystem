@@ -1,0 +1,8 @@
+{
+  "name": "mission-sonnensystem-tools",
+  "private": true,
+  "description": "Werkzeuge für Mission Sonnensystem: Sprachaufnahmen erzeugen (node stimmen.js)",
+  "dependencies": {
+    "msedge-tts": "2.0.8"
+  }
+}

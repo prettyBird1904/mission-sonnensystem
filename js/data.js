@@ -282,15 +282,34 @@ window.SPACE_DATA = {
 
   // Nora: Flugleiterin und Co-Pilotin – fliegt mit in der Rakete und steigt bei jeder Landung mit aus
   nora: { name: "Nora", color: "#06b6d4" },
+  // Was Nora im All sagt. {nr} = Nummer der Mission, {ziel} = Himmelskörper („die Erde“), {text} = Missionstext.
+  // Aus diesen Sätzen entstehen auch die Sprachaufnahmen (tools/stimmen.js) – nach Änderungen dort neu aufnehmen.
+  noraSpace: {
+    first: "Ich fliege mit dir, {name}!",
+    back: "Willkommen zurück, {name}! Ich bin wieder dabei.",
+    done: "Mission geschafft – super, {name}! ⭐ Weiter geht's!",
+    allDone: "Du hast ALLE Missionen geschafft, {name}! Hol dir deine Urkunde im Forscherpass 📘 – und flieg, wohin du willst.",
+    mission: "Mission {nr}: {text}",
+    sight: "Da ist {ziel}! Flieg ganz nah ran und {aktion}.", sightKey: "drück E", sightTouch: "tippe auf „erforschen“",
+    other: "Das ist {ziel}. Du kannst hier gern landen!",
+    goal: "Unsere Mission: {text}",
+    returned: "Zurück im All!",
+    notDone: "Dort gibt es noch etwas zu entdecken ({p} von {n}). Lande nochmal – erst dann ist die Mission geschafft!",
+    tip: "Kleiner Tipp: {hint}",
+    order: "Tippe oben rechts auf 🧩 „Ordnen“ – das schaffst du!",
+    arrow: "Ich schalte dir den gelben Pfeil ein – folge ihm einfach!",
+    steerKey: "Mit W gibst du Gas, mit A und D lenkst du.", steerTouch: "Links lenkst du, rechts gibst du Gas."
+  },
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "17",
+  version: "18",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
-  /* Aussteigen & erkunden: pro Ort 5 Entdeckungen (eine davon ein großes Spiel), 3 Funk-Fragen, kurze Texte.
-     {name} = Name des Kindes, {rest} = noch offene Entdeckungen, {hoehe} = gemessene Sprunghöhe */
+  /* Aussteigen & erkunden: pro Ort 3 Entdeckungen (eine davon ein großes Spiel), 3 Funk-Fragen, kurze Texte –
+     das ganze Spiel soll in 45 bis 60 Minuten zu schaffen sein.
+     {name} = Name des Kindes, {rest} = noch offene Entdeckungen */
   surfaces: {
     mond: {
       gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81); gilt für den Hammer-und-Feder-Versuch
@@ -300,16 +319,14 @@ window.SPACE_DATA = {
       temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["sprung", "fallversuch", "apollo", "himmel", "mondstein"],
+        order: ["fallversuch", "apollo", "mondstein"],
         hello: "Da sind wir, {name}! Warte, ich klettere auch runter.",
-        welcome: "Willkommen auf dem Mond! Komm mit, ich zeige dir alles.",
-        jump: "Spring mal! Hier wiegst du fast nichts.",
+        welcome: "Willkommen auf dem Mond! Hier wiegst du fast nichts – spring mal! Und dann komm mit.",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Toll! Komm mit – als Nächstes: {ziel}.",
         arrive: {
           fallversuch: "Was fällt schneller: Hammer oder Feder? Probier es aus!",
           apollo: "Hier sind 1969 die ersten Menschen auf dem Mond gelandet! Stell dich in den Kreis am Seil.",
-          himmel: "Von dieser Plattform siehst du unsere Erde. Schau durchs Fernrohr!",
           mondstein: "Siehst du das Glitzern hinter dem Graben? Nimm Anlauf und spring hinüber!",
           wand: "An der Wand der Mondbasis siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit!"
@@ -325,56 +342,32 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Lea und leite die Mondbasis.",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Du hast alles entdeckt – toll!",
-          facts: ["Unsere Kuppeln sind mit Mondstaub bedeckt. Er schützt uns vor Strahlung.",
-            "In dunklen Kratern liegt Eis. Daraus machen wir Wasser – und Luft zum Atmen."] },
+          facts: ["Unsere Kuppeln sind mit Mondstaub bedeckt. Er schützt uns vor Strahlung."] },
         { name: "Ingenieur Tom", color: "#f59e0b", path: [[60, 66], [68, 66]], work: true,
           hello: "Hi {name}, ich bin Tom! Mein großer Drucker baut gerade eine neue Kuppel.",
           hint: "Tipp: Probier mal „{ziel}“ aus!",
           done: "Alles entdeckt? Super!",
-          facts: ["Der Drucker baut die Kuppel Schicht für Schicht aus Mondstaub.",
-            "Mondstaub ist scharf wie winzige Glassplitter. Darum putzen wir unsere Anzüge gründlich."] }
+          facts: ["Der Drucker baut die Kuppel Schicht für Schicht aus Mondstaub."] }
       ],
       discoveries: [
-        { key: "sprung", icon: "🦘", title: "Leichte Anziehung", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 45 Zentimeter", zeit: "über 1" },
-          text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden geschwebt! Der Mond zieht nur ein Sechstel so stark wie die Erde. Darum kommst du hier 6-mal so hoch." },
         { key: "fallversuch", icon: "🪶", title: "Hammer und Feder",
           text: "Beide sind gleichzeitig unten angekommen! Auf der Erde bremst die Luft die leichte Feder. Auf dem Mond gibt es keine Luft – darum fällt alles gleich schnell." },
         { key: "apollo", icon: "👣", title: "Die erste Mondlandung", gallery: ["mond-1.jpg", "mond-2.jpg", "mond-3.jpg"],
           text: "Im Juli 1969 landeten hier Neil Armstrong und Buzz Aldrin – die ersten Menschen auf dem Mond! Ihre Fußabdrücke sind noch heute da, denn auf dem Mond gibt es keinen Wind." },
-        { key: "himmel", icon: "🔭", title: "Schwarzer Himmel", photo: "erde-1.jpg",
-          text: "Die Sonne scheint – und trotzdem ist der Himmel schwarz! Auf dem Mond gibt es keine Luft, die das Licht verteilt. Und die Erde sieht von hier fast 4-mal so groß aus wie der Mond bei uns." },
-        { key: "mondstein", icon: "🪨", title: "Krater und Mondgestein", photo: "mond.jpg",
-          text: "Du hast es über den Graben geschafft! Der Krater entstand, als ein Brocken aus dem All einschlug. Ohne Luft verglühen solche Brocken nicht – darum ist der Mond voller Krater." }
+        { key: "mondstein", icon: "🦘", title: "Der große Mondsprung", photo: "mond.jpg",
+          text: "Geschafft! Auf dem Mond springst du 6-mal so hoch und weit wie auf der Erde, denn er zieht nur ein Sechstel so stark. Den Krater hat ein Brocken aus dem All geschlagen." }
       ],
       stations: {
         // action = Knopf an der Station · again = Knopf, um schon Entdecktes nochmal anzusehen · reach = Reichweite in Metern
         // hint = Tipp in der Liste „Meine Entdeckungen“ · small + auto = Fundstück: kleines Licht, Entdeckung beim Hingehen (Meter)
         apollo:      { label: "Landestelle von 1969", hint: "Stell dich in den Kreis am Seil vor der Mondfähre", again: "👣 Nochmal ansehen", auto: true },
-        himmel:      { label: "Erdblick", hint: "Schau von der Plattform „Erdblick“ durchs Fernrohr", action: "🔭 Durchschauen" },
         fallversuch: { label: "Hammer & Feder", hint: "Der Tisch mit Hammer und Feder steht neben der Apollo-Landestelle", action: "🪶 Hammer & Feder fallen lassen" },
-        mondstein:   { label: "Mondstein", hint: "Unten im Krater liegt der Mondstein hinter einem Graben – nimm Anlauf und spring!", again: "🪨 Nochmal ansehen", small: true, auto: 2.6 },
+        mondstein:   { label: "Mondsprung", hint: "Unten im Krater liegt der Mondstein hinter einem Graben – nimm Anlauf und spring!", again: "🦘 Nochmal ansehen", small: true, auto: 2.6 },
         // Tafelwand der Mondstation: keine Entdeckung (info), öffnet die Liste „Meine Entdeckungen“
         wand:        { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       moat: { fell: "Hoppla, in den Graben! Lauf über die flache Rampe raus und nimm mehr Anlauf." },
-      // Fernrohr: Erde selbst suchen → Größe vergleichen → ausprobieren, was Luft mit dem Himmel macht
-      scope: {
-        aim: "Such unsere Erde! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten.",
-        aimTouch: "Such unsere Erde! Wische über den Himmel, um das Fernrohr zu schwenken.",
-        hint: "Tipp: Die Erde ist in dieser Richtung",
-        almost: "Fast! Halte das Fernrohr genau auf die Erde.",
-        found: "Gefunden! Das ist unsere Erde – dort sind alle Menschen, die du kennst.",
-        compareBtn: "🌕 Wie groß ist sie?",
-        compare: "Links die Erde vom Mond aus, rechts unser Mond von zu Hause. Die Erde sieht fast 4-mal so groß aus!",
-        next: "Weiter ▶",
-        airIntro: "Die Sonne scheint – und trotzdem ist der Himmel schwarz! Was wäre, wenn es hier Luft gäbe?",
-        airOn: "🌬️ Luft an",
-        airOff: "🚫 Luft aus",
-        airOnText: "Mit Luft wird der Himmel blau, und die Sterne verschwinden – wie bei uns.",
-        airOffText: "Ohne Luft bleibt der Himmel schwarz – sogar am Tag!",
-        done: "Fertig ✓"
-      },
       // Hammer und Feder: erst vermuten, dann fallen lassen
       fall: { guess: { "q": "Hammer und Feder fallen gleichzeitig los. Was kommt zuerst unten an?", "a": ["Der Hammer", "Die Feder", "Beide gleichzeitig"], "c": 2 } },
       // {anzahl} = Zahl der Entdeckungen, {fragen} = Zahl der Funk-Fragen am Ende
@@ -383,13 +376,13 @@ window.SPACE_DATA = {
         found: "Klasse! Noch {rest} übrig.",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
-        tooFar: "Bodenstation an {name}: Bitte nicht zu weit weg von der Rakete!",
+        tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
       quiz: [
-        { q: "Was passiert, wenn du auf dem Mond genauso kräftig abspringst wie auf der Erde?", a: ["Ich komme genauso hoch", "Ich komme etwa 6-mal so hoch und schwebe lange", "Ich fliege ins All davon"], c: 1, why: "Der Mond zieht nur ein Sechstel so stark wie die Erde – man kommt 6-mal so hoch und schwebt lange." },
-        { q: "Warum ist der Himmel auf dem Mond schwarz?", a: ["Weil es dort keine Luft gibt", "Weil dort immer Nacht ist", "Weil die Sonne dort nicht scheint"], c: 0, why: "Ohne Luft wird das Sonnenlicht nicht verteilt – der Himmel bleibt schwarz." },
-        { q: "Was kommt auf dem Mond zuerst unten an?", a: ["Der Hammer", "Die Feder", "Beide gleichzeitig"], c: 2, why: "Ohne Luft bremst nichts die Feder – alles fällt gleich schnell." }
+        { q: "Was passiert, wenn du auf dem Mond genauso kräftig abspringst wie auf der Erde?", a: ["Ich komme genauso hoch", "Ich komme etwa 6-mal so hoch", "Ich fliege ins All davon"], c: 1, why: "Der Mond zieht nur ein Sechstel so stark wie die Erde – darum kommst du 6-mal so hoch." },
+        { q: "Was kommt auf dem Mond zuerst unten an?", a: ["Der Hammer", "Die Feder", "Beide gleichzeitig"], c: 2, why: "Ohne Luft bremst nichts die Feder – alles fällt gleich schnell." },
+        { q: "Wann waren die ersten Menschen auf dem Mond?", a: ["1869", "1969", "2019"], c: 1, why: "Im Juli 1969 betraten Neil Armstrong und Buzz Aldrin den Mond." }
       ]
     },
 
@@ -403,25 +396,21 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Mara und erforsche den Mars. Schön, dass du da bist!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Wow, du hast alles entdeckt! Du bist ein echter Mars-Profi!",
-          facts: ["In unserem Gewächshaus wächst Salat unter Lampen. Draußen würde er sofort erfrieren.",
-            "Ein Mars-Tag ist nur 37 Minuten länger als bei euch."] },
+          facts: ["In unserem Gewächshaus wächst Salat unter Lampen. Draußen würde er sofort erfrieren."] },
         { name: "Techniker Bennett", color: "#3b82f6", path: [[14, 50], [19, 45], [12, 43]], work: true,
           hello: "Hi {name}, ich bin Bennett! Ich kümmere mich um Strom, Luft und Wasser.",
           hint: "Tipp von mir: Probier mal „{ziel}“ aus!",
           done: "Alles entdeckt? Klasse!",
-          facts: ["Unseren Strom machen Solarzellen. Nach einem Staubsturm muss ich sie putzen!",
-            "Unser Wasser holen wir aus dem Eis im Boden."] }
+          facts: ["Unseren Strom machen Solarzellen. Nach einem Staubsturm muss ich sie putzen!"] }
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["vulkan", "monde", "abend", "rover", "rost"],
+        order: ["abend", "rover", "rost"],
         hello: "Da sind wir, {name}! Warte, ich komme auch runter.",
         welcome: "Willkommen auf dem Mars! Unten im Tal liegt der Außenposten von Mara und Bennett. Komm mit!",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Klasse! Komm mit – als Nächstes: {ziel}.",
         arrive: {
-          vulkan: "Hier wartet ein Hubschrauber. Steig auf – von oben siehst du den größten Vulkan von allen!",
-          monde: "In der Sternwarte steht ein Fernrohr. Der Mars hat zwei Monde – findest du sie?",
           abend: "Mit der Himmelskamera spulen wir bis zum Abend vor. Welche Farbe hat wohl der Sonnenuntergang?",
           rover: "Das ist der Rover-Leitstand! Fahr mit dem Rover los und sammle 3 Gesteinsproben.",
           rost: "Im Proben-Labor findest du heraus, warum der Mars rot ist!",
@@ -435,10 +424,6 @@ window.SPACE_DATA = {
       },
       temp: { sun: -50, shade: -75, sunText: "☀️ Sonne – trotzdem eiskalt!", shadeText: "❄️ Schatten – noch kälter!" },
       discoveries: [
-        { key: "vulkan", icon: "🌋", title: "Der höchste Vulkan",
-          text: "Der Olympus Mons ist 22 Kilometer hoch – der höchste Vulkan im ganzen Sonnensystem! Das ist zweieinhalbmal so hoch wie der Mount Everest. Und so ein Hubschrauber flog 2021 wirklich auf dem Mars." },
-        { key: "monde", icon: "🥔", title: "Zwei kleine Monde",
-          text: "Der Mars hat zwei Monde: Phobos und Deimos. Sie sind winzig und sehen aus wie Kartoffeln!" },
         { key: "abend", icon: "🌇", title: "Blauer Sonnenuntergang",
           text: "Auf dem Mars ist der Sonnenuntergang blau! Bei uns ist es umgekehrt: Am Tag ist der Himmel blau, am Abend rot. Das macht der feine Staub in der Marsluft." },
         { key: "rover", icon: "🤖", title: "Rover auf Spurensuche", gallery: ["mars-1.jpg", "mars-2.jpg"],
@@ -450,9 +435,7 @@ window.SPACE_DATA = {
         wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         rover:     { label: "Rover-Expedition", hint: "Am Rover-Leitstand unten im Tal startet die Rover-Expedition", action: "🤖 Rover-Expedition starten" },
         rost:      { label: "Proben-Labor", hint: "Untersuch den Marsstaub im Proben-Labor am Labor-Turm", action: "🧲 Magnet-Versuch starten" },
-        vulkan:    { label: "Flugfeld", hint: "Am Flugfeld wartet der Hubschrauber auf dich", action: "🚁 Mit dem Hubschrauber aufsteigen" },
-        monde:     { label: "Sternwarte", hint: "Geh in die Sternwarte neben deiner Rakete", action: "🔭 Kuppel öffnen und durchschauen" },
-        abend:     { label: "Wetterstation", hint: "An der Wetterstation steht eine Himmelskamera", action: "⏩ Zeit vorspulen bis zum Abend" },
+        abend:     { label: "Wetterstation", hint: "An der Wetterstation auf der Hochebene steht eine Himmelskamera", action: "⏩ Zeit vorspulen bis zum Abend" },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       // Rover-Expedition: 3 Proben im alten Flussdelta sammeln; Staub macht die Solarzellen dunkel – ein Staubteufel pustet sie sauber
@@ -472,25 +455,6 @@ window.SPACE_DATA = {
         far: "Zu weit weg – hier reicht der Funk nicht. Fahr zurück!",
         done: "Alle 3 Proben gesammelt!",
         doneBtn: "Was hat der Rover entdeckt? ▶"
-      },
-      heli: {
-        rising: "Der Hubschrauber steigt auf … Schau, wie klein deine Rakete wird!",
-        intro: "Da hinten: der Olympus Mons, der höchste Vulkan im Sonnensystem! Stell Berge von der Erde daneben!",
-        everestBtn: "🏔️ Mount Everest", zugspitzeBtn: "⛰️ Zugspitze",
-        everest: "Der Mount Everest, der höchste Berg der Erde: fast 9 Kilometer. Daneben sieht er klein aus!",
-        zugspitze: "Die Zugspitze, der höchste Berg Deutschlands: 3 Kilometer. Man sieht sie kaum!",
-        all: "Der Olympus Mons ist 22 Kilometer hoch – zweieinhalbmal so hoch wie der Mount Everest!",
-        done: "Landen ✓"
-      },
-      moons: {
-        aim: "Der Mars hat zwei Monde. Such den größeren! Zieh mit der Maus über den Himmel oder nimm die Pfeiltasten.",
-        aimTouch: "Der Mars hat zwei Monde. Such den größeren! Wische über den Himmel, um das Fernrohr zu schwenken.",
-        hint: "Tipp: Der Mond ist in dieser Richtung",
-        almost: "Fast! Halte das Fernrohr genau auf den Mond.",
-        phobos: "Gefunden! Das ist Phobos. Er ist nicht rund – er sieht aus wie eine Kartoffel!",
-        deimosBtn: "🔭 Zweiten Mond suchen",
-        deimos: "Und das ist Deimos – noch kleiner. Nur 12 Kilometer: So weit kannst du an einem Nachmittag wandern!",
-        done: "Fertig ✓"
       },
       magnet: {
         guess: { "q": "Bleibt der rote Marsstaub am Magneten hängen?", "a": ["Ja", "Nein"], "c": 0 },
@@ -512,7 +476,7 @@ window.SPACE_DATA = {
         found: "Klasse! Noch {rest} übrig.",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
-        tooFar: "Bodenstation an {name}: Bitte nicht zu weit weg von der Rakete!",
+        tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
       quiz: [
@@ -527,7 +491,7 @@ window.SPACE_DATA = {
       temp: { sun: 430, shade: -180, sunText: "☀️ Sonne – heißer als ein Backofen!", shadeText: "❄️ Schatten – eiskalt!" },
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["temperatur", "sonne", "eis", "jahr", "krater"],
+        order: ["temperatur", "sonne", "krater"],
         hello: "Da sind wir, {name}! Schnell aus der Sonne – ich komme!",
         welcome: "Willkommen auf dem Merkur! In der Sonne ist es hier heißer als in einem Backofen. Komm mit!",
         wait: "Hier lang, {name}! Ich warte auf dich.",
@@ -535,8 +499,6 @@ window.SPACE_DATA = {
         arrive: {
           temperatur: "Hier startet der Schattenlauf! Lauf von Schatten zu Schatten bis zum großen Felsen.",
           sonne: "Oben auf dem Sonnenturm steht ein Fernrohr mit Filter. Schau, wie riesig die Sonne hier ist!",
-          eis: "Hier unten im Krater scheint nie die Sonne. Siehst du das Glitzern? Lauf hin!",
-          jahr: "Hier startet ein Rennen um die Sonne: Merkur gegen Erde. Wer gewinnt?",
           krater: "Lass einen Brocken aus dem All fallen und schau, was passiert!",
           wand: "An der Wand der Station siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit. Raus aus der Hitze!"
@@ -551,18 +513,13 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Kofi. Gut, dass du einen Raumanzug trägst!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Du hast alles entdeckt! Jetzt weißt du mehr über den Merkur als fast alle Menschen.",
-          facts: ["Unsere Station steht unten im Krater. Der Kraterrand wirft seinen Schatten auf uns.",
-            "Der Merkur hat einen riesigen Kern aus Eisen – fast wie eine Kanonenkugel."] }
+          facts: ["Unsere Station steht unten im Krater. Der Kraterrand wirft seinen Schatten auf uns."] }
       ],
       discoveries: [
         { key: "temperatur", icon: "🌡️", title: "Backofen und Eisschrank",
           text: "Geschafft! In der Sonne wird es auf dem Merkur 430 °C heiß, im Schatten −180 °C. Es gibt keine Luft, die die Wärme verteilt." },
         { key: "sonne", icon: "☀️", title: "Die riesige Sonne",
           text: "Vom Merkur aus sieht die Sonne fast dreimal so breit aus wie bei uns! Kein Planet ist ihr näher. Schau aber niemals ohne Filter in die Sonne!" },
-        { key: "eis", icon: "🧊", title: "Eis im ewigen Schatten",
-          text: "Eis – ausgerechnet auf dem Planeten, der der Sonne am nächsten ist! In tiefe Krater scheint nie die Sonne. Dort ist es immer eiskalt." },
-        { key: "jahr", icon: "🏁", title: "Der schnellste Planet",
-          text: "Der Merkur saust in nur 88 Tagen um die Sonne. In einem Erdjahr schafft er mehr als 4 Runden!" },
         { key: "krater", icon: "☄️", title: "Einschlag!", photo: "merkur-1.jpg",
           text: "Der Brocken ist eingeschlagen, ohne zu verglühen! Der Merkur hat keine Luft, die ihn bremst. Darum ist er voller Krater – wie unser Mond." }
       ],
@@ -571,8 +528,6 @@ window.SPACE_DATA = {
         temperatur: { label: "Schattenlauf", hint: "Der Schattenlauf startet neben dem Sonnenturm – lauf von Schatten zu Schatten bis zum großen Felsen", action: "☀️ Schattenlauf starten" },
         sonne:      { label: "Sonnenturm", hint: "Oben auf dem Sonnenturm steht ein Fernrohr mit Sonnenfilter", action: "🔭 Durchschauen" },
         krater:     { label: "Einschlag-Messfeld", hint: "Probier den Einschlag-Versuch am Messpult aus", action: "☄️ Einschlag-Versuch starten" },
-        jahr:       { label: "Planeten-Rennen", hint: "Geh zur Merkurstation und starte das Planeten-Rennen", action: "🏁 Planeten-Rennen ansehen" },
-        eis:        { label: "Eis im Krater", hint: "Such ein ✨ unten im Krater, wo nie die Sonne hinscheint", again: "🧊 Nochmal ansehen", small: true, auto: 2.8 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       shadowRun: {
@@ -599,25 +554,17 @@ window.SPACE_DATA = {
         end: "Eingeschlagen – ohne zu verglühen! So sind die Krater auf dem Merkur entstanden.",
         again: "☄️ Nochmal", done: "Fertig ✓"
       },
-      orrery: {
-        guess: { "q": "Wer schafft mehr Runden um die Sonne?", "a": ["Der Merkur", "Die Erde", "Beide gleich viele"], "c": 0 },
-        ready: "Innen läuft der Merkur, außen die Erde – ein Rennen über ein ganzes Erdjahr!",
-        go: "🏁 Rennen starten",
-        run: "Erdtage: {erde} · Runden des Merkur: {planet}",
-        end: "Die Erde schafft eine Runde – der Merkur mehr als vier! Ein Merkur-Jahr dauert nur 88 Tage.",
-        again: "🏁 Nochmal", done: "Fertig ✓"
-      },
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf dem Merkur, {name}! Hier gibt es {anzahl} Dinge zu entdecken – der Pfeil oben führt dich hin.",
         found: "Klasse! Noch {rest} übrig.",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
-        tooFar: "Bodenstation an {name}: Bitte nicht zu weit weg von der Rakete!",
+        tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
       quiz: [
         { q: "Warum verglühen Brocken aus dem All auf dem Merkur nicht?", a: ["Weil es dort keine Luft gibt", "Weil es dort zu kalt ist", "Weil sie zu klein sind"], c: 0, why: "Ohne Luft bremst und erhitzt nichts die Brocken – sie schlagen ein und hinterlassen Krater." },
-        { q: "Wo gibt es auf dem Merkur Eis?", a: ["Überall", "In Kratern, in die nie die Sonne scheint", "Nirgends"], c: 1, why: "In tiefen Kratern ist es immer eiskalt – dort liegt gefrorenes Wasser." },
+        { q: "Warum ist es auf dem Merkur in der Sonne glühend heiß und im Schatten eiskalt?", a: ["Weil keine Luft die Wärme verteilt", "Weil er sich so schnell dreht", "Weil dort Eis liegt"], c: 0, why: "Ohne Luft wird die Wärme nicht verteilt: In der Sonne sind es 430 °C, im Schatten −180 °C." },
         { q: "Wie sieht die Sonne vom Merkur aus?", a: ["Kleiner als bei uns", "Genauso groß wie bei uns", "Fast dreimal so breit"], c: 2, why: "Der Merkur ist der Sonne am nächsten – darum sieht sie dort riesig aus." }
       ]
     },
@@ -629,14 +576,12 @@ window.SPACE_DATA = {
       temp: { sun: -228, shade: -233, sunText: "☀️ Sonne – sie wärmt kaum!", shadeText: "❄️ Schatten – eisig!" },
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["sprung", "charon", "herz", "eis", "funk"],
+        order: ["herz", "eis", "funk"],
         hello: "Da sind wir – am Rand des Sonnensystems! Warte, ich komme.",
-        welcome: "Brr, {name}! Auf Pluto ist es so kalt, dass sogar die Luft gefriert. Komm, ich zeige dir alles!",
-        jump: "Spring mal! Pluto ist so klein, dass du richtig hoch fliegst.",
+        welcome: "Brr, {name}! Auf Pluto ist es so kalt, dass sogar die Luft gefriert. Spring mal – hier fliegst du richtig hoch! Und dann komm mit.",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Toll! Weiter geht's – als Nächstes: {ziel}.",
         arrive: {
-          charon: "Die Iglu-Sternwarte ist aus Eisblöcken gebaut. Schau durchs Fernrohr: Da hängt ein riesiger Mond am Himmel!",
           herz: "Hier startet eine Kameradrohne. Flieg hoch und schau dir die Eisfläche von oben an!",
           eis: "Auf dem glatten Eis rutscht alles ewig weit. Spiel eine Runde Eis-Curling!",
           funk: "Mit der großen Antenne funkt die Station zur Erde. Schick einen Funkspruch – wie lange braucht er wohl?",
@@ -653,14 +598,9 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Yuki. Willkommen am kältesten Ort, den du je besucht hast!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Du hast alles entdeckt – bis zum Rand des Sonnensystems! Toll gemacht.",
-          facts: ["Die Berge da hinten sind aus Wassereis. Bei −230 °C ist Eis so hart wie Stein.",
-            "Das Sonnenlicht ist hier nur so hell wie bei euch in der Dämmerung."] }
+          facts: ["Die Berge da hinten sind aus Wassereis. Bei −230 °C ist Eis so hart wie Stein."] }
       ],
       discoveries: [
-        { key: "sprung", icon: "🦘", title: "Riesensprung", hint: "Spring mal in die Luft!", fallback: { hoehe: "etwa 160 Zentimeter", zeit: "über 3" },
-          text: "Du bist {hoehe} hoch gesprungen und {zeit} Sekunden geschwebt – im schweren Raumanzug! Pluto ist winzig und zieht nur ganz schwach an dir." },
-        { key: "charon", icon: "🌗", title: "Charon, der große Mond",
-          text: "Charon ist halb so breit wie Pluto – so einen großen Mond hat sonst kein Planet! Und die Sonne? Von hier sieht sie nur noch aus wie ein heller Stern." },
         { key: "herz", icon: "🤍", title: "Das Herz von Pluto", photo: "pluto.jpg",
           text: "Von oben siehst du es: ein riesiges Herz aus Eis, über 1.000 Kilometer breit! Die Raumsonde New Horizons hat es 2015 entdeckt." },
         { key: "eis", icon: "🥌", title: "Rutschpartie auf Stickstoff-Eis",
@@ -670,23 +610,10 @@ window.SPACE_DATA = {
       ],
       stations: {
         wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
-        charon:    { label: "Iglu-Sternwarte", hint: "Schau in der Iglu-Sternwarte durchs Fernrohr", action: "🔭 Durchschauen" },
         herz:      { label: "Drohnen-Start", hint: "Steig am Drohnen-Landeplatz mit der Kameradrohne auf", action: "🚁 Mit der Drohne aufsteigen" },
         funk:      { label: "Große Antenne", hint: "Schick an der großen Antenne einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
         eis:       { label: "Eis-Curling", hint: "Auf dem glatten Eis des Herzens wartet ein Eis-Curling-Spiel", action: "🥌 Eis-Curling spielen" },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
-      },
-      charon: {
-        aim: "Pluto hat einen riesigen Mond: Charon. Such ihn! Zieh mit der Maus oder nimm die Pfeiltasten.",
-        aimTouch: "Pluto hat einen riesigen Mond: Charon. Such ihn! Wische über den Himmel, um das Fernrohr zu schwenken.",
-        hint: "Tipp: Charon ist in dieser Richtung",
-        almost: "Fast! Halte das Fernrohr genau auf Charon.",
-        found: "Gefunden! Das ist Charon – halb so breit wie Pluto!",
-        compareBtn: "🌕 Mit unserem Mond vergleichen",
-        compare: "Die kleine Kugel ist unser Mond, so wie wir ihn sehen. Charon wirkt hier 7-mal so groß!",
-        sunBtn: "☀️ Zur Sonne schwenken",
-        sun: "Dieser helle Stern ist unsere Sonne! So weit weg ist sie hier.",
-        done: "Fertig ✓"
       },
       curling: {
         aim: "Eis-Curling! Ziel mit ⬅️ ➡️ (oder A und D) auf die Zielscheibe.",
@@ -717,13 +644,13 @@ window.SPACE_DATA = {
         found: "Klasse! Noch {rest} übrig.",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
-        tooFar: "Bodenstation an {name}: Bitte nicht zu weit weg von der Rakete!",
+        tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
       quiz: [
+        { q: "Welche Form hat die große Eisfläche auf Pluto?", a: ["Ein Stern", "Ein Herz", "Ein Quadrat"], c: 1, why: "Die riesige Eisfläche sieht aus wie ein Herz – entdeckt 2015 von der Sonde New Horizons." },
         { q: "Warum rutschst du auf Plutos Herz?", a: ["Es ist glattes Eis aus gefrorenem Stickstoff", "Es ist nasser Schlamm", "Es ist poliertes Metall"], c: 0, why: "Bei −230 °C gefriert sogar Stickstoff – das Gas aus unserer Luft – zu glattem Eis." },
-        { q: "Wie lange braucht ein Funkspruch von Pluto bis zur Erde?", a: ["1 Sekunde", "8 Minuten", "5½ Stunden"], c: 2, why: "Pluto ist 5,9 Milliarden Kilometer entfernt – selbst Licht braucht dafür Stunden." },
-        { q: "Wie sieht die Sonne von Pluto aus?", a: ["Riesig", "Wie ein sehr heller Stern", "Man sieht sie gar nicht"], c: 1, why: "Pluto ist fast 40-mal so weit von der Sonne weg wie die Erde." }
+        { q: "Wie lange braucht ein Funkspruch von Pluto bis zur Erde?", a: ["1 Sekunde", "8 Minuten", "5½ Stunden"], c: 2, why: "Pluto ist 5,9 Milliarden Kilometer entfernt – selbst Licht braucht dafür Stunden." }
       ]
     },
 
@@ -736,12 +663,11 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Sara und fliege das Luftschiff oben in den Wolken.",
           hint: "Warst du schon bei „{ziel}“? Folge den Leitlichtern!",
           done: "Du hast alles entdeckt! Jetzt kennst du den heißesten Planeten.",
-          facts: ["Wir wohnen im Luftschiff, 50 Kilometer hoch in den Wolken. Dort ist es angenehm warm.",
-            "Unsere Anzüge sind wie kleine Panzer. Ohne sie würde uns die dicke Luft zerquetschen."] }
+          facts: ["Wir wohnen im Luftschiff, 50 Kilometer hoch in den Wolken. Dort ist es angenehm warm."] }
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["venera", "hitze", "druck", "lava", "tag"],
+        order: ["venera", "hitze", "druck"],
         hello: "Da sind wir, {name}! Man sieht kaum etwas im Dunst – bleib stehen, ich komme!",
         welcome: "Willkommen auf der Venus! Zum Glück tragen wir Spezialanzüge. Komm mit!",
         wait: "Hier lang, {name}! Folge den Lichtern zu mir.",
@@ -750,8 +676,6 @@ window.SPACE_DATA = {
           venera: "Irgendwo im Dunst steht eine alte Landesonde: Venera 13. Such sie mit dem Radar – bevor die Kühlung deines Anzugs leer ist!",
           hitze: "Das ist der Klima-Messturm. Was passiert wohl, wenn wir die Wolken wegschieben?",
           druck: "Am Druck-Prüfstand siehst du, wie stark die Venusluft drückt. Gleich knirscht es!",
-          lava: "Vorsicht, ein Lavafluss! Wir gehen über die Brücke.",
-          tag: "Hier drehen sich zwei Globen: Erde und Venus. Wer ist schneller?",
           wand: "Das ist der Außenposten. An der Wand siehst du alles, was du entdeckt hast.",
           rakete: "Steig ein – ich komme mit. Raus aus der Hitze!"
         },
@@ -766,19 +690,13 @@ window.SPACE_DATA = {
         { key: "hitze", icon: "🌡️", title: "Der heißeste Planet",
           text: "Auf der Venus ist es 465 °C heiß – heißer als auf dem Merkur! Die dicken Wolken halten die Wärme fest wie eine Decke." },
         { key: "druck", icon: "🥫", title: "Zerquetscht!",
-          text: "Die Venusluft drückt 90-mal so stark wie unsere Luft. Ohne Spezialanzug ginge es dir wie der Dose!" },
-        { key: "lava", icon: "🌋", title: "Land der Vulkane",
-          text: "Glühende Lava! Auf der Venus gibt es mehr Vulkane als auf jedem anderen Planeten." },
-        { key: "tag", icon: "🔄", title: "Ein Tag länger als ein Jahr",
-          text: "Die Venus dreht sich ganz langsam – und andersherum als die Erde. Ein Venus-Tag dauert länger als ein Venus-Jahr! Darum geht die Sonne dort im Westen auf." }
+          text: "Die Venusluft drückt 90-mal so stark wie unsere Luft. Ohne Spezialanzug ginge es dir wie der Dose!" }
       ],
       stations: {
         wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         venera:     { label: "Radar-Suche", hint: "Am Radar-Peiler neben deiner Rakete startet die Suche nach der Sonde Venera 13", action: "📡 Radar-Suche starten" },
         hitze:      { label: "Klima-Messturm", hint: "Probier den Wolken-Versuch am Klima-Messturm aus", action: "☁️ Wolken-Versuch starten" },
         druck:      { label: "Druck-Prüfstand", hint: "Probier den Druck-Versuch am Druck-Prüfstand aus", action: "🥫 Druck-Versuch starten" },
-        tag:        { label: "Dreh-Vergleich", hint: "Geh zum Außenposten und lass die Globen drehen", action: "🔄 Globen drehen lassen" },
-        lava:       { label: "Lavafluss", hint: "Folge den Leitlichtern bis zur Brücke über den Lavafluss", again: "🌋 Nochmal ansehen", small: true, auto: 3.2, reach: 4 },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       // Radar-Suche: Venera 13 im dichten Dunst finden, bevor die Anzug-Kühlung leer ist
@@ -808,26 +726,18 @@ window.SPACE_DATA = {
         end: "Zerquetscht! Die Venusluft drückt 90-mal so stark wie unsere Luft.",
         again: "🔔 Nochmal", done: "Fertig ✓"
       },
-      spin: {
-        guess: { "q": "Wer dreht sich in 10 Tagen öfter um sich selbst?", "a": ["Die Venus", "Die Erde", "Beide gleich oft"], "c": 1 },
-        ready: "Links die Erde, rechts die Venus. Achte auf die roten Fähnchen!",
-        go: "🔄 Drehen lassen",
-        run: "Erdtage: {erde} · Die Erde dreht sich jeden Tag einmal. Und die Venus?",
-        end: "In 10 Tagen hat sich die Venus kaum gedreht – und andersherum! Für eine Drehung braucht sie 243 Tage.",
-        again: "🔄 Nochmal", done: "Fertig ✓"
-      },
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf der Venus, {name}! Dein Spezialanzug schützt dich. Hier gibt es {anzahl} Dinge zu entdecken – folge dem Pfeil oben.",
         found: "Klasse! Noch {rest} übrig.",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
-        tooFar: "Bodenstation an {name}: Bitte nicht zu weit weg von der Rakete!",
+        tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
       quiz: [
         { q: "Warum ist es auf der Venus so heiß?", a: ["Weil sie der Sonne am nächsten ist", "Weil die dicken Wolken die Wärme festhalten", "Weil sie innen brennt"], c: 1, why: "Die Wolken wirken wie eine dicke Decke – die Wärme kommt nicht mehr hinaus." },
         { q: "Was ist mit der Blechdose passiert?", a: ["Sie ist geschmolzen", "Sie ist davongeflogen", "Die dichte Luft hat sie zerquetscht"], c: 2, why: "Die Venusluft drückt 90-mal so stark wie die Luft auf der Erde." },
-        { q: "Wo geht auf der Venus die Sonne auf?", a: ["Im Osten, wie bei uns", "Im Westen", "Gar nicht"], c: 1, why: "Die Venus dreht sich andersherum als die Erde – darum geht die Sonne dort im Westen auf." }
+        { q: "Wie lange hielt die Sonde Venera 13 auf der Venus durch?", a: ["Etwa 2 Stunden", "2 Jahre", "Bis heute"], c: 0, why: "Nach etwa 2 Stunden gab sie auf – die Hitze und der Druck waren zu stark." }
       ]
     },
 
@@ -840,21 +750,18 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Jana und trainiere hier für meinen ersten Flug ins All.",
           hint: "Warst du schon bei „{ziel}“? Folge dem Weg um den See!",
           done: "Du hast alles entdeckt! Siehst du jetzt, wie besonders unsere Erde ist?",
-          facts: ["Das Training für einen Flug ins All dauert mehrere Jahre!",
-            "Die Erde ist der einzige Planet, auf dem wir Leben kennen."] }
+          facts: ["Das Training für einen Flug ins All dauert mehrere Jahre!"] }
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["wasser", "wald", "tag", "stern", "luft"],
+        order: ["wald", "tag", "luft"],
         hello: "Da sind wir, {name} – zu Hause! Warte, ich komme.",
         welcome: "Willkommen auf der Erde! Heute siehst du, wie besonders unser Planet ist. Komm mit!",
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Prima! Weiter auf dem Rundweg – als Nächstes: {ziel}.",
         arrive: {
-          wasser: "Das ist der See. Geh bis ans Ufer!",
           wald: "Im Wald und am See leben viele Tiere und Pflanzen. Fotografiere 5 verschiedene Lebewesen!",
           tag: "An der Sonnenuhr spulen wir einen ganzen Tag vor.",
-          stern: "In der Vitrine liegt ein echter Stein aus dem All. Was passiert, wenn so einer auf die Erde fällt?",
           luft: "Was wäre, wenn die Erde keine Luft hätte? Probier es aus!",
           wand: "Im Besucherzentrum siehst du an der Wand alles, was du entdeckt hast.",
           rakete: "Steig ein – ich komme mit. Auf zu neuen Welten!"
@@ -865,23 +772,17 @@ window.SPACE_DATA = {
         again: "🧭 Nora, zeig mir den Weg"
       },
       discoveries: [
-        { key: "wasser", icon: "💧", title: "Der Blaue Planet", photo: "erde.jpg",
-          text: "Flüssiges Wasser! Zwei Drittel der Erde sind mit Wasser bedeckt – darum heißt sie der Blaue Planet. Seen und Meere gibt es nur hier." },
         { key: "wald", icon: "🌳", title: "Leben!",
-          text: "Du hast 5 Lebewesen fotografiert! Pflanzen, Tiere und Menschen – das alles ist Leben. Die Erde ist der einzige Planet, auf dem wir Leben kennen." },
+          text: "Du hast 5 Lebewesen fotografiert! Pflanzen, Tiere und Menschen – das alles ist Leben. Das gibt es nur hier, weil die Erde Wasser, Luft und die richtige Wärme hat." },
         { key: "tag", icon: "🌗", title: "Tag und Nacht",
           text: "Ein ganzer Tag: 24 Stunden. Dabei wandert gar nicht die Sonne – die Erde dreht sich einmal um sich selbst!" },
-        { key: "stern", icon: "🌠", title: "Sternschnuppe!",
-          text: "Verglüht! Die Luft bremst den Brocken so stark, dass er glüht – eine Sternschnuppe. Unsere Luft schützt uns also auch vor Steinen aus dem All." },
         { key: "luft", icon: "🌬️", title: "Unser Schutzschild",
           text: "Die Luft macht den Himmel blau, hält die Erde warm und schützt uns. Und wir können sie atmen! Nirgendwo sonst ginge das ohne Raumanzug." }
       ],
       stations: {
         wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         luft:      { label: "Wetterstation", hint: "Probier an der Wetterstation den Luft-Versuch aus", action: "🌬️ Luft-Versuch starten" },
-        stern:     { label: "Meteoriten-Vitrine", hint: "An der Meteoriten-Vitrine wartet der Sternschnuppen-Versuch", action: "🌠 Brocken aus dem All fallen lassen" },
         tag:       { label: "Sonnenuhr im Park", hint: "Spul im Park an der Sonnenuhr die Zeit vor", action: "⏩ Einen Tag vorspulen" },
-        wasser:    { label: "See", hint: "Lauf ans Ufer des Sees und stell dich in den Kreis", again: "💧 Nochmal ansehen", small: true, auto: true },
         wald:      { label: "Foto-Safari", hint: "Am Waldrand startet die Foto-Safari: Fotografiere 5 verschiedene Lebewesen", action: "📷 Foto-Safari starten" },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
@@ -912,14 +813,6 @@ window.SPACE_DATA = {
         onText: "Mit Luft ist der Himmel blau. Die Luft schützt uns wie ein Schild.",
         done: "Fertig ✓"
       },
-      shooting: {
-        guess: { "q": "Derselbe Brocken fällt jetzt auf die Erde. Was passiert?", "a": ["Er schlägt ein", "Er verglüht in der Luft"], "c": 1 },
-        ready: "Auf dem Merkur schlägt so ein Brocken einfach ein. Jetzt fällt er auf die Erde.",
-        go: "🌠 Brocken fallen lassen",
-        running: "Achtung, er kommt … schau zum Himmel!",
-        end: "Verglüht! Die Luft hat ihn gebremst und zum Glühen gebracht – eine Sternschnuppe.",
-        again: "🌠 Nochmal", done: "Fertig ✓"
-      },
       day: {
         guess: { "q": "Was passiert eigentlich an einem Tag?", "a": ["Die Sonne wandert um die Erde", "Die Erde dreht sich um sich selbst"], "c": 1 },
         ready: "Die Sonnenuhr zeigt mit ihrem Schatten die Zeit. Wir spulen einen ganzen Tag vor!",
@@ -933,12 +826,12 @@ window.SPACE_DATA = {
         found: "Klasse! Noch {rest} übrig.",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
         allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
-        tooFar: "Bodenstation an {name}: Bitte nicht zu weit weg von der Rakete!",
+        tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
       quiz: [
-        { q: "Warum verglüht eine Sternschnuppe?", a: ["Weil die Luft sie bremst und erhitzt", "Weil sie aus Feuer besteht", "Weil die Sonne sie anzündet"], c: 0, why: "Die Luft bremst den Brocken so stark, dass er glühend heiß wird." },
         { q: "Was gibt es nur auf der Erde?", a: ["Krater", "Flüssiges Wasser und Leben", "Berge"], c: 1, why: "Seen, Meere und Lebewesen kennen wir nur von der Erde." },
+        { q: "Wodurch entstehen Tag und Nacht?", a: ["Die Sonne wandert um die Erde", "Die Erde dreht sich um sich selbst", "Der Mond verdeckt die Sonne"], c: 1, why: "Die Erde dreht sich in 24 Stunden einmal um sich selbst." },
         { q: "Wie wäre der Himmel ohne Luft?", a: ["Blau wie immer", "Schwarz, sogar am Tag", "Grün"], c: 1, why: "Erst die Luft verteilt das Sonnenlicht und macht den Himmel blau." }
       ]
     },
@@ -947,17 +840,13 @@ window.SPACE_DATA = {
        jedes Tor ist eine Entdeckung (in dieser Reihenfolge). course = Texte für den Flug. ---------- */
     jupiter: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Es misst, wie groß der Jupiter ist.", "Schau nach unten – das nächste Tor liegt über einem riesigen roten Wirbel!", "Das nächste Tor liegt zwischen den Wolkenstreifen. Halt drauf zu!", "Nächstes Tor: Es misst, wie schnell sich der Jupiter dreht.", "Letztes Tor! Wir sinken tiefer – gibt es hier einen Boden?"] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Es misst, wie groß der Jupiter ist.", "Schau nach unten – das nächste Tor liegt über einem riesigen roten Wirbel!", "Letztes Tor! Wir sinken tiefer – gibt es hier einen Boden?"] },
       course: { note: "🪂 Kapsel wie „Galileo“ – Abstieg in die Wolken", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "groesse", icon: "🟠", title: "Der größte Planet", photo: "jupiter.jpg",
           text: "Jupiter ist der größte Planet: 11-mal so breit wie die Erde! Mehr als 1.300 Erden würden hineinpassen." },
         { key: "fleck", icon: "🌀", title: "Der Große Rote Fleck", photo: "jupiter-1.jpg",
           text: "Der Große Rote Fleck ist ein Wirbelsturm – größer als die ganze Erde! Er tobt schon seit fast 200 Jahren." },
-        { key: "streifen", icon: "🎨", title: "Streifen aus Wolken",
-          text: "Die hellen und dunklen Streifen sind Bänder aus Wolken. Sie ziehen mit mehr als 500 km/h um den Planeten." },
-        { key: "tag", icon: "⏱️", title: "Der schnellste Dreher",
-          text: "Jupiter dreht sich am schnellsten von allen Planeten: Ein Tag dauert dort nur 10 Stunden!" },
         { key: "gas", icon: "☁️", title: "Kein Boden in Sicht",
           text: "Kein Boden! Jupiter ist ein Gasriese. Nach unten wird das Gas nur immer dichter und heißer – landen kann man hier nicht." }
       ],
@@ -969,27 +858,23 @@ window.SPACE_DATA = {
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
-        { q: "Was findet deine Kapsel, als sie in den Jupiter eintaucht?", a: ["Einen festen Boden aus Stein", "Immer dichteres Gas, aber keinen Boden", "Ein Meer aus Wasser"], c: 1, why: "Jupiter ist ein Gasriese – es wird nur immer dichter und heißer." },
-        { q: "Was sind die Streifen auf dem Jupiter?", a: ["Bänder aus Wolken", "Flüsse", "Straßen"], c: 0, why: "Die Wolkenbänder ziehen mit starken Winden um den Planeten." },
-        { q: "Wie lange dauert ein Tag auf dem Jupiter?", a: ["Etwa 10 Stunden", "24 Stunden", "100 Stunden"], c: 0, why: "Jupiter dreht sich von allen Planeten am schnellsten." }
+        { q: "Welcher Planet ist der größte?", a: ["Saturn", "Die Erde", "Jupiter"], c: 2, why: "Jupiter ist der Riese unter den Planeten – 11-mal so breit wie die Erde." },
+        { q: "Was ist der Große Rote Fleck?", a: ["Ein Vulkan", "Ein riesiger Sturm", "Ein Meer"], c: 1, why: "Ein Wirbelsturm, größer als die ganze Erde." },
+        { q: "Was findet deine Kapsel, als sie in den Jupiter eintaucht?", a: ["Einen festen Boden aus Stein", "Immer dichteres Gas, aber keinen Boden", "Ein Meer aus Wasser"], c: 1, why: "Jupiter ist ein Gasriese – es wird nur immer dichter und heißer." }
       ]
     },
 
     saturn: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Es misst, woraus die Ringe bestehen.", "Nächstes Tor: Wie dick sind die Ringe eigentlich?", "Nächstes Tor: Es prüft, wie schwer der Saturn ist – rate mal!", "Achtung, Tor über dem Nordpol – dort dreht sich ein seltsamer Sturm!", "Letztes Tor! Es erzählt dir von einer echten Sonde."] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Es misst, woraus die Ringe bestehen.", "Nächstes Tor: Es prüft, wie schwer der Saturn ist – rate mal!", "Letztes Tor über dem Nordpol – dort dreht sich ein seltsamer Sturm!"] },
       course: { note: "🛰️ Sonde „Cassini“ – Flug durch die Ringe", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
       discoveries: [
         { key: "ringe", icon: "🧊", title: "Ringe aus Eis", photo: "saturn-1.jpg",
           text: "Die Ringe sind gar nicht fest! Sie bestehen aus unzähligen Brocken aus Eis und Gestein – manche klein wie Sandkörner, manche groß wie ein Haus." },
-        { key: "duenn", icon: "📏", title: "Hauchdünn",
-          text: "Die Ringe sind riesig breit – aber an vielen Stellen nur so dick, wie ein Haus hoch ist!" },
-        { key: "leicht", icon: "🛁", title: "Leichter als Wasser",
+        { key: "leicht", icon: "🛁", title: "Leichter als Wasser", photo: "saturn.jpg",
           text: "Saturn ist riesig, aber sehr leicht. In einer Riesen-Badewanne würde er schwimmen!" },
         { key: "sechseck", icon: "⬡", title: "Der sechseckige Sturm",
-          text: "Am Nordpol des Saturn tobt ein Sturm in Form eines Sechsecks! Jede Seite ist länger, als die Erde breit ist." },
-        { key: "cassini", icon: "🛰️", title: "Die Sonde Cassini", photo: "saturn.jpg",
-          text: "Die Sonde Cassini umkreiste den Saturn 13 Jahre lang und machte dieses Foto. Am Ende ließ man sie absichtlich in den Saturn stürzen." }
+          text: "Am Nordpol des Saturn tobt ein Sturm in Form eines Sechsecks! Jede Seite ist länger, als die Erde breit ist." }
       ],
       radio: {
         start: "Hier ist die Bodenstation! {name}, deine Sonde fliegt mitten durch die Ringe des Saturn. Flieg durch die {anzahl} Mess-Tore und weich den Eisbrocken aus!",
@@ -999,25 +884,21 @@ window.SPACE_DATA = {
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
-        { q: "Wie dick sind die Ringe des Saturn an vielen Stellen?", a: ["So dick wie die Erde", "Nur so dick, wie ein Haus hoch ist", "Tausend Kilometer"], c: 1, why: "Die Ringe sind riesig breit, aber hauchdünn." },
-        { q: "Welche Form hat der Sturm am Nordpol des Saturn?", a: ["Ein Sechseck", "Ein Herz", "Einen Stern"], c: 0, why: "Jede Seite des Sechsecks ist länger, als die Erde breit ist." },
-        { q: "Was würde Saturn in einer riesigen Badewanne tun?", a: ["Untergehen", "Schwimmen", "Explodieren"], c: 1, why: "Saturn ist leichter als die gleiche Menge Wasser." }
+        { q: "Woraus bestehen die Ringe des Saturn?", a: ["Aus Eis und Gestein", "Aus Gold", "Aus Licht"], c: 0, why: "Aus unzähligen Brocken aus Eis und Gestein." },
+        { q: "Was würde Saturn in einer riesigen Badewanne tun?", a: ["Untergehen", "Schwimmen", "Explodieren"], c: 1, why: "Saturn ist leichter als die gleiche Menge Wasser." },
+        { q: "Welche Form hat der Sturm am Nordpol des Saturn?", a: ["Ein Sechseck", "Ein Herz", "Einen Stern"], c: 0, why: "Jede Seite des Sechsecks ist länger, als die Erde breit ist." }
       ]
     },
 
     uranus: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Schau dir an, wie der Uranus liegt.", "Nächstes Tor: Achte auf die Ringe – fällt dir etwas auf?", "Das Tor da vorn misst, woraus der Uranus besteht.", "Nächstes Tor: Es geht um die Jahreszeiten auf dem Uranus.", "Letztes Tor! Brr – es misst die Temperatur."] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Schau dir an, wie der Uranus liegt.", "Das nächste Tor misst, woraus der Uranus besteht.", "Letztes Tor! Brr – es misst die Temperatur."] },
       course: { note: "🛰️ Uranus-Sonde – eiskalt hier draußen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "gekippt", icon: "🙃", title: "Auf der Seite", gallery: ["uranus.jpg", "uranus-1.jpg"],
           text: "Uranus liegt auf der Seite und rollt wie eine Kugel um die Sonne! Vielleicht hat ihn vor langer Zeit ein riesiger Brocken umgestoßen." },
-        { key: "ringe", icon: "⭕", title: "Senkrechte Ringe",
-          text: "Auch Uranus hat Ringe. Weil er auf der Seite liegt, stehen sie fast senkrecht!" },
         { key: "eisriese", icon: "🧊", title: "Ein Eisriese",
           text: "Uranus ist 4-mal so breit wie die Erde und besteht vor allem aus eisigen Stoffen. Einen festen Boden hat er nicht." },
-        { key: "sommer", icon: "🌞", title: "42 Jahre Sommer",
-          text: "Ein Uranus-Jahr dauert 84 Erdjahre. Weil er auf der Seite liegt, dauert ein Sommer am Pol 42 Jahre!" },
         { key: "kalt", icon: "🥶", title: "Der kälteste Planet",
           text: "Bis zu −224 °C: Uranus ist der kälteste Planet – sogar kälter als Neptun!" }
       ],
@@ -1029,27 +910,23 @@ window.SPACE_DATA = {
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
+        { q: "Was ist besonders an Uranus?", a: ["Er ist ganz aus Gold", "Er liegt auf der Seite", "Er ist der heißeste Planet"], c: 1, why: "Uranus ist stark gekippt und rollt wie eine Kugel um die Sonne." },
         { q: "Warum nennt man Uranus einen Eisriesen?", a: ["Weil er vor allem aus eisigen Stoffen besteht", "Weil er aus Glas ist", "Weil dort Schnee liegt"], c: 0, why: "Uranus besteht vor allem aus Wasser, Ammoniak und Methan." },
-        { q: "Wie lange dauert ein Sommer am Pol des Uranus?", a: ["3 Monate", "42 Jahre", "Einen Tag"], c: 1, why: "Ein Uranus-Jahr dauert 84 Erdjahre – und er liegt auf der Seite." },
-        { q: "Wie stehen die Ringe des Uranus?", a: ["Fast senkrecht", "Flach wie beim Saturn", "Er hat keine Ringe"], c: 0, why: "Weil Uranus auf der Seite liegt, stehen auch seine Ringe fast senkrecht." }
+        { q: "Welcher Planet ist der kälteste?", a: ["Uranus", "Merkur", "Mars"], c: 0, why: "Auf Uranus kann es bis zu −224 °C kalt werden." }
       ]
     },
 
     neptun: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Spürst du den Wind? Erstes Tor voraus – lenk dagegen!", "Nächstes Tor: Wie weit sind wir von der Sonne weg?", "Das nächste Tor erzählt, wie der Neptun gefunden wurde – zuerst nur durch Rechnen!", "Siehst du den hellen Mond? Das nächste Tor misst ihn!", "Letztes Tor! Es erzählt von deiner Sonde, Voyager 2."] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Spürst du den Wind? Erstes Tor voraus – lenk dagegen!", "Nächstes Tor: Wie weit sind wir von der Sonne weg?", "Letztes Tor! Es erzählt, wie der Neptun gefunden wurde – zuerst nur durch Rechnen!"] },
       course: { note: "🛰️ „Voyager 2“ – der Wind schiebt dich, lenk dagegen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "wind", icon: "💨", title: "Die stärksten Winde",
           text: "Merkst du, wie es dich zur Seite drückt? Auf Neptun wehen die stärksten Winde im Sonnensystem: über 2.000 km/h!" },
-        { key: "weit", icon: "📏", title: "Der äußerste Planet",
+        { key: "weit", icon: "📏", title: "Der äußerste Planet", photo: "neptun.jpg",
           text: "Neptun ist der äußerste Planet: 30-mal so weit von der Sonne weg wie die Erde. Das Sonnenlicht braucht 4 Stunden bis hierher." },
         { key: "rechnen", icon: "🧮", title: "Mit Mathematik gefunden",
-          text: "Neptun wurde zuerst berechnet und dann entdeckt! 1846 fand man ihn in einer Sternwarte in Berlin – genau dort, wo Forscher es ausgerechnet hatten." },
-        { key: "triton", icon: "❄️", title: "Der Mond Triton", photo: "neptun-1.jpg",
-          text: "Der größte Neptunmond heißt Triton. Er ist eiskalt und hat Geysire aus Eis." },
-        { key: "voyager", icon: "🛰️", title: "12 Jahre unterwegs", photo: "neptun.jpg",
-          text: "Nur eine Sonde war je hier: Voyager 2. Sie flog 12 Jahre lang und kam 1989 an. Dabei entstand dieses Foto." }
+          text: "Neptun wurde zuerst berechnet und dann entdeckt! 1846 fand man ihn in einer Sternwarte in Berlin – genau dort, wo Forscher es ausgerechnet hatten." }
       ],
       radio: {
         start: "Hier ist die Bodenstation! {name}, du bist am äußersten Planeten. Steuere Voyager 2 durch die {anzahl} Mess-Tore – der Sturm drückt dich zur Seite!",
@@ -1059,27 +936,23 @@ window.SPACE_DATA = {
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
+        { q: "Welcher Planet ist am weitesten von der Sonne entfernt?", a: ["Uranus", "Neptun", "Saturn"], c: 1, why: "Neptun ist der achte und äußerste Planet." },
         { q: "Wie wurde Neptun entdeckt?", a: ["Zuerst berechnet, dann am Himmel gefunden", "Durch Zufall beim Spazierengehen", "Von einer Raumsonde"], c: 0, why: "Man rechnete aus, wo ein unbekannter Planet sein musste – und fand ihn genau dort." },
-        { q: "Wie lange braucht das Sonnenlicht bis zum Neptun?", a: ["8 Minuten", "Etwa 4 Stunden", "Ein Jahr"], c: 1, why: "Neptun ist 30-mal so weit von der Sonne entfernt wie die Erde." },
         { q: "Warum wurde deine Sonde zur Seite gedrückt?", a: ["Wegen der stärksten Winde im Sonnensystem", "Weil sie kaputt war", "Wegen eines Magneten"], c: 0, why: "Auf Neptun wehen Winde mit über 2.000 km/h." }
       ]
     },
 
     sonne: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Hitzeschild bereit? Erstes Tor voraus!", "Nächstes Tor: Es misst, wie riesig die Sonne ist.", "Das Tor da vorn stoppt die Zeit, die das Licht bis zur Erde braucht.", "Nächstes Tor: Es schaut auf dunkle Flecken.", "Letztes Tor! Es erzählt von deiner Sonde."] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Hitzeschild bereit? Erstes Tor voraus!", "Das nächste Tor stoppt die Zeit, die das Licht bis zur Erde braucht.", "Letztes Tor! Es schaut auf dunkle Flecken."] },
       course: { note: "🛡️ „Parker Solar Probe“ – Anflug auf die Sonne", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
       discoveries: [
-        { key: "stern", icon: "⭐", title: "Ein Stern",
-          text: "Die Sonne ist ein Stern – eine riesige, glühende Kugel aus Gas. Außen ist sie 5.500 °C heiß, innen sogar 15 Millionen Grad!" },
-        { key: "gross", icon: "🌞", title: "Unvorstellbar groß",
-          text: "In die Sonne würden ungefähr 1,3 Millionen Erden hineinpassen!" },
+        { key: "stern", icon: "⭐", title: "Ein Stern", gallery: ["sonne-1.jpg", "sonne-2.jpg"],
+          text: "Die Sonne ist ein Stern – eine riesige, glühende Kugel aus Gas. 1,3 Millionen Erden würden in sie hineinpassen!" },
         { key: "licht", icon: "💡", title: "8 Minuten",
           text: "Das Sonnenlicht braucht 8 Minuten bis zur Erde. Ohne Licht und Wärme der Sonne gäbe es kein Leben bei uns." },
         { key: "flecken", icon: "⚫", title: "Sonnenflecken", photo: "sonne.jpg",
-          text: "Die dunklen Punkte heißen Sonnenflecken. Dort ist die Sonne etwas kühler als ringsum. Viele sind größer als die ganze Erde!" },
-        { key: "parker", icon: "🛰️", title: "Die Sonnen-Sonde", gallery: ["sonne-1.jpg", "sonne-2.jpg"],
-          text: "Die Parker Solar Probe fliegt wirklich so nah an die Sonne – geschützt von einem dicken Hitzeschild. Und du? Schau niemals direkt in die Sonne!" }
+          text: "Die dunklen Punkte heißen Sonnenflecken. Dort ist die Sonne etwas kühler als ringsum. Viele sind größer als die ganze Erde!" }
       ],
       radio: {
         start: "Hier ist die Bodenstation! {name}, auf der Sonne kann niemand landen – sie ist glühendes Gas. Flieg mit deiner Hitzeschild-Sonde durch die {anzahl} Mess-Tore!",
