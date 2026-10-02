@@ -6093,7 +6093,106 @@ window.Surface = (function () {
     m.count = list.length; m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); return m; // (Hüllkugel kennt die Instanzen nicht)
   }
   // Bäume als Instanzen: spots = [[x, z, Größe, Nadelbaum?, Zufallszahl], …]
+  // ---------- Naturnahe Bäume: Stamm mit Ästen, Krone aus vielen Blatt-Büscheln (Karten mit gemalten Blättern) ----------
+  // Die Normalen der Blattkarten zeigen von der Kronenmitte nach außen – so wirkt die Krone rund und weich beleuchtet.
+  // Arten: 0, 1 = Laubbaum (Buche/Eiche), 2 = Birke, 3, 4 = Fichte. Höhe bei Größe 1: etwa 8 m (Fichte 10 m).
+  const RTREE = { geos: {}, mats: null };
+  function rtreeMats() {
+    if (RTREE.mats) return RTREE.mats;
+    const leafTex = (cols, needles) => canvasTex(256, 256, (c) => {
+      c.clearRect(0, 0, 256, 256);
+      for (let i = 0; i < (needles ? 70 : 190); i++) {
+        const a = hash2(i, 1) * Math.PI * 2, r = Math.sqrt(hash2(i, 2)) * 104, x = 128 + Math.cos(a) * r, y = 128 + Math.sin(a) * r * (needles ? 0.55 : 1);
+        c.fillStyle = cols[Math.floor(hash2(i, 3) * cols.length)];
+        c.save(); c.translate(x, y); c.rotate(needles ? a * 0.2 + (hash2(i, 4) - 0.5) : hash2(i, 4) * 6.3);
+        if (needles) { c.fillRect(-26, -2.5, 52, 5); for (let k = -22; k < 24; k += 5) c.fillRect(k, -10, 2.4, 20); } // Zweig mit Nadeln
+        else { c.beginPath(); c.ellipse(0, 0, 13 + hash2(i, 5) * 7, 6 + hash2(i, 6) * 3, 0, 0, 7); c.fill(); }
+        c.restore();
+      }
+    });
+    const leaf = (cols, needles) => { const m = new THREE.MeshStandardMaterial({ map: leafTex(cols, needles), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 0.85, envMapIntensity: 0.35 }); m.userData.noCam = true; return m; };
+    const bark = (col) => new THREE.MeshStandardMaterial({ color: srgb(col), roughness: 0.95, envMapIntensity: 0.3, vertexColors: true });
+    return (RTREE.mats = {
+      leaf: [leaf(["#3f7d2c", "#4f8f35", "#5f9f3c", "#36702a", "#6aa844"], false), leaf(["#4d8a2f", "#5c9a34", "#6fab3f", "#3e7a2b", "#7fb348"], false),
+        leaf(["#6aa83a", "#7cb845", "#8fc24f", "#5d9a33", "#a3cc5a"], false), leaf(["#1f4f2a", "#2a5f30", "#235628", "#2f6a35"], true), leaf(["#24552c", "#2e6533", "#1d4a27", "#376f3a"], true)],
+      wood: [bark(0x6b4a33), bark(0x5e4330), bark(0xe8e4dc), bark(0x5a3d2b), bark(0x5a3d2b)]
+    });
+  }
+  function rtreeGeos(kind) {
+    if (RTREE.geos[kind]) return RTREE.geos[kind];
+    const W = { p: [], n: [], c: [], i: [] }, L = { p: [], n: [], c: [], u: [], i: [] }, sd = kind * 31 + 7, rnd = (k) => hash2(sd, k);
+    let ri = 0; const r = () => hash2(sd, 100 + ri++);
+    const tube = (a, b, r0, r1, seg = 7) => { // Ast oder Stamm von a nach b (sich verjüngend)
+      const d = b.clone().sub(a); d.normalize();
+      const t = Math.abs(d.y) < 0.9 ? new V(0, 1, 0) : new V(1, 0, 0), u = new V().crossVectors(d, t).normalize(), v = new V().crossVectors(d, u), base = W.p.length / 3;
+      for (let k = 0; k <= 1; k++) for (let j = 0; j < seg; j++) {
+        const ang = (j / seg) * Math.PI * 2, rr = k ? r1 : r0, nn = u.clone().multiplyScalar(Math.cos(ang)).addScaledVector(v, Math.sin(ang)), p = (k ? b : a).clone().addScaledVector(nn, rr);
+        W.p.push(p.x, p.y, p.z); W.n.push(nn.x, nn.y, nn.z);
+        const g = (0.75 + 0.25 * k) * (kind === 2 && j % 3 === 0 && k === 0 ? 0.55 : 1); W.c.push(g, g, g); // Birke: dunkle Flecken
+      }
+      for (let j = 0; j < seg; j++) { const j2 = (j + 1) % seg; W.i.push(base + j, base + seg + j, base + j2, base + j2, base + seg + j, base + seg + j2); }
+    };
+    const card = (p, size, center, stretch = 1, flat = 0) => { // Blattbüschel: Karte in zufälliger Lage, die Normale zeigt nach außen
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(r() * 6.3 * (1 - flat) + flat * (-Math.PI / 2 + (r() - 0.5) * 0.7), r() * 6.3, r() * 6.3 * (1 - flat)));
+      const ax = new V(1, 0, 0).applyQuaternion(q).multiplyScalar(size * stretch / 2), ay = new V(0, 1, 0).applyQuaternion(q).multiplyScalar(size / 2);
+      const nn = p.clone().sub(center).add(new V(0, 0.35, 0)).normalize(), base = L.p.length / 3;
+      const h = Math.max(0, Math.min(1, (p.y - center.y) / 3 + 0.55)), out = Math.min(1, p.clone().sub(center).length() / 2.6), g = 0.5 + 0.35 * h + 0.25 * out;
+      [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1]].forEach(([sx, sy, uu, vv]) => {
+        const v = p.clone().addScaledVector(ax, sx).addScaledVector(ay, sy); L.p.push(v.x, v.y, v.z); L.n.push(nn.x, nn.y, nn.z); L.u.push(uu, vv); L.c.push(g, g, g);
+      });
+      L.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
+    if (kind <= 2) { // Laubbaum oder Birke
+      const birch = kind === 2, H = birch ? 4.2 : 2.6 + rnd(1) * 0.6, cy = birch ? 5.6 : 5.0, rx = birch ? 1.9 : 2.8, ry = birch ? 2.6 : 2.3;
+      tube(new V(0, -0.3, 0), new V(0, H, 0), birch ? 0.17 : 0.3, birch ? 0.11 : 0.2, 8);
+      const center = new V(0, cy, 0), subs = [], n = birch ? 6 : 7;
+      for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2 + rnd(k + 10) * 0.8; subs.push(new V(Math.cos(a) * rx * 0.65, cy + (rnd(k + 20) - 0.35) * ry * 0.9, Math.sin(a) * rx * 0.65)); }
+      subs.push(new V(0, cy + ry * 0.75, 0));
+      for (const sp of subs) tube(new V(0, H - 0.2, 0), sp, birch ? 0.08 : 0.13, 0.04, 5);
+      for (const sp of subs) for (let k = 0; k < (birch ? 11 : 13); k++) {
+        const o = new V(r() - 0.5, (r() - 0.5) * 0.8, r() - 0.5).normalize().multiplyScalar(0.3 + r() * (birch ? 1.0 : 1.3));
+        card(sp.clone().add(o), (birch ? 1.3 : 1.8) + r() * 0.8, center);
+      }
+    } else { // Fichte: Etagen hängender Zweige, nach oben kleiner
+      const H = 9.6 + rnd(1) * 1.2;
+      tube(new V(0, -0.3, 0), new V(0, H, 0), 0.26, 0.05, 7);
+      for (let y = 1.3; y < H - 0.3; y += 0.42) {
+        const f = (y - 1.3) / (H - 1.6), R = 2.6 * Math.pow(1 - f, 0.95) + 0.25, n = Math.max(3, Math.round(4 + R * 3.2));
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2 + r() * 0.6 + y * 1.7, rr = R * (0.45 + r() * 0.3);
+          card(new V(Math.cos(a) * rr, y - rr * 0.18, Math.sin(a) * rr), 0.7 + R * 0.55, new V(0, y + 0.6, 0), 1.25, 0.85);
+        }
+      }
+      for (let k = 0; k < 4; k++) card(new V((r() - 0.5) * 0.3, H - 0.4 + k * 0.15, (r() - 0.5) * 0.3), 0.7, new V(0, H - 1, 0), 0.8, 0.3);
+    }
+    const mk = (o, uv) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(o.p, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(o.n, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(o.c, 3));
+      if (uv) g.setAttribute("uv", new THREE.Float32BufferAttribute(o.u, 2));
+      g.setIndex(o.i); g.computeBoundingSphere(); return g;
+    };
+    return (RTREE.geos[kind] = { wood: mk(W), leaf: mk(L, true) });
+  }
+  const rtreeKind = (con, sd) => (con ? 3 + (sd % 2) : hash2(sd, 3) < 0.22 ? 2 : sd % 2);
+  // Viele Bäume als Instanzen: spots = [[x, z, Größe, Nadelbaum?, Zufallszahl], …]
+  function realTrees(scene, height, spots, shadow = true) {
+    const M = rtreeMats(), by = [[], [], [], [], []], mx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V(0, 1, 0), p = new V(), sc = new V(), c = new THREE.Color();
+    for (const [x, z, s, con, sd] of spots) by[rtreeKind(con, sd)].push([x, height(x, z), z, s * (0.85 + hash2(sd, 4) * 0.3), hash2(sd, 1) * 6.3, sd]);
+    by.forEach((list, kind) => {
+      if (!list.length) return;
+      const G = rtreeGeos(kind);
+      for (const [geo, mat, leafy] of [[G.wood, M.wood[kind], false], [G.leaf, M.leaf[kind], true]]) {
+        const m = new THREE.InstancedMesh(geo, mat, list.length);
+        list.forEach(([x, y, z, k, ry, sd], i) => {
+          mx.compose(p.set(x, y, z), q.setFromAxisAngle(up, ry), sc.set(k * (0.9 + hash2(sd, 7) * 0.2), k, k * (0.9 + hash2(sd, 8) * 0.2))); m.setMatrixAt(i, mx);
+          const v = leafy ? 0.85 + hash2(sd, 5) * 0.3 : 1, w = leafy ? (hash2(sd, 6) - 0.5) * 0.14 : 0; m.setColorAt(i, c.setRGB(v * (1 + w), v, v * (1 - w)));
+        });
+        m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false; scene.add(m);
+      }
+    });
+  }
   function earthForest(B, spots, shadow = true) {
+    if (spots.length) { realTrees(B.scene, B.height, spots, shadow); return; }
     if (KIT.n_tree_oak) { // fertige Bäume aus dem Nature Kit (Kenney, CC0): Laubbäume und Nadelbäume in mehreren Formen
       const LEAF = ["n_tree_oak", "n_tree_detailed", "n_tree_fat", "n_tree_default", "n_tree_oak_dark", "n_tree_detailed", "n_tree_oak"];
       const PINE = ["n_tree_pineTallA_detailed", "n_tree_pineTallB_detailed", "n_tree_pineRoundA", "n_tree_pineRoundC", "n_tree_pineDefaultA"];
@@ -6219,7 +6318,7 @@ window.Surface = (function () {
     s.moveTo(-0.55, 1.3); s.lineTo(0.55, 1.3); s.quadraticCurveTo(0.68, 0, 0, -1.55); s.quadraticCurveTo(-0.68, 0, -0.55, 1.3); // Umriss von oben (Bug bei −y = vorn)
     const hullGeo = new THREE.ExtrudeGeometry(s, { depth: 0.5, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2, curveSegments: 12 });
     hullGeo.rotateX(-Math.PI / 2); hullGeo.translate(0, -0.2, 0);
-    const hull = put(g, new THREE.Mesh(hullGeo, [M.std({ color: srgb(0xc8955a), roughness: 0.7 }), M.std({ color: srgb(0xf8fafc), roughness: 0.4 })]), 0, 0, 0);
+    const hull = put(g, new THREE.Mesh(hullGeo, [M.std({ color: srgb(0xb8834c), roughness: 0.7 }), M.std({ color: srgb(0x1d4ed8), roughness: 0.35 })]), 0, 0, 0); // Holzdeck, blauer Rumpf
     hull.userData.boat = true;
     const wood = M.std({ color: srgb(0x8b5a2b), roughness: 0.6 });
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 3.2, 8), wood), 0, 1.9, 0.35);
@@ -6344,7 +6443,7 @@ window.Surface = (function () {
       tar.rotation.x = -Math.PI / 2; tar.position.set(x0, y + 0.08, z0); B.scene.add(tar);
       const isle = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.1, 0.25, 32), new THREE.MeshStandardMaterial({ color: 0x5aa83a, roughness: 1 }));
       isle.position.set(x0, y + 0.12, z0); B.scene.add(isle); cols.push([x0, z0, 2.2]);
-      if (KIT.n_tree_oak) kitInstanced(B.scene, "n_tree_oak", [[x0, y + 0.2, z0, 3.4, 0.5]], true, true);
+      realTrees(B.scene, () => y + 0.2, [[x0, z0, 0.9, false, 7]]);
     }
     if (!KIT["t_building-type-a"]) return cols;
     // Punkte entlang der Straße (alle 1 m) mit Richtung
@@ -6354,7 +6453,7 @@ window.Surface = (function () {
       for (let s = 0; s < l; s += 1) P.push([ax + (bx - ax) * s / l, az + (bz - az) * s / l, (bx - ax) / l, (bz - az) / l]);
     }
     const houses = ["t_building-type-a", "t_building-type-c", "t_building-type-g", "t_building-type-h", "t_building-type-i", "t_building-type-k", "t_building-type-r"];
-    const lists = {}, add = (n, x, z, k, ry, lift = 0) => (lists[n] = lists[n] || []).push([x, H(x, z) + lift, z, k, ry]);
+    const gardenTrees = [], lists = {}, add = (n, x, z, k, ry, lift = 0) => (lists[n] = lists[n] || []).push([x, H(x, z) + lift, z, k, ry]);
     let hi = 0;
     for (let i = 22; i < Math.min(P.length - 12, lite ? 90 : 120); i += 13) for (const side of [-1, 1]) {
       const [x, z, dx, dz] = P[i], nx = -dz * side, nz = dx * side; // nach außen (weg von der Straße)
@@ -6368,7 +6467,7 @@ window.Surface = (function () {
       if (KIT.n_fence_simple) for (const k of [-4.4, -2.2, 2.2, 4.4]) add("n_fence_simple", fx + dx * k, fz + dz * k, 2.2, face); // Holzzaun, in der Mitte offen für den Weg
       add("t_path-stones-short", x + nx * 7.6, z + nz * 7.6, 7, face);
       add("t_planter", hx + dx * 5.5 - nx * 2, hz + dz * 5.5 - nz * 2, 6, face);
-      add(KIT.n_tree_oak ? (hi % 2 ? "n_tree_oak" : "n_tree_detailed") : "t_tree-large", hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, KIT.n_tree_oak ? 3.6 : 8, face);
+      gardenTrees.push([hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, 0.75, false, hi * 3 + 1]);
       cols.push([hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, 0.4]);
     }
     for (let i = 6; i < P.length - 4; i += 17) { // Straßenlaternen abwechselnd links und rechts, Arm über die Straße
@@ -6376,6 +6475,7 @@ window.Surface = (function () {
       if (Math.hypot(lx, lz) > 145) continue;
       add("t_light-curved", lx, lz, 8.5, Math.atan2(-nx, -nz) + Math.PI / 2); cols.push([lx, lz, 0.2]);
     }
+    realTrees(B.scene, H, gardenTrees);
     { const [x, z, dx, dz] = P[3]; add("t_road-sign-object-warning", x - dz * 4.4, z + dx * 4.4, 9, Math.atan2(-dx, -dz)); }
     for (const [n, list] of Object.entries(lists)) kitInstanced(B.scene, n, list);
     return cols;
@@ -6532,6 +6632,12 @@ window.Surface = (function () {
     return (TREE.geos[key] = geo);
   }
   function makeTree(s, seed = 0) {
+    { // naturnaher Baum (siehe rtreeGeos) – einzeln, z. B. für die Bäume, die man auf der Foto-Safari fotografiert
+      const kind = rtreeKind(hash2(seed, 9) < 0.62, seed), G = rtreeGeos(kind), M = rtreeMats(), g = new THREE.Group();
+      for (const [geo, mat] of [[G.wood, M.wood[kind]], [G.leaf, M.leaf[kind]]]) { const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; g.add(m); }
+      g.scale.setScalar(s * 1.05); g.rotation.y = hash2(seed, 6) * 6.3;
+      return g;
+    }
     if (KIT.n_tree_oak) { // fertiges Modell aus dem Nature Kit (gleiche Bäume wie im Rest der Landschaft)
       const con = hash2(seed, 9) < 0.62, list = con ? ["n_tree_pineTallA_detailed", "n_tree_pineTallB_detailed", "n_tree_pineRoundA", "n_tree_pineDefaultA"] : ["n_tree_oak", "n_tree_detailed", "n_tree_fat"];
       const g = kit(list[Math.floor(hash2(seed, 5) * list.length)], s * (con ? 4.8 : 4.4)); g.rotation.y = hash2(seed, 6) * 6.3;
@@ -6560,8 +6666,11 @@ window.Surface = (function () {
     const L = { ...ERDE_LAYOUT };
     const craters = [[...L.see, 18, 2.4]]; // die Senke für den See
     const hills = [[L.mond[0], L.mond[1] + 2, 16, 4.5], [L.station[0], L.station[1] + 8, 34, 3]]; // Sternwarten-Hügel und Hügel des Besucherzentrums
-    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 12, 20, "auto"], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 10, "auto"]];
-    for (let i = 0; i < L.road.length - 1; i++) { const [ax, az] = L.road[i], [bx, bz] = L.road[i + 1], n = Math.ceil(Math.hypot(bx - ax, bz - az) / 8); for (let k = 0; k <= n; k++) flats.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n, 12, "auto", 12]); } // Dorf eben
+    // Besucherzentrum und Platz liegen auf EINER Höhe (vorher hatten Platz, Haus und Straße je eine eigene – dann schwebten Kanten)
+    const SL = makeHeight(craters, [], 200, null, hills)(...L.station), [stx, stz] = L.station;
+    const flats = [];
+    for (let i = 0; i < L.road.length - 1; i++) { const [ax, az] = L.road[i], [bx, bz] = L.road[i + 1], n = Math.ceil(Math.hypot(bx - ax, bz - az) / 8); for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; flats.push([x, z, 12, Math.hypot(x - stx, z - stz) < 34 ? SL : "auto", 12]); } } // Dorf eben (zuerst – der Platz am Zentrum hat Vorrang)
+    flats.push([0, 0, 11], [stx, stz, 20, SL, 14], [stx, stz + 12, 20, SL, 14], [stx - 15, stz + 12, 11, SL, 12], [stx + 15, stz + 12, 11, SL, 12], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 10, "auto"]);
     const hgt = makeHeight(craters, flats, 200, null, hills);
     const G0 = new THREE.Color(0x4f9440), mul = (hex) => { const c = new THREE.Color(hex); return [c.r / G0.r, c.g / G0.g, c.b / G0.b]; };
     const SAND = mul(0xcfbf8e), MUD = mul(0x8a7a52), MEADOW = [mul(0x5a9e3c), mul(0x6aa83f), mul(0x4a8a3a), mul(0x7cae46)];
