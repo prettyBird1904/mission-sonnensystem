@@ -81,13 +81,16 @@ window.World = (function () {
     const ringBand = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.04, 8, 24), accent);
     ringBand.position.z = 0.25;
     g.add(ringBand);
-    // Flossen
-    const finGeo = new THREE.BoxGeometry(0.05, 0.45, 0.5);
+    // Flossen: nach hinten gepfeilt, mit abgerundeten Kanten; ihre Spitzen reichen bis hinter die Düse –
+    // darauf steht die Rakete nach der Landung (Umriss: x = Abstand von der Achse, y = Richtung Heck)
+    const fs = new THREE.Shape();
+    fs.moveTo(0.24, 0.02); fs.quadraticCurveTo(0.5, 0.3, 0.6, 0.7); fs.lineTo(0.62, 0.95); fs.lineTo(0.38, 0.95); fs.lineTo(0.24, 0.66); fs.closePath();
+    const finGeo = new THREE.ExtrudeGeometry(fs, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.014, bevelSize: 0.012, bevelSegments: 2, curveSegments: 10 });
+    finGeo.translate(0, 0, -0.0175);
     for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + Math.PI / 2, out = new THREE.Vector3(Math.cos(a), Math.sin(a), 0), back = new THREE.Vector3(0, 0, 1);
       const fin = new THREE.Mesh(finGeo, accent);
-      const a = (i / 3) * Math.PI * 2 + Math.PI / 2;
-      fin.position.set(Math.cos(a) * 0.4, Math.sin(a) * 0.4, 0.45);
-      fin.rotation.z = a - Math.PI / 2;
+      fin.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(out, back, out.clone().cross(back)));
       g.add(fin);
     }
     const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.2, 20, 1, true),

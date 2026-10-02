@@ -25,7 +25,15 @@ window.Surface = (function () {
     return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
   }
   function fbm2(x, y) { let s = 0, a = 0.5, f = 1; for (let i = 0; i < 4; i++) { s += noise2(x * f, y * f) * a; a *= 0.5; f *= 2.1; } return s; }
-  const smooth = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  // Kachelbares Rauschen: wiederholt sich nach p Gitterzellen – so zeigen gekachelte Texturen keine Nähte
+  function noise2p(x, y, p) {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, w = (n) => ((n % p) + p) % p;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const a = hash2(w(xi), w(yi)), b = hash2(w(xi + 1), w(yi)), c = hash2(w(xi), w(yi + 1)), d = hash2(w(xi + 1), w(yi + 1));
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  }
+  function fbm2p(x, y, p) { let s = 0, a = 0.5, f = 1; for (let i = 0; i < 4; i++) { s += noise2p(x * f, y * f, p * f) * a; a *= 0.5; f *= 2; } return s; }
+  const smooth =(e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
   const angleLerp = (a, b, t) => { let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; };
 
   // ---------- Aufbau des Mondes ----------
@@ -85,16 +93,20 @@ window.Surface = (function () {
     };
   }
 
+  let regolithCanvas = null;
   function regolithTexture() {
-    const cv = document.createElement("canvas"); cv.width = cv.height = 256;
-    const ctx = cv.getContext("2d"), img = ctx.createImageData(256, 256);
-    for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
-      const n = fbm2(x * 0.08, y * 0.08) * 0.6 + hash2(x, y) * 0.4;
-      const v = 120 + n * 90, k = (y * 256 + x) * 4;
-      img.data[k] = img.data[k + 1] = v; img.data[k + 2] = v + 4; img.data[k + 3] = 255;
+    if (!regolithCanvas) { // nahtlos kachelbar (20 Rauschzellen je Kachel), damit man auf dem Boden kein Gitter sieht
+      const cv = document.createElement("canvas"); cv.width = cv.height = 256;
+      const ctx = cv.getContext("2d"), img = ctx.createImageData(256, 256);
+      for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
+        const n = fbm2p(x * 20 / 256, y * 20 / 256, 20) * 0.6 + hash2(x, y) * 0.4;
+        const v = 120 + n * 90, k = (y * 256 + x) * 4;
+        img.data[k] = img.data[k + 1] = v; img.data[k + 2] = v + 4; img.data[k + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      regolithCanvas = cv;
     }
-    ctx.putImageData(img, 0, 0);
-    const t = new THREE.CanvasTexture(cv);
+    const t = new THREE.CanvasTexture(regolithCanvas);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(70, 70); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
     return t;
   }
@@ -423,10 +435,13 @@ window.Surface = (function () {
   // Achsen dieses Mixamo-Skeletts (im Browser nachgemessen, Blickrichtung +Z):
   //   Arme senken: +X (beide) · Arme nach vorn: links +Z, rechts −Z · Beine nach vorn: +X
   //   Knie beugen: −X · Ellbogen beugen: links +Z, rechts −Z · Oberkörper vorbeugen: −X
-  function setArm(rig, key, fwd, down) {
+  // fwd = Arm nach vorn drehen, down = absenken, swing = (bei hängendem Arm) um die Querachse der Schulter vor/zurück schwingen
+  const ARM_SIDE = { armL: -1, armR: 1 }; // ausgemessen: so schwingt „vor“ wirklich nach vorn
+  function setArm(rig, key, fwd, down, swing = 0) {
     const b = rig.bones[key]; if (!b) return;
-    // Erst nach vorn drehen, dann absenken – so zeigt „nach vorn“ auch bei hängendem Arm nach vorn
-    b.quaternion.copy(rig.rest[key]).multiply(qa.setFromAxisAngle(AX.z, fwd)).multiply(qa.setFromAxisAngle(AX.x, down));
+    b.quaternion.copy(rig.rest[key]).multiply(qa.setFromAxisAngle(AX.z, fwd));
+    if (swing) b.quaternion.multiply(qa.setFromAxisAngle(AX.y, swing * ARM_SIDE[key]));
+    b.quaternion.multiply(qa.setFromAxisAngle(AX.x, down));
   }
   const POSE = {};
   // Bewegungen nach Vorbild der Apollo-Filme: „Lope“ = gleitender Galopp mit kurzer Schwebephase,
@@ -434,6 +449,7 @@ window.Surface = (function () {
   function poseRig(rig, st) {
     const breathe = Math.sin(st.t * 1.4) * 0.015;
     let legL = 0, legR = 0, kneeL = 0, kneeR = 0, down = 1.3, fwd = 0.08, elbow = 0.3, lean = breathe, downL = null, downR = null;
+    let swingL = 0, swingR = 0, twist = 0, elbowL = null, elbowR = null; // Armschwung (vor = positiv), Ellbogen einzeln, Drehung des Oberkörpers
     if (st.mode === "climb") {
       // Leiter hochsteigen: Hände und Füße greifen abwechselnd nach oben
       const s = Math.sin(st.phase);
@@ -441,9 +457,19 @@ window.Surface = (function () {
       kneeL = -(0.95 + 0.45 * s); kneeR = -(0.95 - 0.45 * s);
       fwd = 1.3; elbow = 0.5; lean -= 0.06;
       downL = -0.15 - 0.35 * s; downR = -0.15 + 0.35 * s;
+    } else if (st.mode === "run") {
+      // Laufen: Beine weit vor und zurück, das schwingende Bein beugt das Knie, die Arme schwingen gegengleich (angewinkelt)
+      const k = Math.max(0.35, Math.min(1, st.speed)), s = Math.sin(st.phase), c = Math.cos(st.phase);
+      legL = s * (0.32 + 0.36 * k); legR = -legL;
+      kneeL = -(0.12 + Math.max(0, c) * (0.6 + 0.7 * k)); kneeR = -(0.12 + Math.max(0, -c) * (0.6 + 0.7 * k));
+      const sw = 0.6 + 0.4 * k, fs = (x) => (x > 0 ? x * 0.45 : x); // nach vorn schwingt der Arm weniger weit als nach hinten
+      swingL = fs(-s * sw); swingR = fs(s * sw); fwd = 0.08;
+      down = 1.36; elbow = 0.95 + 0.25 * k; elbowL = elbow + 0.15 * Math.max(0, swingL); elbowR = elbow + 0.15 * Math.max(0, swingR);
+      lean -= 0.1 + 0.12 * k; twist = 0.12 * s * k;
     } else if (st.mode === "lope") {
       lean -= 0.2 * st.speed;
-      down = 1.0; fwd = 0.35; elbow = 0.75;
+      down = 1.18; fwd = 0.25; elbow = 0.8;
+      const sa = Math.sin(st.phase); swingL = 0.22 * sa; swingR = -0.22 * sa; // die Arme pendeln mit
       if (st.air) {
         const f = st.airP;                    // 0 → 1 über die Flugphase
         legL = 0.5 - 0.15 * f;  kneeL = -0.15;           // vorderes Bein streckt sich zur Landung
@@ -456,9 +482,13 @@ window.Surface = (function () {
         kneeL = -squat; kneeR = -squat - 0.2 * (1 - c);
       }
     } else if (st.mode === "walk") {
-      const sw = Math.sin(st.phase) * 0.3 * st.speed;
-      legL = sw; legR = -sw; kneeL = -Math.max(0, -Math.sin(st.phase)) * 0.4 * st.speed; kneeR = -Math.max(0, Math.sin(st.phase)) * 0.4 * st.speed;
-      down = 1.15; fwd = 0.2; elbow = 0.55; lean -= 0.08 * st.speed;
+      // Gehen (st.speed: 1 = zügig, 1,6 m/s): Schrittlänge passt zum Tempo, das Knie beugt sich beim Durchschwingen,
+      // der Arm der anderen Seite schwingt mit
+      const k = Math.max(0.3, Math.min(1, st.speed)), s = Math.sin(st.phase), c = Math.cos(st.phase);
+      legL = s * (0.2 + 0.26 * k); legR = -legL;
+      kneeL = -(0.05 + Math.max(0, c) * (0.35 + 0.3 * k)); kneeR = -(0.05 + Math.max(0, -c) * (0.35 + 0.3 * k));
+      const sw = 0.2 + 0.3 * k; swingL = -s * sw; swingR = s * sw; fwd = 0.06;
+      down = 1.35; elbow = 0.3 + 0.15 * k; lean -= 0.05 * k; twist = 0.07 * s * k;
     } else if (st.mode === "jump") {
       legL = 0.25; legR = 0.1; kneeL = -0.45; kneeR = -0.35;
       down = 0.85; fwd = 0.45; elbow = 0.6; lean -= 0.05;
@@ -467,9 +497,9 @@ window.Surface = (function () {
     if (st.work) { lean -= 0.35; fwd = 0.9; down = 0.7; elbow = 0.9 + 0.25 * Math.sin(st.t * 3); } // vorgebeugt, arbeitet mit den Händen
     setBone(rig, "legL", legL, 0, 0); setBone(rig, "legR", legR, 0, 0);
     setBone(rig, "kneeL", kneeL, 0, 0); setBone(rig, "kneeR", kneeR, 0, 0);
-    setArm(rig, "armL", fwd, downL == null ? down : downL); setArm(rig, "armR", -fwd, downR == null ? down : downR);
-    setBone(rig, "foreL", 0, 0, elbow); setBone(rig, "foreR", 0, 0, -elbow);
-    setBone(rig, "spine", lean, 0, 0);
+    setArm(rig, "armL", fwd, downL == null ? down : downL, swingL); setArm(rig, "armR", -fwd, downR == null ? down : downR, swingR);
+    setBone(rig, "foreL", 0, 0, elbowL == null ? elbow : elbowL); setBone(rig, "foreR", 0, 0, -(elbowR == null ? elbow : elbowR));
+    setBone(rig, "spine", lean, twist, 0);
     if (st.wave) { // rechten Arm hoch und winken
       setArm(rig, "armR", -0.35, -1.2);
       setBone(rig, "foreR", 0, 0, -(0.45 + 0.45 * Math.sin(st.t * 9)));
@@ -504,6 +534,9 @@ window.Surface = (function () {
   // Einstieg der eigenen Rakete: Leiter und offene Luke (lokal +Z zeigt von der Rakete weg).
   // Sitzt genau zwischen zwei Flossen auf der Sonnenseite (nicht im Schatten der Rakete).
   const HATCH = { a: -Math.PI / 3, x: Math.sin(-Math.PI / 3), z: Math.cos(-Math.PI / 3), y: 3.75 };
+  // Rakete als Hindernis: ein Kreis, der auch die Flossen umfasst (die Rakete steht auf ihnen, siehe World.makeRocket) –
+  // ein glatter Kreis, damit man beim Vorbeilaufen außen herum gleitet und nicht zwischen Rumpf und Flosse hängen bleibt
+  const ROCKET_COLLIDERS = [[0, 0, 2.45]];
   function makeHatch() {
     const g = new THREE.Group();
     const metal = new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.6, roughness: 0.4 });
@@ -1606,7 +1639,7 @@ window.Surface = (function () {
     // Einfache Kreis-Hindernisse: [x, z, Radius]
     // Absperrung um die Landestelle von 1969: eine geschlossene Kette, durch die niemand hindurchkommt
     const fence = []; for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; fence.push([L.apollo[0] + Math.sin(a) * 7, L.apollo[1] + Math.cos(a) * 7, 0.85]); }
-    const colliders = [[0, 0, 1.8], [...L.boulder, 6.8], [...L.apollo, 3.2], ...fence, [...L.fallversuch, 1], [...L.himmel, 2.8],
+    const colliders = [...ROCKET_COLLIDERS, [...L.boulder, 6.8], [...L.apollo, 3.2], ...fence, [...L.fallversuch, 1], [...L.himmel, 2.8],
       [...L.spiegel, 0.5], [...L.wegweiser, 0.3], [...L.antenne, 1.2], [L.antenne[0] + 2, L.antenne[1] - 1, 1.1], [...L.mondstein, 0.4],
       [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], [cargo.position.x, cargo.position.z, 3.6],
       [buggy.position.x, buggy.position.z, 1.8], ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2]), ...npcs.map((n) => n.col),
@@ -1935,6 +1968,23 @@ window.Surface = (function () {
 
   // ---------- pro Bild ----------
   const tmp = new V(), tmp2 = new V(), ray = new THREE.Raycaster();
+  // Kamera nicht hinter Wände und in Gebäude stellen: große, feste Teile der Welt (einmal je Ort gesammelt –
+  // keine dünnen Masten, keine flachen Dinge, nichts Durchsichtiges)
+  const camRay = new THREE.Raycaster(), camHead = new V(), camDir = new V();
+  function camBlockers() {
+    if (world.camBlock) return world.camBlock;
+    const list = [], box = new THREE.Box3(), size = new V();
+    world.scene.updateMatrixWorld(true);
+    world.scene.traverse((o) => {
+      if (!o.isMesh || o.isSkinnedMesh || !o.visible) return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m || m.transparent || m.userData.noCam) return;
+      box.setFromObject(o).getSize(size);
+      const wide = Math.max(size.x, size.z);
+      if (wide >= 1.5 && wide < 200 && size.y >= 1.8) list.push(o);
+    });
+    return (world.camBlock = list);
+  }
   S.update = function (dt, elapsed) {
     if (!S.active || !world) return;
     if (probe) { updateProbe(dt, elapsed); return; }
@@ -1955,7 +2005,8 @@ window.Surface = (function () {
     const fwd = tmp.set(Math.sin(view.yaw), 0, Math.cos(view.yaw));
     const right = tmp2.set(-Math.cos(view.yaw), 0, Math.sin(view.yaw));
     // Apollo-Astronauten liefen im „Lope“ mit etwa 1 bis 2 m/s – fürs Spiel etwas flotter
-    const LOPE_SPEED = 3.0;
+    const LOPE_SPEED = 3.8;
+    const lowG = g < 3; // Mond, Pluto: Hüpf-Galopp wie die Apollo-Astronauten – sonst normales Laufen
     let targetSpeed = 0;
     if (len > 0.12) {
       const mvx = fwd.x * my + right.x * mx, mvz = fwd.z * my + right.z * mx;
@@ -1968,7 +2019,7 @@ window.Surface = (function () {
     view.dragged = Math.max(0, (view.dragged || 0) - dt);
     // Wenig Halt auf dem Mondstaub: beschleunigen/bremsen nur am Boden – und gemächlich
     const grip = site.grip ? site.grip() : 1; // auf glattem Eis rutscht man: langsam anfahren, kaum bremsen
-    if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * grip * (targetSpeed > ast.speed ? 3.0 : 3.4));
+    if (ast.onGround) ast.speed += (targetSpeed - ast.speed) * Math.min(1, dt * grip * (targetSpeed > ast.speed ? (lowG ? 3.0 : 4.2) : 3.4));
     const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
     const ox = ast.pos.x, oz = ast.pos.z, oh = H(ox, oz);
     ast.pos.x += hx * ast.speed * dt; ast.pos.z += hz * ast.speed * dt;
@@ -1997,7 +2048,7 @@ window.Surface = (function () {
       ast.airT = 0; ast.airDur = 2 * ast.vy / g;
       Sound.whoosh();
       grains(ast.pos, 8, 0.6);
-    } else if (ast.onGround && ast.speed > 0.7 && (ast.contact || 0) > 0.18 && !paused) {
+    } else if (lowG && ast.onGround && ast.speed > 0.7 && (ast.contact || 0) > 0.18 && !paused) {
       // Lope-Schritt: ein kleiner, echter Flug – so haben sich die Apollo-Astronauten fortbewegt
       const hop = 0.05 + 0.05 * Math.min(1, ast.speed / LOPE_SPEED);
       ast.vy = Math.sqrt(2 * g * hop); ast.onGround = false; ast.hopping = true;
@@ -2038,10 +2089,15 @@ window.Surface = (function () {
       ast.pos.y += (ground - ast.pos.y) * Math.min(1, dt * 12);
     }
 
-    // Langsames Gehen (ohne Hüpfer): Fußabdrücke nach Strecke
-    if (ast.onGround && ast.speed > 0.15 && ast.speed <= 0.7) {
+    // Gehen oder Laufen? (mit etwas Spielraum, damit die Bewegung an der Grenze nicht hin und her springt)
+    ast.run = ast.speed > 1.75 || (!!ast.run && ast.speed > 1.45);
+    // Gehen und Laufen (ohne Hüpfer): Fußabdrücke nach Strecke, beim Laufen ein wenig Staub
+    if (ast.onGround && !ast.hopping && ast.speed > 0.15 && (!lowG || ast.speed <= 0.7)) {
       ast.walked += ast.speed * dt;
-      if (ast.walked > 0.55) { ast.walked = 0; ast.foot = 1 - ast.foot; footprint(ast.foot ? 0.17 : -0.17); }
+      if (ast.walked > (ast.run ? 0.95 : 0.55)) {
+        ast.walked = 0; ast.foot = 1 - ast.foot; footprint(ast.foot ? 0.17 : -0.17);
+        if (ast.run && bodyId !== "erde") grains(tmp.set(ast.pos.x - hx * 0.2, ast.pos.y, ast.pos.z - hz * 0.2), 2, 0.5, -hx, -hz);
+      }
     }
 
     if (boarding) updateBoarding(dt);
@@ -2049,15 +2105,18 @@ window.Surface = (function () {
     // Astronaut darstellen
     const a = world.astronaut, u = a.userData;
     const speedFrac = boarding ? 0.8 : Math.min(1, ast.speed / LOPE_SPEED);
-    ast.phase += dt * (boarding ? 6 : 1.5 + ast.speed * 3);
-    a.position.set(ast.pos.x, ast.pos.y, ast.pos.z);
+    // Schrittfrequenz wie beim echten Gehen (1,6 bis 2 Schritte pro Sekunde) und Laufen (bis gut 3 Schritte pro Sekunde)
+    const walkK = Math.min(1, ast.speed / 1.6);
+    ast.phase += dt * (boarding ? 6 : lowG ? 1.5 + ast.speed * 3 : ast.run ? 1.4 + ast.speed * 2.3 : Math.PI * (1.4 + 0.4 * walkK));
+    const running = !boarding && !lowG && ast.onGround && ast.run && !ast.jumping;
+    a.position.set(ast.pos.x, ast.pos.y + (running ? (Math.abs(Math.sin(ast.phase)) - 0.45) * 0.09 * speedFrac : 0), ast.pos.z); // beim Laufen leicht auf und ab
     a.rotation.y = ast.heading;
     const hold = !!(experiment && experiment.t < 0.15);
     if (u.rig) {
       const mode = boarding ? (boarding.phase === "walk" ? "walk" : boarding.phase === "climb" ? "climb" : "stand")
-        : ast.jumping ? "jump" : (ast.hopping || (ast.speed > 0.7 && ast.onGround)) ? "lope" : ast.speed > 0.15 ? "walk" : "stand";
+        : ast.jumping ? "jump" : lowG && (ast.hopping || (ast.speed > 0.7 && ast.onGround)) ? "lope" : ast.run ? "run" : ast.speed > 0.15 ? "walk" : "stand";
       poseRig(u.rig, { mode, air: !ast.onGround, airP: ast.airDur ? Math.min(1, ast.airT / ast.airDur) : 0, contact: ast.contact || 0,
-        speed: speedFrac, phase: ast.phase, hold, t: elapsed });
+        speed: mode === "walk" && !boarding ? walkK : speedFrac, phase: ast.phase, hold, t: elapsed });
     } else {
       const sw = ast.onGround ? Math.sin(ast.phase) * 0.45 * speedFrac : 0.35;
       u.legL.rotation.x = sw; u.legR.rotation.x = ast.onGround ? -sw : -0.2;
@@ -2325,6 +2384,18 @@ window.Surface = (function () {
     const rr = Math.hypot(want.x, want.z); // nicht in die Rakete hineinschauen (sie steht bei 0, 0)
     if (rr < 2.6 && want.y < world.rocketY + 11) { const k = 2.6 / (rr || 0.01); want.x *= k; want.z *= k; }
     c.position.lerp(want, 1 - Math.exp(-dt * 5));
+    // nicht hinter Wände und in Gebäude: von Kopfhöhe zur Kamera schauen und vor dem ersten festen Teil bleiben
+    camHead.set(ast.pos.x, ast.pos.y + 1.5, ast.pos.z);
+    camDir.copy(c.position).sub(camHead);
+    const camLen = camDir.length();
+    if (camLen > 1.1) {
+      camRay.set(camHead, camDir.divideScalar(camLen)); camRay.far = camLen;
+      const hit = camRay.intersectObjects(camBlockers(), false)[0];
+      if (hit) { // näher heran und dafür etwas höher – so schaut man über das Kind hinweg
+        const d = Math.max(1, hit.distance - 0.35);
+        c.position.copy(camHead).addScaledVector(camDir, d); c.position.y += (camLen - d) * 0.25;
+      }
+    }
     const lookY = ast.pos.y + 1.3 + Math.max(0, (1.6 - view.height)) * 2.5; // tief = nach oben schauen
     view.look.lerp(tmp2.set(ast.pos.x + Math.sin(view.yaw) * 3, lookY, ast.pos.z + Math.cos(view.yaw) * 3), 1 - Math.exp(-dt * 8));
     c.lookAt(view.look);
@@ -2685,7 +2756,7 @@ window.Surface = (function () {
     const nora = guide && guide.n;
     if (nora && nora.obj.visible) { // Nora steigt zuerst ein
       const np = nora.obj.position, ex = HATCH.x * 2.6 - np.x, ez = HATCH.z * 2.6 - np.z, ed = Math.hypot(ex, ez);
-      if (ed > 0.2) { const st = Math.min(ed, 2 * dt); np.x += (ex / ed) * st; np.z += (ez / ed) * st; nora.heading = Math.atan2(ex, ez); nora.moving = true; }
+      if (ed > 0.2) { const st = Math.min(ed, 2 * dt); np.x += (ex / ed) * st; np.z += (ez / ed) * st; nora.heading = Math.atan2(ex, ez); nora.moving = true; nora.speedNow = 2; }
       else nora.moving = false;
       if (b.phase !== "walk") nora.obj.visible = false;
     }
@@ -2730,6 +2801,7 @@ window.Surface = (function () {
   }
   // Fußabdruck neben dem Astronauten (side = links/rechts, back = Versatz nach hinten)
   function footprint(side, back = 0) {
+    if (bodyId === "erde") return; // auf der Wiese bleiben keine Stiefelabdrücke
     const hx = Math.sin(ast.heading), hz = Math.cos(ast.heading);
     const x = ast.pos.x - hz * side + hx * back, z = ast.pos.z + hx * side + hz * back;
     const fp = world.myPrints[world.printIdx]; world.printIdx = (world.printIdx + 1) % world.myPrints.length;
@@ -2869,20 +2941,19 @@ window.Surface = (function () {
       const climbing = n.climbY != null;
       p.y = climbing ? n.climbY : world.height(p.x, p.z);
       n.obj.rotation.y = n.heading;
-      n.phase += dt * (moving ? 5 : climbing ? 6 : 1.5);
-      poseRig(n.rig, { mode: climbing ? "climb" : moving ? "walk" : "stand", speed: moving ? 0.55 : 0, phase: n.phase, t: elapsed + n.c.path.length,
+      const fast = moving && (n.speedNow || 0) > 1.6; // Nora, wenn sie vorausläuft
+      n.phase += dt * (fast ? 1.4 + n.speedNow * 2.3 : moving ? 5.3 : climbing ? 6 : 1.5); // Bewohner gehen gemütlich (1,1 m/s)
+      poseRig(n.rig, { mode: climbing ? "climb" : fast ? "run" : moving ? "walk" : "stand", speed: fast ? Math.min(1, n.speedNow / 3.8) : moving ? 0.7 : 0, phase: n.phase, t: elapsed + n.c.path.length,
         air: false, airP: 0, contact: 0, wave: n.waveT > 0, work: !moving && n.c.work && dist > 5.5 });
       n.col[0] = p.x; n.col[1] = p.z;
-      // Sprechblase über dem Kopf (Noras Blase bleibt am Bildrand, wenn sie gerade nicht im Bild ist)
+      // Sprechblase über dem Kopf – immer ganz im Bild (Noras Blase bleibt am Bildrand, auch wenn sie hinter der Kamera ist)
       if (n.talk > 0 && !view.special && n.obj.visible && !modal) {
         tmp.set(p.x, p.y + 2.35, p.z).project(c);
         if (tmp.z < 1 || n.isNora) {
           let x = (tmp.x * 0.5 + 0.5) * w, y = (-tmp.y * 0.5 + 0.5) * h;
-          if (n.isNora) {
-            if (tmp.z >= 1) { x = w - x; y = h * 0.3; } // hinter der Kamera: gespiegelt an den Rand
-            const bw = Math.min(n.el.offsetWidth || 300, w - 20), bh = n.el.offsetHeight || 80;
-            x = Math.max(bw / 2 + 10, Math.min(w - bw / 2 - 10, x)); y = Math.max(bh + 70, Math.min(h - 150, y));
-          }
+          if (tmp.z >= 1) { x = w - x; y = h * 0.3; } // hinter der Kamera: gespiegelt an den Rand
+          const bw = Math.min(n.el.offsetWidth || 300, w - 20), bh = n.el.offsetHeight || 80;
+          x = Math.max(bw / 2 + 10, Math.min(w - bw / 2 - 10, x)); y = Math.max(bh + 70, Math.min(h - 150, y));
           n.el.style.display = ""; n.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
         } else n.el.style.display = "none";
       } else n.el.style.display = "none";
@@ -2895,7 +2966,7 @@ window.Surface = (function () {
   //  world.L.route[Schlüssel] = Wegpunkte zur Station (der Weg, den die Person läuft); world.L.meet = wo sie zu Beginn herkommt
   // =========================================================
   let guide = null;
-  const GUIDE_SPEED = 2.8, MAX_SLOPE = 1.35; // MAX_SLOPE: so steil darf es bergauf gehen (Höhe pro Meter) – für Kind und Nora
+  const GUIDE_SPEED = 3.3, MAX_SLOPE = 1.35; // MAX_SLOPE: so steil darf es bergauf gehen (Höhe pro Meter) – für Kind und Nora
   // Steht ein Ausstellungsstück (Hindernis) mitten im Kreis, wird der Kreis größer – sonst bliebe kaum Platz zum Hineintreten
   function fitZones() {
     if (world.zonesFitted) return; world.zonesFitted = true;
@@ -3125,7 +3196,7 @@ window.Surface = (function () {
       const ex = gx - p.x, ez = gz - p.z, dg = Math.hypot(ex, ez);
       if (dg > 0.35 && dAst > 1.6) {
         const step = Math.min(dg, GUIDE_SPEED * 1.25 * dt);
-        p.x += (ex / dg) * step; p.z += (ez / dg) * step;
+        p.x += (ex / dg) * step; p.z += (ez / dg) * step; n.speedNow = step / Math.max(dt, 1e-3);
         guideAvoid(p, ex / dg, ez / dg);
         if (dg > 2) face(gx, gz); else face(ast.pos.x, ast.pos.z);
         n.moving = true;
@@ -3141,11 +3212,16 @@ window.Surface = (function () {
         if (guide.waitCd <= 0) { guide.waitCd = 12; n.waveT = 2.4; guideSay(GC.wait); }
         return;
       }
-      const [tx, tz] = guide.pts[0], ex = tx - p.x, ez = tz - p.z, d = Math.hypot(ex, ez);
-      if (d < 0.3) { guide.pts.shift(); return; }
-      const step = Math.min(d, GUIDE_SPEED * dt * (dAst < 3 ? 1.2 : 1));
-      p.x += (ex / d) * step; p.z += (ez / d) * step;
-      face(tx, tz); n.moving = true;
+      // ohne Halt von Wegpunkt zu Wegpunkt (sonst stockt die Laufbewegung an jedem Punkt für einen Moment)
+      let left = GUIDE_SPEED * dt * (dAst < 3 ? 1.2 : 1), moved = 0;
+      while (left > 1e-4 && guide.pts.length) {
+        const [tx, tz] = guide.pts[0], ex = tx - p.x, ez = tz - p.z, d = Math.hypot(ex, ez);
+        if (d < 0.05) { guide.pts.shift(); continue; }
+        const step = Math.min(d, left);
+        face(tx, tz); // Blickrichtung vor dem Schritt (am Wegpunkt selbst gäbe es keine Richtung)
+        p.x += (ex / d) * step; p.z += (ez / d) * step; left -= step; moved += step;
+      }
+      if (moved > 0) { n.speedNow = moved / Math.max(dt, 1e-3); n.moving = true; }
       return;
     }
     // angekommen
@@ -3686,7 +3762,10 @@ window.Surface = (function () {
   // =========================================================
   const signTex = (text, bg, w = 512, h = 96, font = 54) => canvasTex(w, h, (c) => {
     c.fillStyle = bg; c.fillRect(0, 0, w, h);
-    c.fillStyle = "#fff"; c.font = `bold ${font}px sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(text, w / 2, h / 2 + 3);
+    c.font = `bold ${font}px sans-serif`;
+    const tw = c.measureText(text).width; // zu lange Schrift kleiner machen, statt sie am Rand abzuschneiden
+    if (tw > w * 0.92) c.font = `bold ${Math.floor(font * (w * 0.92) / tw)}px sans-serif`;
+    c.fillStyle = "#fff"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(text, w / 2, h / 2 + 3);
   });
   const signMat = (text, bg, w, h, font) => new THREE.MeshStandardMaterial({ map: signTex(text, bg, w, h, font), roughness: 0.5 });
   function marsCellMat(M) { // Solarzellen: dunkelblau mit silbernen Linien
@@ -4087,7 +4166,7 @@ window.Surface = (function () {
       wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { monde: MARS_SCOPE_DOOR(L.monde) });
 
     const hutAt = [hut.position.x, hut.position.z], parkP = (x, z) => [L.roverStart[0] + x * Math.cos(MARS_ROVER_PARK) + z * Math.sin(MARS_ROVER_PARK), L.roverStart[1] - x * Math.sin(MARS_ROVER_PARK) + z * Math.cos(MARS_ROVER_PARK)];
-    const colliders = [[0, 0, 1.8], [...L.monde, 2.9], [...L.vulkan, 0.7], [...L.rover, 1], [...L.eis, 0.9], [...L.wegweiser, 0.3], [...hutAt, 2.5],
+    const colliders = [...ROCKET_COLLIDERS, [...L.monde, 2.9], [...L.vulkan, 0.7], [...L.rover, 1], [...L.eis, 0.9], [...L.wegweiser, 0.3], [...hutAt, 2.5],
       [L.eis[0] + 2.7, L.eis[1] + 1.7, 1.3], [L.eis[0] + 1.5, L.eis[1] - 0.5, 0.6], [L.eis[0] + 4.3, L.eis[1] - 0.3, 0.2], [...MARS_MAST(L.abend), 0.3],
       ...[[-1.8, -2.4], [1.8, -2.4], [-1.8, 2.4], [1.8, 2.4]].map(([x, z]) => [...parkP(x, z), 0.2]),
       [...L.rost, 1], [...L.abend, 0.5], [...L.roverZiel, 0.7], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25],
@@ -4418,7 +4497,7 @@ window.Surface = (function () {
     const scale = B.on(makeScale(), ...L.waage);
     scale.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
     const station = B.on(makeStation(cfg.discoveries, name, style), ...L.station);
-    const colliders = [[0, 0, 1.8], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], ...(CAMP_COLLIDERS[style] || stationColliders)(L.station)];
+    const colliders = [...ROCKET_COLLIDERS, [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], ...(CAMP_COLLIDERS[style] || stationColliders)(L.station)];
     return { scale, station, colliders };
   }
 
@@ -4523,12 +4602,20 @@ window.Surface = (function () {
       const cx = cv.getContext("2d");
       cx.fillStyle = "#fde68a"; cx.font = "bold 46px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(b.name, 128, 38);
       const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
-      const label = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.24), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.3), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
       label.position.set(x - r, 0.62, -0.46); label.rotation.y = Math.PI; g.add(label);
       x -= r * 2 + gap;
     }
     g.userData = { width };
     return g;
+  }
+  // Größenvergleich als Kulisse: seitlich neben der Tafelwand, leicht zum Platz gedreht – so verdeckt er keine Entdeckungs-Tafeln.
+  // Gibt das Gestell und seine Hindernis-Kreise zurück.
+  function placeSizeRack(B, ids, [sx, sz]) {
+    const a = 0.4, rack = B.on(makeSizeRack(ids), sx + 12.5, sz - 3); rack.rotation.y = a;
+    const half = rack.userData.width / 2 - 0.6, n = Math.max(1, Math.ceil(half / 1.0)), cols = [];
+    for (let i = -n; i <= n; i++) { const s = (i / n) * half; cols.push([rack.position.x + Math.cos(a) * s, rack.position.z - Math.sin(a) * s, 0.75]); }
+    return { rack, cols };
   }
   function startGuess() {
     const T = cfg.guess;
@@ -4631,14 +4718,19 @@ window.Surface = (function () {
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.42, 0.35, 24, 1, true), M.orange), 0, 0.9, 0, false);
     let last = null;
     for (let i = 0; i <= 12; i++) { const a = (i / 12) * Math.PI * 2, top = new V(Math.sin(a) * 1.85, h + 1, Math.cos(a) * 1.85); put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 6), M.steel), top.x, h + 0.5, top.z, false); if (last) pipeSeg(g, M, last, top, 0.035, M.teal); last = top; }
-    for (let i = 0; i < Math.floor(h / 0.4); i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.05), M.steel), 0, 0.3 + i * 0.4, 1.45, false);
-    for (const x of [-0.3, 0.3]) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.05), M.steel), x, h / 2, 1.45, false);
+    // Leiter seitlich (vorn steht das Namensschild)
+    const ladder = new THREE.Group(); ladder.rotation.y = -1.25; g.add(ladder);
+    for (let i = 0; i < Math.floor(h / 0.4); i++) put(ladder, new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.05), M.steel), 0, 0.3 + i * 0.4, 1.47, false);
+    for (const x of [-0.3, 0.3]) put(ladder, new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.05), M.steel), x, h / 2, 1.47, false);
     // Spiegel, der das Sonnenlicht einfängt (wie bei echten Sonnenteleskopen)
     const mirror = new THREE.Group(); mirror.position.set(2.8, 0, -0.8); g.add(mirror);
     put(mirror, new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 1.6, 8), M.steel), 0, 0.8, 0);
     const disc = put(mirror, new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.08, 28), M.std({ color: srgb(0xe2e8f0), metalness: 1, roughness: 0.05, envMapIntensity: 2 })), 0, 1.8, 0);
     disc.rotation.set(0.9, 0.6, 0);
-    put(g, new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.42), signMat("☀️ SONNENTURM", "#b45309", 560, 108, 54)), 0, 2.3, 1.1 + 0.03, false);
+    { // Namensschild als Band um den (nach oben schmaler werdenden) Turm
+      const r = (y) => 1.4 - 0.3 * y / h + 0.025, arc = 2.2 / r(2.3);
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(r(2.51), r(2.09), 0.42, 32, 1, true, -arc / 2, arc), signMat("☀️ SONNENTURM", "#b45309", 560, 108, 54)), 0, 2.3, 0, false);
+    }
     return g;
   }
   // Sonnenschutz-Unterstand: schräges Dach auf vier Stützen (lokal: tiefe Seite zur Sonne = +Z)
@@ -4797,7 +4889,7 @@ window.Surface = (function () {
     shadeSign.rotation.y = Math.atan2(-shadeSign.position.x, -shadeSign.position.z);
     const ice = makeIceCrystals(2.2); on(ice, ...L.eis, 0.02);
     const orrery = on(makeOrrery("merkur", 0.75, 1.7), ...L.jahr);
-    const rack = on(makeSizeRack(["mond", "merkur", "erde"]), ...L.groesse);
+    const { rack, cols: rackCols } = placeSizeRack(B, ["mond", "merkur", "erde"], L.station);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, temperatur: run.S, sonne: L.sonne, krater: L.krater, jahr: L.jahr, groesse: L.groesse,
@@ -4811,7 +4903,7 @@ window.Surface = (function () {
     common.station.updateMatrixWorld(true);
     const wall = [];
     const colliders = [...common.colliders, [...L.boulder, 6.8], [...L.sonne, 1.9], [...L.krater, 1], [...L.wegweiser, 0.3], [...L.sonde, 1.6],
-      [...L.eis, 0.5], [iceProbe.position.x, iceProbe.position.z, 1.1], [...L.jahr, 1.2], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1],
+      [...L.eis, 0.5], [iceProbe.position.x, iceProbe.position.z, 1.1], [...L.jahr, 1.2], ...rackCols,
       ...seismos.map((s) => [s.position.x, s.position.z, 0.5]), ...wall, ...npcs.map((n) => n.col), ...run.pillars.map(([x, z]) => [x, z, 1.7]),
       ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2])];
 
@@ -5132,7 +5224,7 @@ window.Surface = (function () {
     drawTour(B, L, [206, 196, 182], 1.8);
     const npcs = addNpcs(B);
     const orrery = on(makeOrrery("pluto", 1.95, 0.6), ...L.jahr);
-    const rack = on(makeSizeRack(["pluto", "mond", "erde"]), ...L.groesse);
+    const { rack, cols: rackCols } = placeSizeRack(B, ["pluto", "mond", "erde"], L.station);
 
     // Eis-Curling: Zielscheibe auf dem Herz, Eisstein und Richtungspfeil
     const lane = curlLane(L), curl = makeCurling();
@@ -5143,7 +5235,7 @@ window.Surface = (function () {
       waage: L.waage, charon: L.charon, herz: L.herz, funk: L.funk, jahr: L.jahr, groesse: L.groesse,
       eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { charon: MARS_SCOPE_DOOR(L.charon) });
     const colliders = [...common.colliders, [...L.charon, 2.9], [...L.herz, 0.7], [L.herz[0] + 3.6 * Math.cos(dronePad.rotation.y), L.herz[1] - 3.6 * Math.sin(dronePad.rotation.y), 1.4], [...L.funk, 1.2], [L.funk[0] + 2.6, L.funk[1] + 1.6, 0.9], [...L.wegweiser, 0.3], [...L.sonde, 1.4], ...npcs.map((n) => n.col),
-      [...L.jahr, 1.2], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1]];
+      [...L.jahr, 1.2], ...rackCols];
 
     return { ...B, ...common, L, telescope, charon, cmpMoon, drone, droneY: drone.position.y, signalFrom, beam, pulse, orrery, rack, npcs, curl, lane,
       blink: dronePad.userData.lights, stations, colliders, shadowCasters: [rocket, common.station, igloo] };
@@ -5457,13 +5549,15 @@ window.Surface = (function () {
     venusSphere(g, M, -12, 13, 4.2, Math.atan2(5, -12), "⚙️ STEUERUNG");
     venusSphere(g, M, 12, 13, 3.6, Math.atan2(-5, -12), "🧪 MESSLABOR");
     venusSphere(g, M, 0, 24, 5, Math.PI + 0.2, "🔋 ENERGIE");
-    // dicke Verbindungsrohre
-    for (const [a, b] of [[[-8, 16, 2.4], [-4.5, 21, 2.4]], [[8.5, 16, 2.4], [4.5, 21, 2.4]]]) pipeSeg(g, M, new V(...a), new V(...b), 0.9, venusMetal(M, 3, 1));
+    // dicke Verbindungsrohre von den vorderen Kugeln zur Energie-Kugel (in 2,4 m Höhe, je ein Stück in die Kugeln hinein)
+    for (const [a, b] of VENUS_PIPES) pipeSeg(g, M, new V(a[0], 2.4, a[1]), new V(b[0], 2.4, b[1]), 0.9, venusMetal(M, 3, 1));
     for (const [x, z, r] of [[-22, 6, 0.4], [21, 22, -0.5], [-18, 25, 0.9]]) { const rd = venusRadiator(M); rd.position.set(x, 0, z); rd.rotation.y = r; g.add(rd); }
     for (const [x, z] of [[-9.5, 3], [9.5, 3]]) colonyLamp(g, M, x, z);
   }
+  const VENUS_PIPES = [[[-9.8, 15], [-2.5, 21.7]], [[10, 14.8], [2.5, 21.7]]]; // [x, z] relativ zur Station
   function venusCampColliders([sx, sz]) {
     const c = [[sx - 12, sz + 13, 4.6], [sx + 12, sz + 13, 4], [sx, sz + 24, 5.4], [sx - 22, sz + 6, 1.6], [sx + 21, sz + 22, 1.6], [sx - 18, sz + 25, 1.6], [sx - 9.5, sz + 3, 0.3], [sx + 9.5, sz + 3, 0.3]];
+    for (const [a, b] of VENUS_PIPES) for (const f of [0.3, 0.5, 0.7]) c.push([sx + a[0] + (b[0] - a[0]) * f, sz + a[1] + (b[1] - a[1]) * f, 1.1]);
     for (const [x, z, r, f] of [[-12, 13, 4.2, Math.atan2(5, -12)], [12, 13, 3.6, Math.atan2(-5, -12)]]) c.push([sx + x + Math.sin(f) * (r + 0.6), sz + z + Math.cos(f) * (r + 0.6), 1.2]);
     for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
     return c;
@@ -5613,14 +5707,14 @@ window.Surface = (function () {
     const globes = new THREE.Group(), gE = makeGlobe("erde"), gV = makeGlobe("venus");
     gE.position.x = 0.9; gV.position.x = -0.9; globes.add(gE, gV);
     on(globes, ...L.tag);
-    const rack = on(makeSizeRack(["mond", "venus", "erde"]), ...L.groesse);
+    const { rack, cols: rackCols } = placeSizeRack(B, ["mond", "venus", "erde"], L.station);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, hitze: L.hitze, druck: L.druck, tag: L.tag, groesse: L.groesse, abendstern: L.abendstern,
       venera: L.radar, lava: L.lava, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { venera: [-2, 1] }); // Kreis vor dem Bildschirm des Peilers
     const npcs = addNpcs(B);
     const colliders = [...common.colliders, [...L.hitze, 1.3], [...L.druck, 1.2], [...L.abendstern, 0.6], [L.abendstern[0] + 3.2, L.abendstern[1] + 1.5, 0.6], [...L.venera, 1.4], [...L.radar, 0.6], [...L.wegweiser, 0.3],
-      [...L.tag, 1.5], [L.groesse[0] - 1.2, L.groesse[1], 1], [L.groesse[0] + 1.2, L.groesse[1], 1], ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2]),
+      [...L.tag, 1.5], ...rackCols, ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2]),
       ...lavaCol, ...npcs.map((n) => n.col)];
 
     return { ...B, ...common, L, board, press, can, dome, telescope, earthStar, moonStar, globeE: gE.userData.ball, globeV: gV.userData.ball, rack, npcs,
@@ -5958,6 +6052,7 @@ window.Surface = (function () {
     const bark = new THREE.MeshStandardMaterial({ color: srgb(0x5a3a22), roughness: 1 });
     const leaf = [0x2e6b30, 0x3d7d34, 0x2a5f3a].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.95, vertexColors: true }));
     const crown = [0x4f8f3a, 0x5c9a3c, 0x6b9f3a, 0x3f7f3a].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.95, vertexColors: true }));
+    for (const m of [...leaf, ...crown]) m.userData.noCam = true; // durch Zweige darf die Kamera hindurch (sonst springt sie im Wald ständig)
     return (TREE.mats = { bark, leaf, crown });
   }
   // gezackte Zweig-Etage (Kegel mit ausgefranstem Rand) bzw. buschiger Ballen, jeweils mit dunklerem Inneren
@@ -6126,14 +6221,14 @@ window.Surface = (function () {
       for (const b of birds.userData.birds) { const a = t * 0.18 + b.o; b.b.position.set(Math.cos(a) * b.r + 10, b.h + Math.sin(t * 2 + b.o) * 0.6, 40 + Math.sin(a) * b.r); b.b.rotation.y = -a; b.b.scale.y = 1.4 * (0.6 + 0.4 * Math.sin(t * 8 + b.o)); }
       for (const c of common.station.userData.flags) { const p = c.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) + 0.9; p.setZ(i, Math.sin(x * 3 - t * 4) * 0.12 * x); } p.needsUpdate = true; }
     }];
-    const rack = on(makeSizeRack(["merkur", "mars", "venus", "erde"]), ...L.groesse);
+    const { rack, cols: rackCols } = placeSizeRack(B, ["merkur", "mars", "venus", "erde"], L.station);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, luft: L.luft, stern: L.stern, tag: L.tag, groesse: L.groesse, mond: L.mond,
       wasser: L.wasser, wald: L.wald, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { mond: MARS_SCOPE_DOOR(L.mond) });
     const npcs = addNpcs(B);
     const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 0.4],
-      [L.groesse[0] - 1.6, L.groesse[1], 1], [L.groesse[0], L.groesse[1], 1], [L.groesse[0] + 1.6, L.groesse[1], 1]];
+      ...rackCols];
 
     // Lebewesen: Art, Objekt, Höhe der Bildmitte, Größe (für das Teleobjektiv), größte Foto-Entfernung
     const life = [...ducks.map((o) => ({ kind: "ente", obj: o, h: 0.3, size: 0.7 })), ...trees.children.map((o) => ({ kind: "baum", obj: o, h: 2.6, size: 5, far: 26 })),
@@ -6350,7 +6445,13 @@ window.Surface = (function () {
   function cloudDeckTex(tint) {
     const t = canvasTex(256, 256, (c) => {
       c.fillStyle = "rgba(0,0,0,0)"; c.clearRect(0, 0, 256, 256);
-      for (let i = 0; i < 70; i++) { const x = hash2(i, 1) * 256, y = hash2(i, 2) * 256, r = 18 + hash2(i, 3) * 40, gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, tint); gr.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); }
+      for (let i = 0; i < 70; i++) {
+        const x0 = hash2(i, 1) * 256, y0 = hash2(i, 2) * 256, r = 18 + hash2(i, 3) * 40;
+        for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) { // über den Rand hinaus auf der anderen Seite weiter – keine Nähte beim Kacheln
+          const x = x0 + ox, y = y0 + oy; if (x + r < 0 || x - r > 256 || y + r < 0 || y - r > 256) continue;
+          const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, tint); gr.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+      }
     });
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 4);
     return t;
@@ -6765,6 +6866,6 @@ window.Surface = (function () {
     }
   };
 
-  if (/[?&]test/.test(location.search)) S._test = { navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, discover, startAction, showFound, POSE, setBone, HATCH };
+  if (/[?&]test/.test(location.search)) S._test = { navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, discover, startAction, showFound, POSE, setBone, HATCH, setJoy: (x, y) => { joy.x = x; joy.y = y; } };
   return S;
 })();

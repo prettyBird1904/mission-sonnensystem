@@ -296,7 +296,7 @@ window.Intro = (function () {
 
     // die Rakete in der gewählten Farbe, Spitze nach oben
     const rocket = W.makeRocket(color);
-    rocket.scale.setScalar(6); rocket.rotation.x = Math.PI / 2; rocket.position.y = 1.2 + 0.85 * 6;
+    rocket.scale.setScalar(6); rocket.rotation.x = Math.PI / 2; rocket.position.y = 1.2 + 0.96 * 6; // steht auf den Flossenspitzen
     rocket.userData.flame.visible = false; scene.add(rocket);
     const rocketY = rocket.position.y;
 
