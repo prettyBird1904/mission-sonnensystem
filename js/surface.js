@@ -80,13 +80,14 @@ window.Surface = (function () {
       for (const [bx, bz, r, b] of bumps) h += b * smooth(r, 0, Math.hypot(x - bx, z - bz));
       return h;
     };
-    const levels = flats.map(([fx, fz, , lv]) => (lv === "auto" ? raw(fx, fz) : lv || 0));
+    // Höhe der Ebene: "auto" = natürlicher Boden dort, "keep" = so hoch, wie die Ebenen davor den Boden dort schon gemacht haben
+    const levels = [], flatten = (h, x, z, n) => {
+      for (let i = 0; i < n; i++) { const [fx, fz, r, , bw = 10] = flats[i], dd = Math.hypot(x - fx, z - fz); if (dd < r + bw) h = levels[i] + (h - levels[i]) * smooth(r, r + bw, dd); }
+      return h;
+    };
+    flats.forEach(([fx, fz, , lv], i) => levels.push(lv === "auto" ? raw(fx, fz) : lv === "keep" ? flatten(raw(fx, fz), fx, fz, i) : lv || 0));
     return function height(x, z) {
-      let h = raw(x, z);
-      flats.forEach(([fx, fz, r, , bw = 10], i) => {
-        const dd = Math.hypot(x - fx, z - fz);
-        if (dd < r + bw) h = levels[i] + (h - levels[i]) * smooth(r, r + bw, dd);
-      });
+      let h = flatten(raw(x, z), x, z, flats.length);
       const edge = Math.hypot(x, z);
       h += smooth(170, 260, edge) * 30 * (0.6 + fbm2(x * 0.03, z * 0.03)); // Hügelkette am Rand
       return h;
@@ -1359,7 +1360,8 @@ window.Surface = (function () {
       if (cfg.stations[key].small) mk.scale.setScalar(0.7); // Fundstück: nur ein kleines Licht
       if (cfg.stations[key].info) mk.visible = false;              // Tafelwand: keine Entdeckung, also kein Licht
       const sc = cfg.stations[key];
-      const zone = sc.info ? (sc.reach || 3.2) : sc.zone || (sc.small ? 1.3 : 1.7);
+      if (sc.extra) mk.removeFromParent(); // Extra zum Anschauen (Waage, Größenvergleich): keine Mission, also keine Lichtsäule
+      const zone = sc.info ? (sc.reach || 3.2) : sc.zone || (sc.small ? 1.3 : sc.extra ? 2 : 1.7);
       stations[key] = { marker: mk, x: mk.position.x, z: mk.position.z, zone };
     }
     return stations;
@@ -1378,6 +1380,7 @@ window.Surface = (function () {
   function updateLife(dt, elapsed, busy) {
     if (world.blink) world.blink.forEach((m, i) => { m.visible = ((elapsed * 0.9 + i * 0.37) % 1) < 0.45; });
     if (world.spin) for (const [o, ax, v] of world.spin) o.rotation[ax] += v * dt;
+    if (world.rack) for (const m of world.rack.userData.globes || []) m.rotation.y += 0.12 * dt; // Kugeln im Größenvergleich drehen sich langsam
     if (world.anim) for (const fn of world.anim) fn(dt, elapsed);
     if (world.npcs) updateNpcs(dt, elapsed, busy);
   }
@@ -1850,7 +1853,7 @@ window.Surface = (function () {
   }
   // auto = die Fragen kommen direkt nach der letzten Entdeckung → danach automatisch einsteigen und losfliegen
   function startQuiz(auto) {
-    if (!S.active || UI.modalOpen()) { if (S.active) setTimeout(() => startQuiz(auto), 1500); return; }
+    if (!S.active || UI.modalOpen() || view.special) { if (S.active) setTimeout(() => startQuiz(auto), 1500); return; } // erst, wenn kein Fenster offen ist und man nicht gerade an der Waage o. Ä. steht
     // Erst die Fragen zum Erkunden, dann die Fragen aus dem früheren Steckbrief-Quiz – alles per Funk
     const qs = allQuestions(); let i = 0, right = 0, rightOwn = 0;
     const show = () => {
@@ -2534,7 +2537,8 @@ window.Surface = (function () {
     if (key === "guide") { guideResume(); return; }
     if (key === "photo") { takePhoto(); return; }
     if (!cfg.stations[key].action) { discover(key, null, true); return; }
-    if (key === "waage") startWeigh();
+    if (key === "waage") startWeigh(); // Extras gibt es an mehreren Orten
+    else if (key === "groesse") startSizes();
     else site.actions[key]();
   }
   // Hammer & Feder: beim ersten Mal erst vermuten lassen (Kamera bleibt stehen, solange die Frage offen ist)
@@ -2596,9 +2600,9 @@ window.Surface = (function () {
     if (ok) UI.confetti(70);
     return (ok ? "✅ Richtig vermutet! " : "🤔 Gut überlegt – aber schau mal: ") + text;
   }
-  function scopeSay(text, buttons) {
+  function scopeSay(text, buttons, spoken) { // spoken = stattdessen vorlesen (ein Satz oder mehrere nacheinander)
     $("scopeText").textContent = text;
-    if (text) Voice.say(text, "nora");
+    if (text) Voice.say(spoken || text, "nora");
     const host = $("scopeBtns"); host.innerHTML = "";
     for (const [label, fn, primary] of buttons || []) {
       const b = document.createElement("button");
@@ -2698,7 +2702,7 @@ window.Surface = (function () {
     $("scope").classList.toggle("aim", sp.phase === "aim");
   }
 
-  // ---------- Waage: eigenes Erd-Gewicht einstellen und sehen, was die Waage auf dem Mond anzeigt ----------
+  // ---------- Waage (Extra, keine Mission): eigenes Erd-Gewicht einstellen und sehen, was die Waage hier anzeigt – so oft man will ----------
   function startWeigh() {
     const st = world.stations.waage;
     view.special = { update: updateWeigh, kg: 30 };
@@ -2709,10 +2713,10 @@ window.Surface = (function () {
     st.marker.visible = false;
     $("surfaceHud").classList.add("scoping");
     Sound.land();
-    if (cfg.weigh.guess) { scaleGuessing = true; askGuess(cfg.weigh.guess, "Du stehst auf der Waage. Auf der Erde wiegst du 30 Kilo.", () => { scaleGuessing = false; showWeigh(true); }); }
-    else showWeigh();
+    view.special.kg = scaleKg; // zuletzt eingestelltes Gewicht
+    showWeigh(true);
   }
-  function moonKg(kg) { return (kg * cfg.gravity / 9.81).toFixed(1).replace(".", ","); }
+  function moonKg(kg) { return (kg * cfg.gravity / 9.81).toFixed(1).replace(".", ",").replace(/,0$/, ""); } // 30,0 → 30
   // Die Anzeige reagiert wie eine echte Waage: Sie zeigt nur etwas an, solange der Astronaut auf der Platte steht
   let scaleKg = 30, scaleShown = "", scaleGuessing = false;
   function updateScaleDisplay() {
@@ -2721,19 +2725,17 @@ window.Surface = (function () {
     const text = scaleGuessing ? "?? kg" : `${onPlate ? moonKg(scaleKg) : "0,0"} kg`;
     if (text !== scaleShown) { scaleShown = text; world.scale.userData.show(text); }
   }
+  // Beim ersten Mal wird alles vorgelesen (Zahlen, dann die Erklärung), danach nur noch der Satz mit den neuen Zahlen
   function showWeigh(first) {
     const sp = view.special, T = cfg.weigh, mond = moonKg(sp.kg);
     scaleKg = sp.kg;
     const step = (d) => () => { sp.kg = Math.max(20, Math.min(60, sp.kg + d)); showWeigh(); };
     const text = fmtVars(T.text, { erde: sp.kg, mond });
-    scopeSay(first ? guessed(text) : text, [[T.less, step(-5)], [T.more, step(5)], [T.done, endWeigh, true]]);
+    scopeSay(`${text} ${T.why}`, [[T.less, step(-5)], [T.more, step(5)], [T.done, endWeigh, true]], first ? [text, T.why] : text);
   }
   function endWeigh() {
-    const sp = view.special; scaleGuessing = false;
-    view.special = null;
-    world.stations.waage.marker.visible = true;
+    scaleGuessing = false; view.special = null;
     $("scopeUi").classList.add("hidden"); $("surfaceHud").classList.remove("scoping");
-    discover("waage", { erde: sp.kg, mond: moonKg(sp.kg) }, true);
   }
   function updateWeigh(dt) {
     const c = world.camera, st = world.stations.waage, y = world.height(st.x, st.z);
@@ -2990,10 +2992,11 @@ window.Surface = (function () {
       const secret = sc.small && !done;
       if (sc.info || (home && !st.marker.visible)) { el.style.display = "none"; continue; }
       // Namensschilder nur in der Nähe (die Rakete immer) – aus der Ferne helfen Hologramm und Kompass
-      if (!home && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) > (secret ? 25 : 32)) { el.style.display = "none"; continue; }
-      const text = secret ? "✨ Fundstück" : `${home ? "🚀" : done ? "✓" : "🔍"} ${sc.label}`;
+      if (!home && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) > (secret ? 25 : sc.extra ? 16 : 32)) { el.style.display = "none"; continue; }
+      const text = secret ? "✨ Fundstück" : `${home ? "🚀" : sc.extra ? "ℹ️" : done ? "✓" : "🔍"} ${sc.label}`; // ℹ️ = Extra zum Anschauen, keine Mission
       if (el.textContent !== text) el.textContent = text;
       el.classList.toggle("done", done);
+      el.classList.toggle("extra", !!sc.extra);
       el.classList.toggle("home", home);
       el.style.display = "";
       el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h}px) translate(-50%, -100%)`;
@@ -4772,51 +4775,69 @@ window.Surface = (function () {
     if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
   }
 
-  // --- Größenvergleich: Kugeln im selben Maßstab (Erde = 1 m Radius), dazu eine Schätzfrage ---
-  function makeSizeRack(ids) {
-    const g = new THREE.Group(), gap = 0.4;
-    const width = ids.reduce((s, id) => s + (G.bodyById[id].diameterKm / 12742) * 2 + gap, gap);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(width, 0.9, 0.9), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 }));
-    base.position.y = 0.45; base.castShadow = true; g.add(base);
+  // --- Größenvergleich: Kugeln im selben Maßstab (Erde = 1 m Radius) auf einem Sockel, jede auf einem kleinen Messing-Halter,
+  // vorn Namensschilder mit dem echten Durchmesser. lo/hi = tiefster/höchster Boden unter dem Sockel (gemessen zur Mitte):
+  // Der Sockel reicht immer bis in den Boden – auch wenn der Boden nicht ganz eben ist.
+  const fmtKm = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " km";
+  function makeSizeRack(ids, lo = 0, hi = 0) {
+    const g = new THREE.Group(), gap = 0.7, D = 1.2, rOf = (id) => G.bodyById[id].diameterKm / 12742;
+    const width = ids.reduce((s, id) => s + rOf(id) * 2 + gap, gap);
+    const top = Math.max(0, hi) + 0.72, bot = Math.min(0, lo) - 0.4, H = top - bot;
+    const body = new THREE.MeshStandardMaterial({ color: srgb(0x1e3a5f), roughness: 0.55, metalness: 0.15 });
+    const cap = new THREE.MeshStandardMaterial({ color: srgb(0xe5e7eb), roughness: 0.45, metalness: 0.1 });
+    const brass = new THREE.MeshStandardMaterial({ color: srgb(0xc8a24a), roughness: 0.35, metalness: 0.8 });
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(width, H, D), body), 0, bot + H / 2, 0).receiveShadow = true;
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(width + 0.12, 0.08, D + 0.12), cap), 0, top + 0.04, 0).receiveShadow = true; // helle Deckplatte
+    const globes = [];
     let x = width / 2 - gap; // von vorn (−Z) gesehen: links → rechts
     for (const id of ids) {
-      const b = G.bodyById[id], r = b.diameterKm / 12742;
-      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 22), new THREE.MeshStandardMaterial({ map: W.bodies[id].mesh.material.map, roughness: 0.9 }));
-      m.position.set(x - r, 0.9 + r, 0); m.castShadow = true; g.add(m);
-      const cv = document.createElement("canvas"); cv.width = 256; cv.height = 72;
-      const cx = cv.getContext("2d");
-      cx.fillStyle = "#fde68a"; cx.font = "bold 46px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(b.name, 128, 38);
-      const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
-      const label = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.3), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
-      label.position.set(x - r, 0.62, -0.46); label.rotation.y = Math.PI; g.add(label);
+      const b = G.bodyById[id], r = rOf(id), cx = x - r, hp = 0.12;
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(Math.max(0.06, r * 0.32), Math.max(0.08, r * 0.4), hp, 24), brass), cx, top + 0.08 + hp / 2, 0);
+      const m = put(g, new THREE.Mesh(new THREE.SphereGeometry(r, 40, 28), new THREE.MeshStandardMaterial({ map: W.bodies[id].mesh.material.map, roughness: 0.9 })), cx, top + 0.08 + hp + r * 0.94, 0);
+      m.rotation.y = hash2(globes.length, 3) * 6.3; globes.push(m);
+      // Namensschild mit Durchmesser – so breit, wie zwischen den Nachbarn Platz ist
+      const w = Math.min(1.3, r * 2 + gap - 0.12), h = w * 0.4;
+      const tex = canvasTex(512, Math.round(512 * 0.4), (c) => {
+        const W2 = 512, H2 = Math.round(512 * 0.4);
+        c.fillStyle = "#0f172a"; c.beginPath(); c.roundRect ? c.roundRect(4, 4, W2 - 8, H2 - 8, 26) : c.rect(4, 4, W2 - 8, H2 - 8); c.fill();
+        c.strokeStyle = "#c8a24a"; c.lineWidth = 6; c.stroke();
+        c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillStyle = "#ffffff"; c.font = "bold 76px sans-serif"; c.fillText(b.name, W2 / 2, H2 * 0.38, W2 - 40);
+        c.fillStyle = "#fde68a"; c.font = "bold 50px sans-serif"; c.fillText(fmtKm(b.diameterKm), W2 / 2, H2 * 0.75, W2 - 40);
+      });
+      const label = put(g, new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 })), cx, top - 0.06 - h / 2, -D / 2 - 0.006, false);
+      label.rotation.y = Math.PI;
       x -= r * 2 + gap;
     }
-    g.userData = { width };
+    g.userData = { width, depth: D, top, globes };
     return g;
   }
-  // Größenvergleich als Kulisse: seitlich neben der Tafelwand, leicht zum Platz gedreht – so verdeckt er keine Entdeckungs-Tafeln.
-  // Gibt das Gestell und seine Hindernis-Kreise zurück.
-  function placeSizeRack(B, ids, [sx, sz]) {
-    const a = 0.4, rack = B.on(makeSizeRack(ids), sx + 12.5, sz - 3); rack.rotation.y = a;
+  // Größenvergleich: seitlich neben der Tafelwand, leicht zum Platz gedreht – so verdeckt er keine Entdeckungs-Tafeln.
+  // Der Boden dort ist eingeebnet (rackFlat in den flats des Ortes). Gibt das Gestell, seine Hindernis-Kreise und den Platz davor zurück.
+  const RACK_AT = ([sx, sz]) => [sx + 12.5, sz - 3], RACK_ANGLE = 0.4;
+  const rackFlat = (L) => [...RACK_AT(L.station), 4.8, "keep", 5];
+  function placeSizeRack(B, ids, station) {
+    const a = RACK_ANGLE, [px, pz] = RACK_AT(station), y0 = B.height(px, pz), W0 = makeSizeRack(ids).userData.width;
+    let lo = 0, hi = 0; // Boden unter dem Sockel abtasten
+    for (let s = -W0 / 2; s <= W0 / 2 + 0.01; s += W0 / 8) for (const f of [-0.6, 0, 0.6]) {
+      const h = B.height(px + Math.cos(a) * s - Math.sin(a) * f, pz - Math.sin(a) * s - Math.cos(a) * f) - y0; lo = Math.min(lo, h); hi = Math.max(hi, h);
+    }
+    const rack = B.on(makeSizeRack(ids, lo, hi), px, pz); rack.rotation.y = a;
     const half = rack.userData.width / 2 - 0.6, n = Math.max(1, Math.ceil(half / 1.0)), cols = [];
-    for (let i = -n; i <= n; i++) { const s = (i / n) * half; cols.push([rack.position.x + Math.cos(a) * s, rack.position.z - Math.sin(a) * s, 0.75]); }
-    return { rack, cols };
+    for (let i = -n; i <= n; i++) { const s = (i / n) * half; cols.push([px + Math.cos(a) * s, pz - Math.sin(a) * s, 0.75]); }
+    const spot = [px - Math.sin(a) * 2.6, pz - Math.cos(a) * 2.6]; // vor dem Gestell (vorn = −Z des Gestells)
+    return { rack, cols, spot };
   }
-  function startGuess() {
-    const T = cfg.guess;
-    enterExhibit("groesse", { update: updateGuess });
+  // Extra (keine Mission): Kamera vor das Gestell, kurze Erklärung, die man vorgelesen bekommt
+  function startSizes() {
+    enterExhibit("groesse", { update: updateSizes });
     world.astronaut.visible = false;
-    const answer = (i) => () => {
-      const ok = i === T.c;
-      if (ok) Sound.correct(); else Sound.wrong();
-      scopeSay(`${ok ? T.right : T.wrong} ${T.why}`, [[T.done, endHidden, true]]);
-    };
-    scopeSay(T.q, T.a.map((t, i) => [t, answer(i)]));
+    scopeSay(cfg.sizes.text, [[cfg.sizes.done || "Fertig ✓", endHidden, true]]);
   }
-  function updateGuess(dt) {
-    const c = world.camera, p = world.rack.position, w = world.rack.userData.width;
-    c.position.lerp(tmp.set(p.x, p.y + 2.3, p.z - 3.2 - w * 0.8), 1 - Math.exp(-dt * 3));
-    view.look.lerp(tmp2.set(p.x, p.y + 1.7, p.z), 1 - Math.exp(-dt * 4));
+  function updateSizes(dt) {
+    const c = world.camera, r = world.rack, p = r.position, a = r.rotation.y, w = r.userData.width, d = 2.2 + w * 0.42, y = p.y + r.userData.top;
+    c.position.lerp(tmp.set(p.x - Math.sin(a) * d, y + 1.1, p.z - Math.cos(a) * d), 1 - Math.exp(-dt * 3));
+    view.look.lerp(tmp2.set(p.x, y + 0.55, p.z), 1 - Math.exp(-dt * 4));
     c.lookAt(view.look);
   }
 
@@ -5010,7 +5031,7 @@ window.Surface = (function () {
       [...L.krater, 7], [...L.kraterZiel, 10], [...L.wegweiser, 4], [...L.sonde, 6], [...L.eis, 7], [MERKUR_CRATER[0], MERKUR_CRATER[1], MERKUR_CRATER[2] + 6], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 30 : 50, 913, 1.6, 7, 210);
     craters.push(...mSmall);
     const hollows = mSmall.filter((c, i) => i % 5 === 1); // helle Senken, in denen Gestein verdampft ist
-    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 16, 20, "auto"], [...L.waage, 5], [...L.sonne, 4, "auto", 3], [...L.boulder, 7, "auto"], [...L.shadowSpot, 5, "auto"], [...L.krater, 5, "auto"], [...L.kraterZiel, 7, "auto"]];
+    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 16, 20, "auto"], [...L.waage, 5], [...L.sonne, 4, "auto", 3], [...L.boulder, 7, "auto"], [...L.shadowSpot, 5, "auto"], [...L.krater, 5, "auto"], [...L.kraterZiel, 7, "auto"], rackFlat(L)];
     const B = buildBase({
       height: makeHeight(craters, flats, 80),
       // keine Luft: schwarzer Himmel – und eine riesige, grelle Sonne (Merkur ist ihr am nächsten)
@@ -5082,10 +5103,10 @@ window.Surface = (function () {
     shadeSign.rotation.y = Math.atan2(-shadeSign.position.x, -shadeSign.position.z);
     const ice = makeIceCrystals(2.2); on(ice, ...L.eis, 0.02);
     const orrery = on(makeOrrery("merkur", 0.75, 1.7), ...L.jahr);
-    const { rack, cols: rackCols } = placeSizeRack(B, ["mond", "merkur", "erde"], L.station);
+    const { rack, cols: rackCols, spot: rackSpot } = placeSizeRack(B, ["mond", "merkur", "erde"], L.station);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
-      waage: L.waage, temperatur: run.S, sonne: L.sonne, krater: L.krater, jahr: L.jahr, groesse: L.groesse,
+      waage: L.waage, temperatur: run.S, sonne: L.sonne, krater: L.krater, jahr: L.jahr, groesse: rackSpot,
       eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] });
     const npcs = addNpcs(B);
     drawTour(B, L, [168, 158, 144], 1.8); // der Rundgang mit Kofi: oben in der Sonne, dann hinab in den schattigen Krater
@@ -5360,7 +5381,7 @@ window.Surface = (function () {
     const craters = [[60, 20, 12, 1.6], [-75, -40, 16, 2], [50, -70, 14, 2], [-95, 75, 12, 1.6], [90, -20, 9, 1.2], [-30, -80, 10, 1.4]];
     craters.push(...scatterCraters(L, [[...L.spawn, 6], [...L.station, 20], [L.station[0], L.station[1] + 14, 22], [...L.waage, 6], [...L.charon, 9], [...L.herz, 9], [...L.funk, 9], [...L.wegweiser, 4], [...L.sonde, 5],
       [L.heart[0], L.heart[1] + 5, 70], [-58, 40, 28], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 14 : 24, 333, 1.6, 6, 220)); // das Herz ist jung – dort gibt es keine Krater
-    const flats = [[0, 0, 11], [...L.station, 18], [L.station[0], L.station[1] + 14, 20], [...L.waage, 4], [...L.charon, 5, "auto", 4], [...L.herz, 7], [...L.funk, 5, "auto", 4], [L.heart[0], L.heart[1] + 5, 62]];
+    const flats = [[0, 0, 11], [...L.station, 18], [L.station[0], L.station[1] + 14, 20], [...L.waage, 4], [...L.charon, 5, "auto", 4], [...L.herz, 7], [...L.funk, 5, "auto", 4], [L.heart[0], L.heart[1] + 5, 62], rackFlat(L)];
     const hills = [[L.charon[0] + 2, L.charon[1] + 2, 18, 6], [L.funk[0] - 3, L.funk[1], 16, 5], [-58, 40, 26, 8]]; // Eis-Terrasse, Grat, Bergfuß
     const B = buildBase({
       height: makeHeight(craters, flats, 120, null, hills),
@@ -5446,7 +5467,7 @@ window.Surface = (function () {
     drawTour(B, L, [206, 196, 182], 1.8);
     const npcs = addNpcs(B);
     const orrery = on(makeOrrery("pluto", 1.95, 0.6), ...L.jahr);
-    const { rack, cols: rackCols } = placeSizeRack(B, ["pluto", "mond", "erde"], L.station);
+    const { rack, cols: rackCols, spot: rackSpot } = placeSizeRack(B, ["pluto", "mond", "erde"], L.station);
 
     // Eis-Curling: Zielscheibe auf dem Herz, Eisstein und Richtungspfeil
     const lane = curlLane(L), curl = makeCurling();
@@ -5454,7 +5475,7 @@ window.Surface = (function () {
     curl.stone.visible = curl.arrow.visible = false;
     on(makeSignBoard(M, "🥌 EIS-CURLING", "#0e7490", 2.4), lane.sx - lane.dz * 3, lane.sz + lane.dx * 3).rotation.y = Math.atan2(-lane.dx, -lane.dz);
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
-      waage: L.waage, charon: L.charon, herz: L.herz, funk: L.funk, jahr: L.jahr, groesse: L.groesse,
+      waage: L.waage, charon: L.charon, herz: L.herz, funk: L.funk, jahr: L.jahr, groesse: rackSpot,
       eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { charon: MARS_SCOPE_DOOR(L.charon) });
     const colliders = [...common.colliders, ...iceBlockCols, [...L.charon, 2.9], [...L.herz, 0.7], [L.herz[0] + 3.6 * Math.cos(dronePad.rotation.y), L.herz[1] - 3.6 * Math.sin(dronePad.rotation.y), 1.4], [...L.funk, 1.2], [L.funk[0] + 2.6, L.funk[1] + 1.6, 0.9], [...L.wegweiser, 0.3], [...L.sonde, 1.4], ...npcs.map((n) => n.col),
       [...L.jahr, 1.2], ...rackCols];
@@ -5805,7 +5826,7 @@ window.Surface = (function () {
   function buildVenus() {
     const L = { ...VENUS_LAYOUT };
     const craters = [[70, 30, 14, 1.2], [-80, -50, 18, 1.6], [50, -80, 12, 1.2], [-70, 80, 12, 1]];
-    const flats = [[0, 0, 11], [...L.station, 20, VENUS_DOME[3]], [L.station[0], L.station[1] + 16, 22, VENUS_DOME[3]], [...L.waage, 3], [...L.hitze, 5], [...L.druck, 5], [...L.abendstern, 6, VENUS_DOME[3], 4], [...L.venera, 4], [...L.radar, 3], [L.lava[0], 50, 9, 0, 6]];
+    const flats = [[0, 0, 11], [...L.station, 20, VENUS_DOME[3]], [L.station[0], L.station[1] + 16, 22, VENUS_DOME[3]], [...L.waage, 3], [...L.hitze, 5], [...L.druck, 5], [...L.abendstern, 6, VENUS_DOME[3], 4], [...L.venera, 4], [...L.radar, 3], [L.lava[0], 50, 9, 0, 6], rackFlat(L)];
     const B = buildBase({
       height: makeHeight(craters, flats, 160, venusDome),
       // dichte, giftige Wolken: gelb-oranger Dunst, man sieht kaum 100 Meter weit, die Sonne ist nur ein heller Schein
@@ -5935,10 +5956,10 @@ window.Surface = (function () {
     const globes = new THREE.Group(), gE = makeGlobe("erde"), gV = makeGlobe("venus");
     gE.position.x = 0.9; gV.position.x = -0.9; globes.add(gE, gV);
     on(globes, ...L.tag);
-    const { rack, cols: rackCols } = placeSizeRack(B, ["mond", "venus", "erde"], L.station);
+    const { rack, cols: rackCols, spot: rackSpot } = placeSizeRack(B, ["mond", "venus", "erde"], L.station);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
-      waage: L.waage, hitze: L.hitze, druck: L.druck, tag: L.tag, groesse: L.groesse, abendstern: L.abendstern,
+      waage: L.waage, hitze: L.hitze, druck: L.druck, tag: L.tag, groesse: rackSpot, abendstern: L.abendstern,
       venera: L.radar, lava: L.lava, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { venera: [-2, 1] }); // Kreis vor dem Bildschirm des Peilers
     const npcs = addNpcs(B);
     const colliders = [...common.colliders, [...L.hitze, 1.3], [...L.druck, 1.2], [...L.abendstern, 0.6], [L.abendstern[0] + 3.2, L.abendstern[1] + 1.5, 0.6], [...L.venera, 1.4], [...L.radar, 0.6], [...L.wegweiser, 0.3],
@@ -6844,7 +6865,7 @@ window.Surface = (function () {
     const SL = makeHeight(craters, [], 200, null, hills)(...L.station), [stx, stz] = L.station;
     const flats = [];
     for (let i = 0; i < L.road.length - 1; i++) { const [ax, az] = L.road[i], [bx, bz] = L.road[i + 1], n = Math.ceil(Math.hypot(bx - ax, bz - az) / 8); for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; flats.push([x, z, 12, Math.hypot(x - stx, z - stz) < 34 ? SL : "auto", 12]); } } // Dorf eben (zuerst – der Platz am Zentrum hat Vorrang)
-    flats.push([0, 0, 11], [stx, stz, 20, SL, 14], [stx, stz + 12, 20, SL, 14], [stx - 15, stz + 12, 11, SL, 12], [stx + 15, stz + 12, 11, SL, 12], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 10, "auto"]);
+    flats.push([0, 0, 11], [stx, stz, 20, SL, 14], [stx, stz + 12, 20, SL, 14], [stx - 15, stz + 12, 11, SL, 12], [stx + 15, stz + 12, 11, SL, 12], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 10, "auto"], rackFlat(L));
     const hgt = makeHeight(craters, flats, 200, null, hills);
     const G0 = new THREE.Color(0x4f9440), mul = (hex) => { const c = new THREE.Color(hex); return [c.r / G0.r, c.g / G0.g, c.b / G0.b]; };
     const SAND = mul(0xcfbf8e), MUD = mul(0x8a7a52), MEADOW = [mul(0x5a9e3c), mul(0x6aa83f), mul(0x4a8a3a), mul(0x7cae46)];
@@ -7052,10 +7073,10 @@ window.Surface = (function () {
       for (const b of birds.userData.birds) { const a = t * 0.18 + b.o; b.b.position.set(Math.cos(a) * b.r + 10, b.h + Math.sin(t * 2 + b.o) * 0.6, 40 + Math.sin(a) * b.r); b.b.rotation.y = -a; b.b.scale.y = 1.4 * (0.6 + 0.4 * Math.sin(t * 8 + b.o)); }
       for (const c of common.station.userData.flags) { const p = c.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) + 0.9; p.setZ(i, Math.sin(x * 3 - t * 4) * 0.12 * x); } p.needsUpdate = true; }
     }];
-    const { rack, cols: rackCols } = placeSizeRack(B, ["merkur", "mars", "venus", "erde"], L.station);
+    const { rack, cols: rackCols, spot: rackSpot } = placeSizeRack(B, ["merkur", "mars", "venus", "erde"], L.station);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
-      waage: L.waage, luft: L.luft, stern: L.stern, tag: L.tag, groesse: L.groesse, mond: L.mond,
+      waage: L.waage, luft: L.luft, stern: L.stern, tag: L.tag, groesse: rackSpot, mond: L.mond,
       wasser: L.wasser, wald: L.wald, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] },
       { mond: MARS_SCOPE_DOOR(L.mond), tag: [ERDE_SOUTH.x * 2.6, ERDE_SOUTH.z * 2.6] }); // vor der Sonnenuhr (Süden), nicht auf ihr
     const npcs = addNpcs(B);
@@ -7662,7 +7683,7 @@ window.Surface = (function () {
       update(dt, busy, elapsed) { updateLife(dt, elapsed, busy); },
       // Wettrennen: Die Erde läuft eine Runde (365 Tage), Merkur in derselben Zeit gut vier
       orrery: { earthLaps: 1, planetLaps: 365 / 88, vars: (f) => ({ erde: Math.floor(f * 365), planet: Math.floor((f * 365) / 88) }) },
-      actions: { sonne: startSunScope, krater: startMeteor, jahr: startOrrery, groesse: startGuess, temperatur: startShadowRun }
+      actions: { sonne: startSunScope, krater: startMeteor, jahr: startOrrery, temperatur: startShadowRun }
     },
     pluto: {
       build: buildPluto,
@@ -7678,7 +7699,7 @@ window.Surface = (function () {
       grip: () => (inHeart(ast.pos.x, ast.pos.z) ? 0.16 : 1),
       // Wettrennen: Die Erde läuft 12 Runden, Pluto in derselben Zeit nur 12/248 einer Runde
       orrery: { earthLaps: 12, planetLaps: 12 / 248, vars: (f) => ({ erde: Math.floor(f * 12) }) },
-      actions: { charon: startCharon, herz: startDrone, funk: startSignal, jahr: startOrrery, groesse: startGuess, eis: startCurling }
+      actions: { charon: startCharon, herz: startDrone, funk: startSignal, jahr: startOrrery, eis: startCurling }
     },
     venus: {
       build: buildVenus,
@@ -7695,7 +7716,7 @@ window.Surface = (function () {
           world.scene.fog.near = 18 - 15 * world.radarFog; world.scene.fog.far = 190 - 162 * world.radarFog;
         }
       },
-      actions: { hitze: startHeat, druck: startPress, tag: startSpin, groesse: startGuess, abendstern: startEveningStar, venera: startRadar }
+      actions: { hitze: startHeat, druck: startPress, tag: startSpin, abendstern: startEveningStar, venera: startRadar }
     },
     erde: {
       build: buildErde,
@@ -7709,7 +7730,7 @@ window.Surface = (function () {
         const [sx, sz] = world.L.see;
         world.clouds.rotation.y += dt * 0.004;
       },
-      actions: { luft: startAir, stern: startShooting, tag: startDay, groesse: startGuess, mond: startMoonScope, wald: startSafari }
+      actions: { luft: startAir, stern: startShooting, tag: startDay, mond: startMoonScope, wald: startSafari }
     }
   };
 

@@ -100,6 +100,10 @@ for (const [id, S] of Object.entries(D.surfaces)) {
   if (S.safari) { both(S.safari.start, id); both(S.safari.tip, id); for (const t of Object.values(S.safari.says)) both(t, id); }
   if (S.day) { sayAll(asked(S.day.guess, S.day.ready)); sayAll(guessed(S.day.end)); }
   if (S.air) { sayAll(asked(S.air.guess, S.air.intro)); sayAll(guessed(S.air.offText)); say(S.air.onText); }
+  // Extras (siehe showWeigh und startSizes in surface.js): Waage für jedes einstellbare Gewicht, dazu die Erklärung
+  const kgOn = (kg) => (kg * S.gravity / 9.81).toFixed(1).replace(".", ",").replace(/,0$/, ""); // wie moonKg()
+  if (S.weigh) { for (let kg = 20; kg <= 60; kg += 5) say(fill(S.weigh.text, { erde: kg, mond: kgOn(kg) })); say(S.weigh.why); }
+  if (S.sizes) say(S.sizes.text);
 }
 // Ergebnis der Funk-Fragen (für alle gleich)
 for (let r = 0; r <= 3; r++) add(`${r} von 3 richtig! Die Bodenstation ist beeindruckt!`, "radio", "common");

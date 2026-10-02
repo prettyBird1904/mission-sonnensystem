@@ -479,6 +479,7 @@ kbd {
 .nora-bubble.talking b::after, .npc-bubble.talking b::after { content: " 🔊"; animation: talkPulse 1s ease-in-out infinite; }
 @keyframes talkPulse { 50% { opacity: .35; } }
 .surf-label.home { background: rgba(120, 53, 15, .75); border-color: rgba(251, 191, 36, .8); }
+.surf-label.extra { background: rgba(51, 65, 85, .72); border-color: rgba(226, 232, 240, .55); } /* Extra zum Anschauen – keine Mission */
 .suit { position: absolute; left: 14px; bottom: 14px; padding: 10px 14px; border-radius: 18px; min-width: 190px; transition: background .5s; }
 .suit-t { font-family: var(--font-head); font-size: 26px; }
 .suit small { display: block; font-size: 13px; color: var(--muted); }

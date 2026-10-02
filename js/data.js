@@ -303,7 +303,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "27",
+  version: "28",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
@@ -365,7 +365,15 @@ window.SPACE_DATA = {
         mondstein:   { label: "Mondsprung", hint: "Unten im Krater liegt der Mondstein hinter einem Graben – nimm Anlauf und spring!", again: "🦘 Nochmal ansehen", small: true, auto: 2.6 },
         // Tafelwand der Mondstation: keine Entdeckung (info), öffnet die Liste „Meine Entdeckungen“
         wand:        { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
+        // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
+        waage:       { label: "Frachtwaage", action: "⚖️ Auf die Waage stellen", extra: true },
         rakete:      { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf dem Mond zeigt ({mond}); why = die Erklärung
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Mond zeigt die Waage nur {mond} Kilo!",
+        why: "Dein Körper bleibt gleich – aber der Mond ist viel kleiner als die Erde und zieht nur ein Sechstel so stark an dir.",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
       moat: { fell: "Hoppla, in den Graben! Lauf über die flache Rampe raus und nimm mehr Anlauf." },
       // Hammer und Feder: erst vermuten, dann fallen lassen
@@ -436,7 +444,15 @@ window.SPACE_DATA = {
         rover:     { label: "Rover-Expedition", hint: "Am Rover-Leitstand unten im Tal startet die Rover-Expedition", action: "🤖 Rover-Expedition starten" },
         rost:      { label: "Proben-Labor", hint: "Untersuch den Marsstaub im Proben-Labor am Labor-Turm", action: "🧲 Magnet-Versuch starten" },
         abend:     { label: "Wetterstation", hint: "An der Wetterstation auf der Hochebene steht eine Himmelskamera", action: "⏩ Zeit vorspulen bis zum Abend" },
+        // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
+        waage:     { label: "Waage", action: "⚖️ Auf die Waage stellen", extra: true },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
+      },
+      // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf dem Mars zeigt ({mond}); why = die Erklärung
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Mars zeigt die Waage nur {mond} Kilo!",
+        why: "Der Mars ist nur etwa halb so breit wie die Erde. Darum zieht er schwächer an dir – du bist hier nur gut ein Drittel so schwer.",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
       // Rover-Expedition: 3 Proben im alten Flussdelta sammeln; Staub macht die Solarzellen dunkel – ein Staubteufel pustet sie sauber
       rover: {
@@ -528,8 +544,19 @@ window.SPACE_DATA = {
         temperatur: { label: "Schattenlauf", hint: "Der Schattenlauf startet neben dem Sonnenturm – lauf von Schatten zu Schatten bis zum großen Felsen", action: "☀️ Schattenlauf starten" },
         sonne:      { label: "Sonnenturm", hint: "Oben auf dem Sonnenturm steht ein Fernrohr mit Sonnenfilter", action: "🔭 Durchschauen" },
         krater:     { label: "Einschlag-Messfeld", hint: "Probier den Einschlag-Versuch am Messpult aus", action: "☄️ Einschlag-Versuch starten" },
+        // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
+        waage:      { label: "Waage", action: "⚖️ Auf die Waage stellen", extra: true },
+        groesse:    { label: "Größenvergleich", action: "🪐 Größen vergleichen", extra: true },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
+      // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf dem Merkur zeigt ({mond}); why = die Erklärung
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf dem Merkur zeigt die Waage nur {mond} Kilo!",
+        why: "Der Merkur ist der kleinste Planet. Er zieht nur gut ein Drittel so stark an dir wie die Erde.",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      // Größenvergleich (Extra): Erklärung zu den Kugeln am Gestell neben der Tafelwand
+      sizes: { text: "Die Kugeln zeigen, wie groß die Himmelskörper im Vergleich sind. Der Merkur ist der kleinste Planet – nur ein bisschen größer als unser Mond. Die Erde ist mehr als doppelt so breit.", done: "Fertig ✓" },
       shadowRun: {
         start: "Los! Lauf von Schatten zu Schatten bis in den goldenen Kreis. In der Sonne wird dein Anzug heiß – im Schatten kühlt er ab!",
         label: "🧑‍🚀 Anzug-Hitze", sun: "☀️ Sonne: 430 °C – schnell in den Schatten!", cool: "❄️ Schatten: Anzug kühlt ab",
@@ -613,8 +640,19 @@ window.SPACE_DATA = {
         herz:      { label: "Drohnen-Start", hint: "Steig am Drohnen-Landeplatz mit der Kameradrohne auf", action: "🚁 Mit der Drohne aufsteigen" },
         funk:      { label: "Große Antenne", hint: "Schick an der großen Antenne einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
         eis:       { label: "Eis-Curling", hint: "Auf dem glatten Eis des Herzens wartet ein Eis-Curling-Spiel", action: "🥌 Eis-Curling spielen" },
+        // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
+        waage:     { label: "Waage", action: "⚖️ Auf die Waage stellen", extra: true },
+        groesse:   { label: "Größenvergleich", action: "🪐 Größen vergleichen", extra: true },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
+      // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf Pluto zeigt ({mond}); why = die Erklärung
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf Pluto zeigt die Waage nur {mond} Kilo!",
+        why: "Pluto ist sogar kleiner als unser Mond. Darum zieht er kaum an dir.",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      // Größenvergleich (Extra): Erklärung zu den Kugeln am Gestell neben der Tafelwand
+      sizes: { text: "Die Kugeln zeigen, wie groß die Himmelskörper im Vergleich sind. Pluto ist sogar kleiner als unser Mond! Darum zählt er heute zu den Zwergplaneten. Fünf Plutos nebeneinander wären etwa so breit wie die Erde.", done: "Fertig ✓" },
       curling: {
         aim: "Eis-Curling! Ziel mit ⬅️ ➡️ (oder A und D) auf die Zielscheibe.",
         aimTouch: "Eis-Curling! Ziel mit dem Joystick auf die Zielscheibe.",
@@ -697,8 +735,19 @@ window.SPACE_DATA = {
         venera:     { label: "Radar-Suche", hint: "Am Radar-Peiler neben deiner Rakete startet die Suche nach der Sonde Venera 13", action: "📡 Radar-Suche starten" },
         hitze:      { label: "Klima-Messturm", hint: "Probier den Wolken-Versuch am Klima-Messturm aus", action: "☁️ Wolken-Versuch starten" },
         druck:      { label: "Druck-Prüfstand", hint: "Probier den Druck-Versuch am Druck-Prüfstand aus", action: "🥫 Druck-Versuch starten" },
+        // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
+        waage:      { label: "Waage", action: "⚖️ Auf die Waage stellen", extra: true },
+        groesse:    { label: "Größenvergleich", action: "🪐 Größen vergleichen", extra: true },
         rakete:     { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
+      // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf der Venus zeigt ({mond}); why = die Erklärung
+      weigh: {
+        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf der Venus zeigt die Waage {mond} Kilo – fast dasselbe!",
+        why: "Die Venus ist fast genauso groß wie die Erde. Darum zieht sie fast genauso stark an dir.",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      // Größenvergleich (Extra): Erklärung zu den Kugeln am Gestell neben der Tafelwand
+      sizes: { text: "Die Kugeln zeigen, wie groß die Himmelskörper im Vergleich sind. Die Venus ist fast genauso groß wie die Erde – man nennt sie auch die Schwester der Erde. Unser Mond ist viel kleiner.", done: "Fertig ✓" },
       // Radar-Suche: Venera 13 im dichten Dunst finden, bevor die Anzug-Kühlung leer ist
       radar: {
         start: "Das Radar piept schneller, je näher du der Sonde kommst. Such Venera 13 im Dunst!",
@@ -784,8 +833,19 @@ window.SPACE_DATA = {
         luft:      { label: "Wetterstation", hint: "Probier an der Wetterstation den Luft-Versuch aus", action: "🌬️ Luft-Versuch starten" },
         tag:       { label: "Sonnenuhr im Park", hint: "Spul im Park an der Sonnenuhr die Zeit vor", action: "⏩ Einen Tag vorspulen" },
         wald:      { label: "Foto-Safari", hint: "Am Waldrand startet die Foto-Safari: Fotografiere 5 verschiedene Lebewesen", action: "📷 Foto-Safari starten" },
+        // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
+        waage:     { label: "Waage", action: "⚖️ Auf die Waage stellen", extra: true },
+        groesse:   { label: "Größenvergleich", action: "🪐 Größen vergleichen", extra: true },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
+      // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf der Erde zeigt ({mond}); why = die Erklärung
+      weigh: {
+        text: "Stell ein, wie viel du wiegst: {erde} Kilo. Hier auf der Erde zeigt die Waage genau {mond} Kilo.",
+        why: "Auf anderen Planeten zeigt dieselbe Waage etwas anderes – probier es dort aus!",
+        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
+      },
+      // Größenvergleich (Extra): Erklärung zu den Kugeln am Gestell neben der Tafelwand
+      sizes: { text: "Die Kugeln zeigen, wie groß die Planeten im Vergleich sind. Merkur, Venus, Erde und Mars sind aus Gestein – und die Erde ist der größte von ihnen! Der Mars ist nur etwa halb so breit.", done: "Fertig ✓" },
       // Foto-Safari: 5 verschiedene Lebewesen fotografieren (Pflanzen, Tiere und Menschen)
       safari: {
         start: "Foto-Safari! Finde 5 verschiedene Lebewesen. Halte sie in die Bildmitte und mach ein Foto!",
