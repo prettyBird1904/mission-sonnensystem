@@ -4960,13 +4960,21 @@ window.Surface = (function () {
     L.shadowSpot = [L.boulder[0] + SHADOW_DIR.x * 12, L.boulder[1] + SHADOW_DIR.z * 12];
     const craters = [MERKUR_CRATER, [...L.eis, 6, 1.5], [...L.sonde, 5, 0.9], [70, 10, 16, 2.4], [-70, -30, 18, 2.8], [-85, 60, 14, 2], [60, 95, 12, 1.8], [-20, 105, 10, 1.4],
       [100, -60, 20, 3], [-48, 10, 6, 0.9], [52, 44, 5, 0.8], [0, -80, 14, 2.2], [-100, 10, 9, 1.3], [40, -85, 8, 1.2]];
+    const mSmall = scatterCraters(L, [[...L.spawn, 6], [...L.station, 22], [L.station[0], L.station[1] + 16, 26], [...L.waage, 7], [...L.sonne, 7], [...L.boulder, 9], [...L.shadowSpot, 9],
+      [...L.krater, 7], [...L.kraterZiel, 10], [...L.wegweiser, 4], [...L.sonde, 6], [...L.eis, 7], [MERKUR_CRATER[0], MERKUR_CRATER[1], MERKUR_CRATER[2] + 6], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 30 : 50, 913, 1.6, 7, 210);
+    craters.push(...mSmall);
+    const hollows = mSmall.filter((c, i) => i % 5 === 1); // helle Senken, in denen Gestein verdampft ist
     const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 16, 20, "auto"], [...L.waage, 5], [...L.sonne, 4, "auto", 3], [...L.boulder, 7, "auto"], [...L.shadowSpot, 5, "auto"], [...L.krater, 5, "auto"], [...L.kraterZiel, 7, "auto"]];
     const B = buildBase({
       height: makeHeight(craters, flats, 80),
       // keine Luft: schwarzer Himmel – und eine riesige, grelle Sonne (Merkur ist ihr am nächsten)
       sky: 0x000000, stars: true, sunSize: 430,
-      ground: 0x8f877c, rock: 0x6a645c,
-      tint: (x, z) => { const m = 0.68 + 0.32 * fbm2(x * 0.012 + 5, z * 0.012); return [m, m * 0.97, m * 0.92]; },
+      ground: 0x8f877c, rock: 0x4e4943,
+      tint: (x, z) => {
+        let m = (0.68 + 0.32 * fbm2(x * 0.012 + 5, z * 0.012)) * (0.93 + 0.14 * fbm2(x * 0.08 + 2, z * 0.08)), b = 0.92;
+        for (const [cx, cz, r] of hollows) { const k = smooth(r * 1.1, r * 0.3, Math.hypot(x - cx, z - cz)) * (0.6 + 0.4 * fbm2(x * 0.5, z * 0.5)); m += 0.28 * k; b += 0.22 * k; }
+        return [m, m * 0.97, m * b];
+      },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.sonne, 4], [...L.shadowSpot, 7], [...L.krater, 4],
         [...L.kraterZiel, 7], [...L.wegweiser, 3], [...L.sonde, 3], [...L.eis, 4]],
       ambient: [0x9a8f80, 0.14], hemi: [0x80746a, 0x000000, 0.1], sun: [0xfff6e0, 2.4],
@@ -5256,13 +5264,14 @@ window.Surface = (function () {
   };
   // Eisberg aus Wassereis (Größe 1, Fuß bei y = 0): zerklüftet, unten grauer Staub, an den Flanken bläuliches Eis, oben Schnee
   function plutoIceMountainGeo(seed) {
-    const geo = new THREE.IcosahedronGeometry(1, 3), pos = geo.attributes.position, cols = [];
+    const geo = mergeVerts(new THREE.IcosahedronGeometry(1, 5)), pos = geo.attributes.position, cols = [];
     const DUST = srgb(0x5b534c), ICE = srgb(0x93abc9), DEEP = srgb(0x667ea2), SNOW = srgb(0xf1f5fb), c = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
       if (y < 0) y *= 0.05; // flacher Fuß
       const n = fbm2(x * 2.4 + seed * 7.3, z * 2.4 + y * 3.1), r = 1 - 0.72 * y; // nach oben spitz zulaufen
-      x *= r * (0.75 + 0.55 * n); z *= r * (0.75 + 0.55 * n);
+      const ridge = 1 - Math.abs(2 * fbm2(Math.atan2(z, x) * 1.6 + seed, y * 2.2) - 1); // Grate und Rinnen an den Flanken
+      x *= r * (0.75 + 0.55 * n) * (0.9 + 0.18 * ridge); z *= r * (0.75 + 0.55 * n) * (0.9 + 0.18 * ridge);
       y *= 0.8 + 0.5 * fbm2(x * 1.6 + seed * 3.1, z * 1.6 - seed);
       pos.setXYZ(i, x, y, z);
       const snow = 0.5 + 0.25 * fbm2(x * 4 + seed, z * 4 - seed);
@@ -5276,9 +5285,12 @@ window.Surface = (function () {
   }
   const CHARON_DIR = new V(-0.55, 0.5, 0.65).normalize(), HEART_SIZE = 48;
   // Herzform (von oben gesehen): (x² + y² − 1)³ − x²·y³ ≤ 0
-  function inHeart(x, z) {
+  function inHeart(x, z) { return heartK(x, z) >= 0.5; }
+  // 0 = außerhalb, 1 = im Herz, dazwischen ein weicher, leicht ausgefranster Rand
+  function heartK(x, z) {
     const X = (x - PLUTO_LAYOUT.heart[0]) / HEART_SIZE, Y = (z - PLUTO_LAYOUT.heart[1]) / HEART_SIZE, a = X * X + Y * Y - 1;
-    return a * a * a - X * X * Y * Y * Y <= 0;
+    const fr = (fbm2(x * 0.15, z * 0.15) - 0.5) * 0.06;
+    return smooth(0.025, -0.025, a * a * a - X * X * Y * Y * Y + fr);
   }
   function makeDrone() {
     const g = new THREE.Group();
@@ -5300,6 +5312,8 @@ window.Surface = (function () {
   function buildPluto() {
     const L = { ...PLUTO_LAYOUT };
     const craters = [[60, 20, 12, 1.6], [-75, -40, 16, 2], [50, -70, 14, 2], [-95, 75, 12, 1.6], [90, -20, 9, 1.2], [-30, -80, 10, 1.4]];
+    craters.push(...scatterCraters(L, [[...L.spawn, 6], [...L.station, 20], [L.station[0], L.station[1] + 14, 22], [...L.waage, 6], [...L.charon, 9], [...L.herz, 9], [...L.funk, 9], [...L.wegweiser, 4], [...L.sonde, 5],
+      [L.heart[0], L.heart[1] + 5, 70], [-58, 40, 28], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 14 : 24, 333, 1.6, 6, 220)); // das Herz ist jung – dort gibt es keine Krater
     const flats = [[0, 0, 11], [...L.station, 18], [L.station[0], L.station[1] + 14, 20], [...L.waage, 4], [...L.charon, 5, "auto", 4], [...L.herz, 7], [...L.funk, 5, "auto", 4], [L.heart[0], L.heart[1] + 5, 62]];
     const hills = [[L.charon[0] + 2, L.charon[1] + 2, 18, 6], [L.funk[0] - 3, L.funk[1], 16, 5], [-58, 40, 26, 8]]; // Eis-Terrasse, Grat, Bergfuß
     const B = buildBase({
@@ -5307,13 +5321,20 @@ window.Surface = (function () {
       // fast keine Luft, schwarzer Himmel – die Sonne ist so weit weg, dass sie nur noch ein sehr heller Stern ist
       sky: 0x000000, stars: true, sunSize: 34,
       ground: 0xa89680, rock: 0x8a7a68,
-      tint: (x, z) => { if (inHeart(x, z)) { const e = 1 - 0.3 * heartCells(x, z); return [1.9 * e, 1.9 * e, 1.85 * e]; } const m = 0.42 + 0.28 * fbm2(x * 0.012 + 2, z * 0.012); return [m, m * 0.88, m * 0.76]; },
+      tint: (x, z) => { // außen rotbraune Tholine (organischer Staub), im Herz helles Stickstoff-Eis mit Zellen – mit weichem Übergang
+        const m = 0.42 + 0.28 * fbm2(x * 0.012 + 2, z * 0.012), th = smooth(0.45, 0.7, fbm2(x * 0.02 - 8, z * 0.02 + 4));
+        const out = [m * (1 + 0.25 * th), m * (0.88 - 0.12 * th), m * (0.76 - 0.2 * th)];
+        const h = heartK(x, z); if (h <= 0) return out;
+        const e = 1 - 0.3 * heartCells(x, z), ice = [1.9 * e, 1.9 * e, 1.85 * e];
+        return out.map((v, i) => v + (ice[i] - v) * h);
+      },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.charon, 4], [...L.herz, 4], [...L.funk, 4],
         [...L.wegweiser, 3], [...L.sonde, 3], [L.heart[0], L.heart[1] + 5, 66]],
       ambient: [0x8fa0c0, 0.34], hemi: [0x6f86b8, 0x000000, 0.22], sun: [0xeef2ff, 0.95],
       dust: ["rgba(235,240,250,1)", "rgba(200,210,230,0.9)"]
     });
     const { scene, height, on, rocket } = B;
+    const iceBlockCols = [];
     const common = addCommon(B, L, "Plutostation", "pluto");
     const M = colonyMats("pluto");
 
@@ -5349,7 +5370,23 @@ window.Surface = (function () {
     np.rotation.y = Math.atan2(-np.position.x, -np.position.z);
     on(plutoHeatPavilion(M), ...L.waage).rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
     // Eisberge aus Wassereis am Rand des Herzens und blauer Dunst am Horizont
-    const iceMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, flatShading: true });
+    const iceMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, envMapIntensity: 0.6 });
+    { // Eisblöcke aus Wassereis am Fuß der Berge und verstreut (kantig, bläulich-weiß – wie auf den Fotos von New Horizons)
+      const blockMat = new THREE.MeshStandardMaterial({ color: srgb(0xc9d8ee), roughness: 0.35, flatShading: true, vertexColors: true }), geos = [0, 1, 2].map((k) => naturalRockGeo(70 + k * 5, 1));
+      const sets = geos.map((g) => { const m = new THREE.InstancedMesh(g, blockMat, 40); m.count = 0; return m; }), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new V(), sc = new V();
+      const keep = [[...L.spawn, 7], [...L.station, 22], [L.station[0], L.station[1] + 14, 22], [...L.charon, 8], [...L.herz, 8], [...L.funk, 8], [...L.waage, 6], [...L.wegweiser, 4], [...L.sonde, 5]];
+      let n = 0;
+      for (let i = 0; i < 2000 && n < (W.fast ? 50 : 100); i++) {
+        const a = hash2(i, 81) * Math.PI * 2, r = 30 + hash2(i, 82) * 110, x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (heartK(x, z) > 0 || keep.some(([kx, kz, kr]) => Math.hypot(x - kx, z - kz) < kr) || Math.hypot(x, z) > 145) continue;
+        const big = hash2(i, 83) < 0.25, s = big ? 1.4 + hash2(i, 84) * 2 : 0.3 + hash2(i, 84) * 0.8;
+        e.set((hash2(i, 85) - 0.5) * 0.6, hash2(i, 86) * 6.3, (hash2(i, 87) - 0.5) * 0.6); q.setFromEuler(e);
+        mx.compose(p.set(x, height(x, z) + s * 0.15, z), q, sc.set(s, s * (0.7 + hash2(i, 88) * 0.5), s * (0.8 + hash2(i, 89) * 0.4)));
+        const m = sets[n % 3]; m.setMatrixAt(m.count, mx); m.setColorAt(m.count, new THREE.Color().setRGB(1, 1, 1)); m.count++; n++;
+        if (big) iceBlockCols.push([x, z, s * 0.9]);
+      }
+      for (const m of sets) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
+    }
     for (let i = 0; i < 9; i++) {
       const m = new THREE.Mesh(plutoIceMountainGeo(i), iceMat); // zerklüftete Gipfel: Staub am Fuß, Eis an den Flanken, Schnee oben
       const sy = 40 + hash2(i, 2) * 34;
@@ -5373,7 +5410,7 @@ window.Surface = (function () {
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
       waage: L.waage, charon: L.charon, herz: L.herz, funk: L.funk, jahr: L.jahr, groesse: L.groesse,
       eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { charon: MARS_SCOPE_DOOR(L.charon) });
-    const colliders = [...common.colliders, [...L.charon, 2.9], [...L.herz, 0.7], [L.herz[0] + 3.6 * Math.cos(dronePad.rotation.y), L.herz[1] - 3.6 * Math.sin(dronePad.rotation.y), 1.4], [...L.funk, 1.2], [L.funk[0] + 2.6, L.funk[1] + 1.6, 0.9], [...L.wegweiser, 0.3], [...L.sonde, 1.4], ...npcs.map((n) => n.col),
+    const colliders = [...common.colliders, ...iceBlockCols, [...L.charon, 2.9], [...L.herz, 0.7], [L.herz[0] + 3.6 * Math.cos(dronePad.rotation.y), L.herz[1] - 3.6 * Math.sin(dronePad.rotation.y), 1.4], [...L.funk, 1.2], [L.funk[0] + 2.6, L.funk[1] + 1.6, 0.9], [...L.wegweiser, 0.3], [...L.sonde, 1.4], ...npcs.map((n) => n.col),
       [...L.jahr, 1.2], ...rackCols];
 
     return { ...B, ...common, L, telescope, charon, cmpMoon, drone, droneY: drone.position.y, signalFrom, beam, pulse, orrery, rack, npcs, curl, lane,
@@ -5727,8 +5764,12 @@ window.Surface = (function () {
       height: makeHeight(craters, flats, 160, venusDome),
       // dichte, giftige Wolken: gelb-oranger Dunst, man sieht kaum 100 Meter weit, die Sonne ist nur ein heller Schein
       sky: VENUS_SKY.getHex(), fog: [18, 190], stars: false, sunSize: 190,
-      ground: 0x8a6a48, rock: 0x5a4632,
-      tint: (x, z) => { const m = 0.6 + 0.35 * fbm2(x * 0.03 + 4, z * 0.03); return [m, m * 0.92, m * 0.8]; },
+      ground: 0x8a6a48, rock: 0x3a2c22,
+      tint: (x, z) => {
+        const m = 0.6 + 0.35 * fbm2(x * 0.03 + 4, z * 0.03), ridge = 1 - Math.abs(2 * fbm2(x * 0.018 + 11, z * 0.018 - 3) - 1); // erstarrte Lavaströme: dunkle Bänder
+        const flow = smooth(0.72, 0.9, ridge), k = 1 - 0.42 * flow;
+        return [m * k, m * 0.92 * k, m * 0.8 * (1 - 0.3 * flow)];
+      },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.hitze, 4], [...L.druck, 4], [...L.abendstern, 4],
         [...L.venera, 3], [...L.radar, 3], [...L.lava, 5], [...L.wegweiser, 3], [L.lava[0] - 20, 50, 12], [L.lava[0] + 20, 50, 12]],
       ambient: [0xffc070, 0.75], hemi: [0xffd28a, 0x5a3a1a, 0.4], sun: [0xffe2b0, 0.5],
@@ -5794,7 +5835,8 @@ window.Surface = (function () {
     const lavaTex = canvasTex(256, 64, (c) => { c.fillStyle = "#ff6a1a"; c.fillRect(0, 0, 256, 64); for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(60,20,5,${0.4 + hash2(i, 1) * 0.5})`; c.beginPath(); c.ellipse(hash2(i, 2) * 256, hash2(i, 3) * 64, 6 + hash2(i, 4) * 18, 3 + hash2(i, 5) * 6, 0, 0, 7); c.fill(); } c.fillStyle = "rgba(255,230,120,0.6)"; for (let i = 0; i < 30; i++) c.fillRect(hash2(i, 6) * 256, hash2(i, 7) * 64, 10, 2); });
     lavaTex.wrapS = THREE.RepeatWrapping; lavaTex.repeat.set(8, 1);
     const lavaPts = []; for (let x = -46; x <= 40; x += 2) lavaPts.push([x, VENUS_LAVA_Z(x)]);
-    const lavaRiver = makePath(B, lavaPts, 3.4); lavaRiver.material = new THREE.MeshBasicMaterial({ map: lavaTex, fog: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    makePath(B, lavaPts, 7.5, [34, 22, 16]); // dunkle, erstarrte Kruste zu beiden Seiten (weicher Rand)
+    const lavaRiver = makePath(B, lavaPts, 3.4); lavaRiver.material = new THREE.MeshBasicMaterial({ map: lavaTex, fog: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -6 }); // glüht durch den Dunst
     const bridge = new THREE.Group(); on(bridge, L.lava[0], VENUS_LAVA_Z(L.lava[0]), 0.35);
     put(bridge, new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.2, 6), venusMetal(M, 1, 2)), 0, 0, 0);
     for (const s of [-1.25, 1.25]) { put(bridge, new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 6), M.orange), s, 0.5, 0); }
@@ -5841,6 +5883,7 @@ window.Surface = (function () {
       windRover.position.set(x, height(x, z), z); windRover.rotation.y = Math.atan2(-Math.sin(a) * 9, Math.cos(a) * 7);
       windRover.userData.turbine.rotation.y += dt * 1.6;
       lavaGlow.intensity = 1 + 0.4 * Math.sin(t * 3.1) * Math.sin(t * 1.7);
+      lavaTex.offset.x = -t * 0.02; // die Lava fließt langsam
     }];
     // Dreh-Vergleich: Erde und Venus als Globen nebeneinander
     const globes = new THREE.Group(), gE = makeGlobe("erde"), gV = makeGlobe("venus");
@@ -6185,7 +6228,7 @@ window.Surface = (function () {
       }
     });
     const leaf = (cols, needles) => { const m = new THREE.MeshStandardMaterial({ map: leafTex(cols, needles), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 0.85, envMapIntensity: 0.35 }); m.userData.noCam = true; return m; };
-    const bark = (col) => new THREE.MeshStandardMaterial({ color: srgb(col), roughness: 0.95, envMapIntensity: 0.3, vertexColors: true });
+    const bark = (col) => { const m = new THREE.MeshStandardMaterial({ color: srgb(col), roughness: 0.95, envMapIntensity: 0.3, vertexColors: true }); m.userData.noCam = true; return m; }; // dünne Äste: Kamera springt sonst
     return (RTREE.mats = {
       leaf: [leaf(["#3f7d2c", "#4f8f35", "#5f9f3c", "#36702a", "#6aa844"], false), leaf(["#4d8a2f", "#5c9a34", "#6fab3f", "#3e7a2b", "#7fb348"], false),
         leaf(["#6aa83a", "#7cb845", "#8fc24f", "#5d9a33", "#a3cc5a"], false), leaf(["#1f4f2a", "#2a5f30", "#235628", "#2f6a35"], true), leaf(["#24552c", "#2e6533", "#1d4a27", "#376f3a"], true)],
@@ -6248,6 +6291,13 @@ window.Surface = (function () {
     return (RTREE.geos[kind] = { wood: mk(W), leaf: mk(L, true) });
   }
   const rtreeKind = (con, sd) => (con ? 3 + (sd % 2) : hash2(sd, 3) < 0.22 ? 2 : sd % 2);
+  // So weit reichen die Zweige vom Stamm aus (halbe Kronenbreite bei Größe 1) – Fichtenzweige hängen bis fast zum Boden
+  function rtreeReach(kind) {
+    const G = rtreeGeos(kind);
+    if (!G.reach) { const p = G.leaf.attributes.position; G.reach = 0; for (let i = 0; i < p.count; i++) G.reach = Math.max(G.reach, Math.hypot(p.getX(i), p.getZ(i))); }
+    return G.reach;
+  }
+  const rtreeCrown = (s, con, sd) => rtreeReach(rtreeKind(con, sd)) * s * (0.85 + hash2(sd, 4) * 0.3) * 1.1; // Krone eines Baums aus realTrees (in m)
   // Viele Bäume als Instanzen: spots = [[x, z, Größe, Nadelbaum?, Zufallszahl], …]
   function realTrees(scene, height, spots, shadow = true) {
     const M = rtreeMats(), by = [[], [], [], [], []], mx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V(0, 1, 0), p = new V(), sc = new V(), c = new THREE.Color();
@@ -6406,8 +6456,8 @@ window.Surface = (function () {
   }
 
   // Park um die Sonnenuhr: Kiesplatz, Hecke im Kreis (offen zum Weg), runde Blumenbeete, Bänke mit Blick zur Uhr, Laternen, Bäume, Schild.
-  // open = Richtung des Eingangs (Einheitsvektor x, z). Gibt die Hindernis-Kreise zurück.
-  function earthPark(B, M, [tx, tz], [ox, oz]) {
+  // open = Richtung des Eingangs (Einheitsvektor x, z); treeOk(x, z, Krone) = darf dort ein Baum stehen? Gibt die Hindernis-Kreise zurück.
+  function earthPark(B, M, [tx, tz], [ox, oz], treeOk = () => true) {
     const H = B.height, y0 = H(tx, tz), cols = [], oa = Math.atan2(oz, ox);
     const off = (a) => Math.abs(Math.atan2(Math.sin(a - oa), Math.cos(a - oa))); // Winkelabstand zum Eingang
     const at = (a, r) => [tx + Math.cos(a) * r, tz + Math.sin(a) * r];
@@ -6454,7 +6504,11 @@ window.Surface = (function () {
     }
     // Bäume rund um den Park (nicht vor dem Eingang)
     const spots = [];
-    for (let i = 0; i < 9; i++) { const a = oa + 0.9 + (i / 8) * (Math.PI * 2 - 1.8), r = 9 + hash2(i, 61) * 2.5, [x, z] = at(a, r); spots.push([x, z, 0.85 + hash2(i, 62) * 0.35, hash2(i, 63) < 0.25, i * 3 + 1]); cols.push([x, z, 0.45]); }
+    for (let i = 0; i < 9; i++) {
+      const a = oa + 0.9 + (i / 8) * (Math.PI * 2 - 1.8), r = 9 + hash2(i, 61) * 2.5, [x, z] = at(a, r), s = 0.85 + hash2(i, 62) * 0.35, con = hash2(i, 63) < 0.25;
+      if (!treeOk(x, z, rtreeCrown(s, con, i * 3 + 1))) continue; // Krone nicht über dem Weg
+      spots.push([x, z, s, con, i * 3 + 1]); cols.push([x, z, 0.45]);
+    }
     earthForest(B, spots);
     // Schild am Eingang
     const [sx, sz] = at(oa + 0.78, 7.3), sign = on2(B, makeSignBoard(M, "🌳 SONNENUHR-PARK", "#15803d", 2.8), sx, sz); sign.rotation.y = Math.atan2(ox, oz);
@@ -6774,37 +6828,55 @@ window.Surface = (function () {
     const water = earthWater(B, L.see, WATER);
     earthShore(B, L.see, WATER, lite);
     B.wet = (x, z) => Math.hypot(x - L.see[0], z - L.see[1]) < 24 && height(x, z) < WATER + 0.08; // im Wasser (Kind und Nora laufen außen herum)
-    // Wald
-    const trees = new THREE.Group();
-    for (let i = 0; i < 16; i++) {
-      const a = hash2(i, 11) * Math.PI * 2, r = 3.5 + hash2(i, 12) * 7, x = L.wald[0] + Math.cos(a) * r, z = L.wald[1] + Math.sin(a) * r;
-      const t = makeTree(0.8 + hash2(i, 13) * 0.7, i * 7 + 1); t.position.set(x, height(x, z), z); trees.add(t);
-    }
-    for (let i = 0; i < 14; i++) { // einzelne Bäume in der Landschaft
-      const x = (hash2(i, 21) - 0.5) * 240, z = (hash2(i, 22) - 0.5) * 240;
-      if (Math.hypot(x, z) < 70 || Math.hypot(x - L.see[0], z - L.see[1]) < 22) continue;
-      const t = makeTree(0.9 + hash2(i, 23) * 0.8, i * 11 + 3); t.position.set(x, height(x, z), z); trees.add(t);
-    }
-    scene.add(trees);
     // Landschaft: Wälder am Rand, Baumgruppen, Büsche, Blumenflecken und Grasbüschel – nicht auf Wegen, Plätzen und im See
     const tourPts = [[L.spawn[0] + 2, L.spawn[1] + 2]];
     for (const k of [...cfg.guide.order, "wand"]) for (const p of (L.route[k] || [])) tourPts.push(p);
-    const pathDist = (x, z) => { let m = Infinity; for (let i = 0; i < tourPts.length - 1; i++) { const [ax, az] = tourPts[i], [bx, bz] = tourPts[i + 1], vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz || 1))); m = Math.min(m, Math.hypot(x - ax - vx * t, z - az - vz * t)); } return m; };
+    const lineDist = (pts, x, z) => { let m = Infinity; for (let i = 0; i < pts.length - 1; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1], vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz || 1))); m = Math.min(m, Math.hypot(x - ax - vx * t, z - az - vz * t)); } return m; };
+    const pathDist = (x, z) => lineDist(tourPts, x, z);
+    // alle Wege, die man läuft: der Rundweg und jeder Weg bis zu seiner Station (auch das letzte Stück über die Wiese)
+    const walks = [tourPts, ...Object.entries(L.route).map(([k, r]) => [...r, ...(L[k] ? [L[k]] : [])])];
+    const wayDist = (x, z) => Math.min(...walks.map((w) => lineDist(w, x, z)));
+    const treeOk = (x, z, crown) => wayDist(x, z) > crown + 1.6; // Baumkrone nicht über einem Weg (sonst steckt die Kamera in den Zweigen)
     const keep = [[0, 0, 14], [...L.station, 24], [L.station[0], L.station[1] + 14, 22], [...L.see, 21], [...L.tag, 13], [...L.mond, 11], [...L.luft, 7], [...L.stern, 7], [...L.waage, 6],
       [...L.wegweiser, 5], [...L.spawn, 7], [L.wald[0] + 12, L.wald[1] - 13, 7], [L.wald[0] - 1, L.wald[1] - 15, 5], [...L.wald, 13]];
     const roadDist = (x, z) => { let m = Infinity; for (let i = 0; i < L.road.length - 1; i++) { const [ax, az] = L.road[i], [bx, bz] = L.road[i + 1], vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz))); m = Math.min(m, Math.hypot(x - ax - vx * t, z - az - vz * t)); } return m; };
     const free = (x, z, r) => Math.hypot(x, z) < 146 && pathDist(x, z) > r + 1.6 && roadDist(x, z) > r + 21 && !keep.some(([kx, kz, kr]) => Math.hypot(x - kx, z - kz) < kr + r);
     const forest = [], treeCols = [];
+    // Wald der Foto-Safari: ein Waldrand im Westen HINTER der Station (die Tiere sind auf der Wiese davor). Um die Station bleibt
+    // eine Lichtung frei – die naturnahen Bäume sind groß (Kronen bis 5 m breit, Fichtenzweige bis fast zum Boden). Stünden sie
+    // dicht um die Station, verschwände sie in den Zweigen und die Kamera steckte beim Hinlaufen mitten im Baum.
+    const [wx0, wz0] = L.wald, trees = new THREE.Group(), photo = [];
+    const crownOf = (s, sd) => rtreeReach(rtreeKind(hash2(sd, 9) < 0.62, sd)) * s * 1.05; // Krone eines Baums aus makeTree
+    const clearing = (x, z, crown) => treeOk(x, z, crown) && Math.hypot(x - wx0, z - wz0) > crown + 8.5;
+    for (let i = 0; i < 160 && photo.length < 12; i++) {
+      const a = 1.95 + hash2(i, 11) * 2.15, r = 12 + hash2(i, 12) * 7, x = wx0 + Math.cos(a) * r, z = wz0 + Math.sin(a) * r, s = 0.75 + hash2(i, 13) * 0.45, sd = i * 7 + 1, cr = crownOf(s, sd);
+      if (!clearing(x, z, cr) || photo.some(([px, pz, pc]) => Math.hypot(x - px, z - pz) < (cr + pc) * 0.55)) continue; // nicht Stamm an Stamm
+      const t = makeTree(s, sd); t.position.set(x, height(x, z), z); trees.add(t); photo.push([x, z, cr]); treeCols.push([x, z, 0.35 * s]);
+    }
+    for (let i = 0; i < 14; i++) { // einzelne Bäume in der Landschaft (nicht an der Dorfstraße)
+      const x = (hash2(i, 21) - 0.5) * 240, z = (hash2(i, 22) - 0.5) * 240, s = 0.9 + hash2(i, 23) * 0.8, sd = i * 11 + 3, cr = crownOf(s, sd);
+      if (Math.hypot(x, z) < 70 || Math.hypot(x - L.see[0], z - L.see[1]) < 22 || roadDist(x, z) < cr + 8 || !treeOk(x, z, cr)) continue;
+      const t = makeTree(s, sd); t.position.set(x, height(x, z), z); trees.add(t); treeCols.push([x, z, 0.35 * s]);
+    }
+    scene.add(trees);
     for (let i = 0; i < (lite ? 260 : 520); i++) { // Waldgürtel am Rand – in Gruppen (Rauschen entscheidet, wo Wald ist)
       const a = hash2(i, 51) * Math.PI * 2, r = 78 + hash2(i, 52) * 120, x = Math.cos(a) * r, z = Math.sin(a) * r;
-      if (fbm2(x * 0.025 + 3, z * 0.025) < 0.5 || roadDist(x, z) < 12 || (r < 146 && !free(x, z, 1.5))) continue;
-      const s = 0.95 + hash2(i, 53) * 0.75; forest.push([x, z, s, hash2(i, 54) < 0.6, i]); if (r < 148) treeCols.push([x, z, 0.4 * s]);
+      const s = 0.95 + hash2(i, 53) * 0.75, con = hash2(i, 54) < 0.6;
+      if (fbm2(x * 0.025 + 3, z * 0.025) < 0.5 || roadDist(x, z) < 12 || (r < 146 && (!free(x, z, 1.5) || !treeOk(x, z, rtreeCrown(s, con, i))))) continue;
+      forest.push([x, z, s, con, i]); if (r < 148) treeCols.push([x, z, 0.4 * s]);
     }
     for (let i = 0, n = 0; i < 3000 && n < (lite ? 14 : 26); i++) { // Baumgruppen auf der Wiese
       const x = (hash2(i, 55) - 0.5) * 150, z = (hash2(i, 56) - 0.5) * 150; if (!free(x, z, 4)) continue; n++;
-      for (let k = 0; k < 1 + (i % 3); k++) { const xx = x + (hash2(i, 57 + k) - 0.5) * 6, zz = z + (hash2(i, 60 + k) - 0.5) * 6; if (!free(xx, zz, 1.5)) continue; const s = 0.9 + hash2(i, 63 + k) * 0.6; forest.push([xx, zz, s, hash2(i, 66 + k) < 0.3, i * 5 + k]); treeCols.push([xx, zz, 0.4 * s]); }
+      for (let k = 0; k < 1 + (i % 3); k++) {
+        const xx = x + (hash2(i, 57 + k) - 0.5) * 6, zz = z + (hash2(i, 60 + k) - 0.5) * 6, s = 0.9 + hash2(i, 63 + k) * 0.6, con = hash2(i, 66 + k) < 0.3;
+        if (!free(xx, zz, 1.5) || !treeOk(xx, zz, rtreeCrown(s, con, i * 5 + k))) continue;
+        forest.push([xx, zz, s, con, i * 5 + k]); treeCols.push([xx, zz, 0.4 * s]);
+      }
     }
-    for (let i = 0; i < 16; i++) { const a = hash2(i, 11) * Math.PI * 2, r = 9 + hash2(i, 12) * 8, x = L.wald[0] + Math.cos(a) * r, z = L.wald[1] + Math.sin(a) * r; if (pathDist(x, z) > 3 && Math.hypot(x - L.wald[0] - 12, z - L.wald[1] + 13) > 7) { forest.push([x, z, 1 + hash2(i, 13) * 0.6, true, i + 900]); treeCols.push([x, z, 0.5]); } } // dichterer Wald hinter der Foto-Safari
+    for (let i = 0; i < 16; i++) { // dichterer Wald hinter dem Waldrand der Foto-Safari
+      const a = 1.8 + hash2(i, 11) * 2.45, r = 19 + hash2(i, 12) * 9, x = wx0 + Math.cos(a) * r, z = wz0 + Math.sin(a) * r, s = 1 + hash2(i, 13) * 0.6;
+      if (clearing(x, z, rtreeCrown(s, true, i + 900))) { forest.push([x, z, s, true, i + 900]); treeCols.push([x, z, 0.5]); }
+    }
     earthForest(B, forest.filter(([x, z]) => Math.hypot(x, z) < 95)); // nahe Bäume werfen Schatten, ferne nicht (spart Rechenzeit)
     earthForest(B, forest.filter(([x, z]) => Math.hypot(x, z) >= 95), false);
     const bushCols = earthMeadow(B, (x, z, r) => free(x, z, r) && Math.hypot(x, z) < 140, lite);
@@ -6868,7 +6940,7 @@ window.Surface = (function () {
     }
     // Park um die Sonnenuhr: Eingang zwischen dem Rundweg (Wegpunkt am Park) und der Station vor der Uhr
     const parkOpen = (() => { const [tx, tz] = L.tag, r = L.route.tag[L.route.tag.length - 1], ax = r[0] - tx, az = r[1] - tz, l = Math.hypot(ax, az), x = ax / l + ERDE_SOUTH.x, z = az / l + ERDE_SOUTH.z, m = Math.hypot(x, z); return [x / m, z / m]; })();
-    const parkCols = earthPark(B, M, L.tag, parkOpen);
+    const parkCols = earthPark(B, M, L.tag, parkOpen, treeOk);
     { // Waage mit Schild „So viel wiegst du wirklich“
       on(makeSignBoard(M, "⚖️ WAAGE – WIE SCHWER BIST DU?", "#2563eb", 3.2), L.waage[0] + 2.4, L.waage[1] + 1).rotation.y = Math.atan2(-L.waage[0], -L.waage[1]);
     }
