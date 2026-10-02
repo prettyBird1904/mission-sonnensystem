@@ -2403,7 +2403,7 @@ window.Surface = (function () {
     if ($("chalInfo").textContent !== (info || "")) $("chalInfo").textContent = info || "";
   }
   function endChallenge() { if (chal && chal.kind === "safari") safariUi(false); if (chal && chal.kind === "shadow") iceRunShow(false); chal = null; $("chalHud").classList.add("hidden"); }
-  function chalSay(text) { if (guide && guide.on && guide.n.obj.visible) guideSay(text); else radio(text); }
+  function chalSay(text) { if (guide && guide.on && guide.n.obj.visible) guideSay(text, null, "now"); else radio(text); }
   // Erde: Foto-Safari – Lebewesen in die Bildmitte nehmen und fotografieren; fünf verschiedene Arten sind das Ziel
   let cardExtra = null; // Zusatz für die nächste Entdeckungskarte (die Safari-Fotos)
   function startSafari() {
@@ -3355,9 +3355,20 @@ window.Surface = (function () {
       p.x = cx + nx * min + tx * 0.04; p.z = cz + nz * min + tz * 0.04;
     }
   }
-  function guideSay(text, vars) {
+  // Spricht Nora noch, wartet der neue Satz, bis sie fertig ist (es wartet nur der neueste) – sie bricht sich nicht selbst ab.
+  // mode: "low" = nur sagen, wenn sie gerade still ist (z. B. „Hier lang!“) · "now" = sofort (Rückmeldung im Spiel, „Allein erkunden“)
+  function guideSay(text, vars, mode) {
     if (!guide || !text) return;
     const n = guide.n, msg = fmtVars(text, vars);
+    if (mode !== "now" && n.voice && Voice.speaking(n.voice)) {
+      if (mode !== "low") guide.pending = { msg, at: performance.now() };
+      return;
+    }
+    guide.pending = null;
+    guideShow(msg);
+  }
+  function guideShow(msg) {
+    const n = guide.n;
     n.cool = 20;
     n.el.textContent = "";
     const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, msg);
@@ -3375,7 +3386,7 @@ window.Surface = (function () {
   function guideAlone() {
     if (!guide || !guide.on) return;
     guide.on = false; guide.n.guide = false; setGuideOff(true);
-    guideSay(cfg.guide.alone); updateGuideBtn(); Sound.click();
+    guideSay(cfg.guide.alone, null, "now"); updateGuideBtn(); Sound.click();
   }
   function guideResume() {
     if (!guide) return;
@@ -3501,8 +3512,12 @@ window.Surface = (function () {
   }
   function updateGuide(dt, busy) {
     if (!guide) return;
-    const n = guide.n, GC = cfg.guide, p = n.obj.position;
-    guide.waitCd -= dt;
+    const n = guide.n, GC = cfg.guide, p = n.obj.position, talking = !!(n.voice && Voice.speaking(n.voice));
+    if (!talking) guide.waitCd -= dt; // Pausen zählen erst, wenn sie ausgeredet hat
+    if (guide.pending && !talking && !view.special && !experiment && !UI.modalOpen()) { // wartender Satz: jetzt sagen (wenn er nicht zu alt ist)
+      const pm = guide.pending; guide.pending = null;
+      if (performance.now() - pm.at < 20000) guideShow(pm.msg);
+    }
     if (n.climbY != null) { // erst die Leiter herunter
       n.climbY -= 1.5 * dt;
       const g = world.height(p.x, p.z);
@@ -3544,7 +3559,7 @@ window.Surface = (function () {
         face(ast.pos.x, ast.pos.z);
         const listening = world.npcs.some((m) => !m.isNora && m.talk > 0 && Math.hypot(m.obj.position.x - ast.pos.x, m.obj.position.z - ast.pos.z) < 9);
         if (listening) guide.waitCd = Math.max(guide.waitCd, 3); // erst ausreden lassen
-        else if (guide.waitCd <= 0) { guide.waitCd = 12; n.waveT = 2.4; guideSay(GC.wait); }
+        else if (guide.waitCd <= 0) { guide.waitCd = 12; n.waveT = 2.4; guideSay(GC.wait, null, "low"); }
         return;
       }
       // ohne Halt von Wegpunkt zu Wegpunkt (sonst stockt die Laufbewegung an jedem Punkt für einen Moment)
@@ -3945,6 +3960,73 @@ window.Surface = (function () {
     return g;
   }
   // Vulkan auf der Venus: dunkles Basaltgestein, oben ein Krater, an den Flanken glühende Lavaströme
+  // Lava: helle, glühende Schmelze mit dunklen Krustenschollen (nahtlos kachelbar; v = Fließrichtung)
+  function venusLavaTex() {
+    const t = canvasTex(256, 256, (c) => {
+      const g = c.createLinearGradient(0, 0, 256, 0);
+      g.addColorStop(0, "#d9480f"); g.addColorStop(0.5, "#ffb020"); g.addColorStop(1, "#d9480f");
+      c.fillStyle = g; c.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 70; i++) { // helle Glutadern
+        const x = hash2(i, 31) * 256, y = hash2(i, 32) * 256, r = 6 + hash2(i, 33) * 16;
+        for (const oy of [-256, 0, 256]) { const gr = c.createRadialGradient(x, y + oy, 0, x, y + oy, r); gr.addColorStop(0, "rgba(255,240,150,0.9)"); gr.addColorStop(1, "rgba(255,200,60,0)"); c.fillStyle = gr; c.fillRect(x - r, y + oy - r, 2 * r, 2 * r); }
+      }
+      for (let i = 0; i < 26; i++) { // dunkle Krustenschollen, die auf der Lava treiben
+        const x = 40 + hash2(i, 41) * 176, y = hash2(i, 42) * 256, w = 10 + hash2(i, 43) * 26, h = 8 + hash2(i, 44) * 22, rot = hash2(i, 45) * 3;
+        for (const oy of [-256, 0, 256]) {
+          c.save(); c.translate(x, y + oy); c.rotate(rot);
+          c.fillStyle = "rgba(255,120,30,0.9)"; c.beginPath(); c.ellipse(0, 0, w / 2 + 3, h / 2 + 3, 0, 0, 7); c.fill(); // glühender Rand
+          c.fillStyle = `rgba(${40 + hash2(i, 46) * 30},${18 + hash2(i, 47) * 12},10,0.95)`; c.beginPath(); c.ellipse(0, 0, w / 2, h / 2, 0, 0, 7); c.fill();
+          c.restore();
+        }
+      }
+      const edge = c.createLinearGradient(0, 0, 256, 0); // zum Ufer hin erstarrt die Lava
+      edge.addColorStop(0, "rgba(60,25,10,0.85)"); edge.addColorStop(0.16, "rgba(60,25,10,0)"); edge.addColorStop(0.84, "rgba(60,25,10,0)"); edge.addColorStop(1, "rgba(60,25,10,0.85)");
+      c.fillStyle = edge; c.fillRect(0, 0, 256, 256);
+    });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  }
+  // Glut am Ufer: orange, zur Mitte hell, nach außen ausgeblendet (wird additiv über den Boden gelegt)
+  function venusGlowTex() {
+    return canvasTex(128, 8, (c) => {
+      const g = c.createLinearGradient(0, 0, 128, 0);
+      g.addColorStop(0, "rgba(255,90,20,0)"); g.addColorStop(0.3, "rgba(255,110,30,0.22)"); g.addColorStop(0.5, "rgba(255,150,50,0.32)"); g.addColorStop(0.7, "rgba(255,110,30,0.22)"); g.addColorStop(1, "rgba(255,90,20,0)");
+      c.fillStyle = g; c.fillRect(0, 0, 128, 8);
+    });
+  }
+  // Bogenbrücke aus Stahl (läuft entlang z): Gitterrost-Fahrbahn, zwei Stahlbögen mit Hängern, Geländer, Widerlager aus Beton, Warnlampen
+  function venusBridge(M) {
+    const g = new THREE.Group(), L = 8.4, W = 2.5, dark = M.std({ color: srgb(0x3a3f47), roughness: 0.6, metalness: 0.5 });
+    const grate = canvasTex(64, 256, (c) => { c.fillStyle = "#596069"; c.fillRect(0, 0, 64, 256); c.fillStyle = "#3b4047"; for (let y = 0; y < 256; y += 8) c.fillRect(0, y, 64, 3); for (let x = 0; x < 64; x += 16) c.fillRect(x, 0, 2, 256); });
+    grate.wrapT = THREE.RepeatWrapping; grate.repeat.set(1, 4);
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(W, 0.14, L), M.std({ map: grate, roughness: 0.7, metalness: 0.4 })), 0, -0.02, 0); // Fahrbahn (oben bündig mit dem Weg)
+    for (const sx of [-1, 1]) {
+      put(g, new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.75, L + 0.2), dark), sx * (W / 2 + 0.08), -0.38, 0); // Längsträger (verdecken die Aufschüttung darunter)
+      // Bogen: halbe Ellipse über die ganze Länge, 1,9 m hoch
+      const curve = new THREE.EllipseCurve(0, 0, L / 2, 1.9, 0, Math.PI, false), pts = curve.getPoints(40).map((p) => new V(0, p.y, p.x));
+      const arch = put(g, new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.08, 8, false), M.orange), sx * (W / 2 + 0.16), 0.02, 0);
+      arch.castShadow = true;
+      for (let k = 1; k < 8; k++) { // Hänger vom Bogen zur Fahrbahn
+        const z = -L / 2 + (k * L) / 8, h = 1.9 * Math.sqrt(Math.max(0, 1 - (z / (L / 2)) ** 2));
+        put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, h, 6), dark), sx * (W / 2 + 0.16), h / 2, z);
+      }
+      // Geländer: Handlauf und Pfosten
+      const rail = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, L, 8), M.steel), sx * (W / 2 - 0.05), 1.0, 0); rail.rotation.x = Math.PI / 2;
+      const mid = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, L, 6), M.steel), sx * (W / 2 - 0.05), 0.55, 0); mid.rotation.x = Math.PI / 2;
+      for (let k = 0; k <= 7; k++) put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6), M.steel), sx * (W / 2 - 0.05), 0.5, -L / 2 + (k * L) / 7);
+      for (const sz of [-1, 1]) { // Warnlampen an den Enden
+        put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.25, 8), dark), sx * (W / 2 + 0.16), 0.62, sz * (L / 2 + 0.05));
+        put(g, new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), new THREE.MeshBasicMaterial({ color: srgb(0xffb020), toneMapped: false })), sx * (W / 2 + 0.16), 1.3, sz * (L / 2 + 0.05), false);
+      }
+    }
+    const concrete = M.std({ color: srgb(0x8a8178), roughness: 0.95 });
+    for (const sz of [-1, 1]) put(g, new THREE.Mesh(new THREE.BoxGeometry(W + 0.9, 1.1, 0.9), concrete), 0, -0.6, sz * (L / 2 - 0.2)); // Widerlager
+    // Warnstreifen an den Auffahrten
+    const stripe = canvasTex(128, 32, (c) => { c.fillStyle = "#facc15"; c.fillRect(0, 0, 128, 32); c.fillStyle = "#111"; for (let x = -32; x < 128; x += 24) { c.beginPath(); c.moveTo(x, 32); c.lineTo(x + 12, 32); c.lineTo(x + 44, 0); c.lineTo(x + 32, 0); c.fill(); } });
+    for (const sz of [-1, 1]) { const st = put(g, new THREE.Mesh(new THREE.PlaneGeometry(W, 0.35), new THREE.MeshStandardMaterial({ map: stripe, roughness: 0.8 })), 0, 0.055, sz * (L / 2 - 0.25), false); st.rotation.x = -Math.PI / 2; }
+    g.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+    return g;
+  }
   function makeVenusVolcano(R, Hh) {
     const ROCK = srgb(0x4a3322), ASH = srgb(0x6b4a30), LAVA = srgb(0xff6a1a), c = new THREE.Color();
     const m = polarMountain(R, Hh, 40, 96, (r, a) => {
@@ -5717,6 +5799,7 @@ window.Surface = (function () {
   // über eine Brücke über einen Lavafluss und hinauf auf einen „Pfannkuchen-Vulkan“ (flache, runde Lava-Kuppel), auf dem der Außenposten steht.
   const VENUS_DOME = [-14, 88, 36, 5];
   const VENUS_LAVA_Z = (x) => 50 + Math.sin(x * 0.08) * 3; // Lavafluss quer zur Route
+  const VENUS_BRIDGE_X = 4; // hier führt die Brücke über die Lava (= L.lava[0])
   const VENUS_LAYOUT = {
     spawn: [-6.9, 4], waage: [24, 10], hitze: [28, 30], druck: [16, 40], abendstern: [6, 66],
     venera: [-36, -26], radar: [9, -4], lava: [4, 50], wegweiser: [8, 5], // Venera 13 steht versteckt im Dunst, gesucht wird vom Radar-Peiler aus
@@ -5727,7 +5810,9 @@ window.Surface = (function () {
       tag: [[-6, 62], [-14, 61.5]], groesse: [[-6, 62.5]], wand: [[-11, 69]], rakete: [[4, 60], [4, 46], [12, 30], [4, 8], [-4, 5]]
     }
   };
-  function venusDome(x, z) { return VENUS_DOME[3] * smooth(VENUS_DOME[2], VENUS_DOME[2] - 8, Math.hypot(x - VENUS_DOME[0], z - VENUS_DOME[1])) - 1.1 * smooth(4, 1.5, Math.abs(z - VENUS_LAVA_Z(x))) * smooth(48, 40, Math.abs(x)); } // Lava fließt in einer Rinne
+  function venusDome(x, z) { return VENUS_DOME[3] * smooth(VENUS_DOME[2], VENUS_DOME[2] - 8, Math.hypot(x - VENUS_DOME[0], z - VENUS_DOME[1])); }
+  // Lava fließt in einer Rinne; unter der Brücke bleibt der Weg eben (wird nach den Ebenen abgezogen, siehe buildVenus)
+  const venusLavaDip = (x, z) => 1.4 * smooth(4.5, 2, Math.abs(z - VENUS_LAVA_Z(x))) * smooth(48, 40, Math.abs(x)) * smooth(1.45, 2.4, Math.abs(x - VENUS_BRIDGE_X));
   const VENUS_SKY = new THREE.Color(0xd9a441), VENUS_CLEAR = new THREE.Color(0x05070f);
   const VENUS_EARTH_DIR = new V(0.35, 0.55, 0.75).normalize();
   function buildVenus() {
@@ -5735,7 +5820,7 @@ window.Surface = (function () {
     const craters = [[70, 30, 14, 1.2], [-80, -50, 18, 1.6], [50, -80, 12, 1.2], [-70, 80, 12, 1]];
     const flats = [[0, 0, 11], [...L.station, 20, VENUS_DOME[3]], [L.station[0], L.station[1] + 16, 22, VENUS_DOME[3]], [...L.waage, 3], [...L.hitze, 5], [...L.druck, 5], [...L.abendstern, 6, VENUS_DOME[3], 4], [...L.venera, 4], [...L.radar, 3], [L.lava[0], 50, 9, 0, 6], rackFlat(L)];
     const B = buildBase({
-      height: makeHeight(craters, flats, 160, venusDome),
+      height: ((h) => (x, z) => h(x, z) - venusLavaDip(x, z))(makeHeight(craters, flats, 160, venusDome)),
       // dichte, giftige Wolken: gelb-oranger Dunst, man sieht kaum 100 Meter weit, die Sonne ist nur ein heller Schein
       sky: VENUS_SKY.getHex(), fog: [18, 190], stars: false, sunSize: 190,
       ground: 0x8a6a48, rock: 0x3a2c22,
@@ -5806,14 +5891,19 @@ window.Surface = (function () {
     vp.rotation.y = Math.atan2(-vp.position.x, -vp.position.z);
     // Lava-Spalte: glühende Risse im dunklen Gestein
     // Lavafluss quer zum Weg – glühende Bahn mit dunkler Kruste, darüber eine Metallbrücke
-    const lavaTex = canvasTex(256, 64, (c) => { c.fillStyle = "#ff6a1a"; c.fillRect(0, 0, 256, 64); for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(60,20,5,${0.4 + hash2(i, 1) * 0.5})`; c.beginPath(); c.ellipse(hash2(i, 2) * 256, hash2(i, 3) * 64, 6 + hash2(i, 4) * 18, 3 + hash2(i, 5) * 6, 0, 0, 7); c.fill(); } c.fillStyle = "rgba(255,230,120,0.6)"; for (let i = 0; i < 30; i++) c.fillRect(hash2(i, 6) * 256, hash2(i, 7) * 64, 10, 2); });
-    lavaTex.wrapS = THREE.RepeatWrapping; lavaTex.repeat.set(8, 1);
+    const lavaTex = venusLavaTex(); lavaTex.repeat.set(1, 0.7);
     const lavaPts = []; for (let x = -46; x <= 40; x += 2) lavaPts.push([x, VENUS_LAVA_Z(x)]);
-    makePath(B, lavaPts, 7.5, [34, 22, 16]); // dunkle, erstarrte Kruste zu beiden Seiten (weicher Rand)
+    const crustRiver = makePath(B, lavaPts, 7.5, [34, 22, 16]); // dunkle, erstarrte Kruste zu beiden Seiten (weicher Rand)
+    const glowRiver = makePath(B, lavaPts, 6.2); // Glut, die das Ufer anstrahlt
+    glowRiver.material = new THREE.MeshBasicMaterial({ map: venusGlowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -5 });
     const lavaRiver = makePath(B, lavaPts, 3.4); lavaRiver.material = new THREE.MeshBasicMaterial({ map: lavaTex, fog: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -6 }); // glüht durch den Dunst
-    const bridge = new THREE.Group(); on(bridge, L.lava[0], VENUS_LAVA_Z(L.lava[0]), 0.35);
-    put(bridge, new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.2, 6), venusMetal(M, 1, 2)), 0, 0, 0);
-    for (const s of [-1.25, 1.25]) { put(bridge, new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 6), M.orange), s, 0.5, 0); }
+    // unter der Brücke fließt die Lava tief in der Rinne weiter (dort ist der Weg aufgefüllt – sonst läge die Lava auf der Fahrbahn)
+    for (const m of [crustRiver, glowRiver, lavaRiver]) {
+      const pa = m.geometry.attributes.position;
+      for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i); pa.setY(i, pa.getY(i) + (m === lavaRiver ? 0.22 : m === glowRiver ? 0.12 : 0) - 1.4 * smooth(4.5, 2, Math.abs(z - VENUS_LAVA_Z(x))) * (1 - smooth(1.45, 2.4, Math.abs(x - VENUS_BRIDGE_X)))); } // Lava steht als Fläche etwas über dem Rinnenboden
+      pa.needsUpdate = true; m.geometry.computeBoundingSphere();
+    }
+    const bridge = venusBridge(M); bridge.position.set(VENUS_BRIDGE_X, height(VENUS_BRIDGE_X, VENUS_LAVA_Z(VENUS_BRIDGE_X)), VENUS_LAVA_Z(VENUS_BRIDGE_X)); bridge.rotation.y = -Math.atan(Math.cos(VENUS_BRIDGE_X * 0.08) * 0.24); scene.add(bridge); // quer zum Fluss
     on(makeSignBoard(M, "⚠️ LAVA – NUR ÜBER DIE BRÜCKE!", "#b91c1c", 3.2), L.lava[0] + 4.5, VENUS_LAVA_Z(L.lava[0]) - 4).rotation.y = Math.atan2(-L.lava[0], -L.lava[1]);
     // Leitlichter: alle 7 Meter ein Pfosten mit Lampe links vom Weg – im dichten Dunst sieht man sonst den Weg nicht
     const beacons = [], tour = [[L.spawn[0] + 2, L.spawn[1] + 2]];
@@ -5832,6 +5922,7 @@ window.Surface = (function () {
       if (len < 7 - acc) acc += len;
     }
     const lavaCol = []; for (let x = -46; x <= 40; x += 2.6) if (Math.abs(x - L.lava[0]) > 1.6) lavaCol.push([x, VENUS_LAVA_Z(x), 1.5]);
+    for (const sx of [-1.45, 1.45]) for (const dz of [-2.4, -0.8, 0.8, 2.4]) lavaCol.push([VENUS_BRIDGE_X + sx, VENUS_LAVA_Z(VENUS_BRIDGE_X) + dz, 0.25]);
     // Vulkan in der Ferne (auf der Venus gibt es Tausende)
     const cone = makeVenusVolcano(85, 42); cone.material.fog = true;
     cone.position.set(L.lava[0] - 110, height(L.lava[0] - 110, L.lava[1] - 90) - 2, L.lava[1] - 90); scene.add(cone);
@@ -5857,7 +5948,7 @@ window.Surface = (function () {
       windRover.position.set(x, height(x, z), z); windRover.rotation.y = Math.atan2(-Math.sin(a) * 9, Math.cos(a) * 7);
       windRover.userData.turbine.rotation.y += dt * 1.6;
       lavaGlow.intensity = 1 + 0.4 * Math.sin(t * 3.1) * Math.sin(t * 1.7);
-      lavaTex.offset.x = -t * 0.02; // die Lava fließt langsam
+      lavaTex.offset.y = -t * 0.035; // die Lava fließt langsam
     }];
     // Dreh-Vergleich: Erde und Venus als Globen nebeneinander
     const globes = new THREE.Group(), gE = makeGlobe("erde"), gV = makeGlobe("venus");
