@@ -1,6 +1,6 @@
 /* Offline-Speicher: Nach dem ersten Öffnen funktioniert das Spiel ohne Internet.
    Updates kommen automatisch: Beim nächsten Start mit Internet wird die neue Fassung geholt. */
-const VERSION = "sonnensystem-v34"; // gleich wie version in js/data.js
+const VERSION = "sonnensystem-v35"; // gleich wie version in js/data.js
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "css/style.css", "fonts/fonts.css", "fonts/fredoka.woff2", "fonts/nunito.woff2",
@@ -19,10 +19,22 @@ self.addEventListener("install", (e) => {
 // der bei neuen Versionen erhalten bleibt, und werden erst geladen, wenn sie gebraucht werden.
 const VOICE_CACHE = "sonnensystem-stimmen";
 
+// Aufnahmen, die die neue Fassung nicht mehr braucht (z. B. nach einem Stimmenwechsel), aus dem Speicher löschen
+function cleanVoices() {
+  return caches.open(VERSION).then((c) => c.match("js/stimmen.js")).then((r) => r && r.text()).then((t) => {
+    const keep = new Set((t && t.match(/"[0-9a-f]{8}"/g) || []).map((x) => x.slice(1, -1)));
+    if (!keep.size) return;
+    return caches.open(VOICE_CACHE).then((vc) => vc.keys().then((reqs) => Promise.all(reqs
+      .filter((q) => { const m = q.url.match(/([0-9a-f]{8})\.mp3/); return m && !keep.has(m[1]); })
+      .map((q) => vc.delete(q)))));
+  }).catch(() => {});
+}
+
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== VOICE_CACHE).map((k) => caches.delete(k))))
+      .then(cleanVoices)
       .then(() => self.clients.claim())
   );
 });

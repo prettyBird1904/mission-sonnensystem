@@ -2,7 +2,7 @@
    Vorlesen mit echter Stimme
    1. Aufnahmen: Alle festen Texte sind vorab mit natürlichen, neuronalen Stimmen aufgenommen (audio/v/*.mp3,
       Liste in js/stimmen.js, erzeugt mit tools/stimmen.js). So klingt es auf jedem Gerät gleich – wie ein echter Mensch.
-      Nora = Seraphina, Bodenstation = Conrad, Erzähler im Intro = Florian, die Bewohner haben eigene Stimmen.
+      Nur rein deutsche Stimmen: Nora = Katja, Bodenstation und Erzähler = Conrad, die Bewohner = Amala bzw. Killian (je eigene Stimmhöhe).
    2. Fehlt eine Aufnahme (oder ist sie offline noch nicht geladen), liest die Stimme des Geräts vor (Web Speech API).
    Den Namen des Kindes kennen die Aufnahmen nicht: Er steht im Text, wird aber nicht mitgesprochen.
    ========================================================= */
@@ -51,13 +51,13 @@ window.Voice = (function () {
   const spoken = (text, name) => dropName(speakable(text), name);
 
   // ---------- Aufnahmen: wer spricht mit welcher Stimme (siehe tools/stimmen.js) ----------
-  const NPC_VOICE = { "Kommandantin Lea": "katja", "Ingenieur Tom": "killian", "Forscherin Mara": "amala", "Techniker Bennett": "killian",
-    "Forscher Kofi": "florian", "Pilotin Sara": "katja", "Astronautin Jana": "amala" };
+  const NPC_VOICE = { "Kommandantin Lea": "lea", "Ingenieur Tom": "tom", "Forscherin Mara": "mara", "Techniker Bennett": "bennett",
+    "Forscher Kofi": "kofi", "Pilotin Sara": "sara", "Astronautin Jana": "jana" };
   function voiceOf(role, who) {
     if (role === "radio") return "radio";
-    if (role === "narrator") return "narr";
+    if (role === "narrator") return "erzaehler";
     if (role === "npcF" || role === "npcM") return NPC_VOICE[who] || (role === "npcF" ? "amala" : "killian");
-    return "nora"; // Nora, Entdeckungskarten, Versuche
+    return "noraKatja"; // Nora, Entdeckungskarten, Versuche (neuer Schlüssel = neue Dateinamen, damit Tablets nicht die alten Aufnahmen aus dem Speicher nehmen)
   }
   const keyOf = (text, role, who, name) => voiceOf(role, who) + "|" + spoken(text, name).toLowerCase().replace(/[^a-z0-9äöüß]+/g, " ").trim();
   function hashOf(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ("0000000" + h.toString(16)).slice(-8); }

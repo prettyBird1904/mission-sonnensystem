@@ -12,15 +12,23 @@ const fs = require("fs"), path = require("path"), vm = require("vm");
 const ROOT = path.resolve(__dirname, ".."), OUT = path.join(ROOT, "audio", "v");
 const NAME = "Xaverine"; // Platzhalter für den Namen des Kindes (die Aufnahmen lassen ihn weg)
 
-// Stimmen: wer spricht wie (rate/pitch = Grundtempo und -höhe)
+// Stimmen: wer spricht wie (rate/pitch = Grundtempo und -höhe in %)
+// Nur rein deutsche Stimmen: Die „Multilingual“-Stimmen (Seraphina, Florian) sprechen manche Wörter englisch aus („Zerquetscht“).
+// Neue Stimme = neuer Schlüssel (Schlüssel + Text ergeben den Dateinamen; Tablets speichern Aufnahmen nach Namen).
+// Jeder Bewohner hat einen eigenen Schlüssel (siehe NPC_VOICE in js/voice.js) – mit eigener Stimmhöhe, damit sie verschieden klingen.
 const VOICES = {
-  nora: { name: "de-DE-SeraphinaMultilingualNeural", rate: "+4%" },  // Flugleiterin Nora, Entdeckungen, Versuche
-  radio: { name: "de-DE-ConradNeural", rate: "+0%" },                // Bodenstation, Funk-Fragen
-  narr: { name: "de-DE-FlorianMultilingualNeural", rate: "-6%" },    // Erzähler im Intro
-  katja: { name: "de-DE-KatjaNeural", rate: "+0%" },                 // Kommandantin Lea, Pilotin Sara
-  amala: { name: "de-DE-AmalaNeural", rate: "+2%" },                 // Forscherin Mara, Astronautin Jana
-  killian: { name: "de-DE-KillianNeural", rate: "+2%" },             // Ingenieur Tom, Techniker Bennett
-  florian: { name: "de-DE-FlorianMultilingualNeural", rate: "+0%" }  // Forscher Kofi
+  noraKatja: { name: "de-DE-KatjaNeural", rate: 4, pitch: 2 },     // Flugleiterin Nora, Entdeckungen, Versuche
+  radio: { name: "de-DE-ConradNeural", rate: 0 },             // Bodenstation, Funk-Fragen
+  erzaehler: { name: "de-DE-ConradNeural", rate: -8, pitch: -6 },  // Erzähler im Intro und im Abschluss-Kino
+  lea: { name: "de-DE-AmalaNeural", rate: 0, pitch: -4 },     // Kommandantin Lea (Mond)
+  mara: { name: "de-DE-AmalaNeural", rate: 2 },               // Forscherin Mara (Mars)
+  sara: { name: "de-DE-AmalaNeural", rate: 2, pitch: 5 },     // Pilotin Sara (Venus)
+  jana: { name: "de-DE-AmalaNeural", rate: 4, pitch: 3 },     // Astronautin Jana (Erde)
+  tom: { name: "de-DE-KillianNeural", rate: 2 },              // Ingenieur Tom (Mond)
+  bennett: { name: "de-DE-KillianNeural", rate: 2, pitch: -4 }, // Techniker Bennett (Mars)
+  kofi: { name: "de-DE-KillianNeural", rate: -2, pitch: -8 }, // Forscher Kofi (Merkur)
+  amala: { name: "de-DE-AmalaNeural", rate: 2 },              // weitere Bewohnerinnen
+  killian: { name: "de-DE-KillianNeural", rate: 2 }           // weitere Bewohner
 };
 
 // ---------- Spiel-Daten und Vorlese-Regeln laden ----------
@@ -143,7 +151,7 @@ for (const e of lines.values()) e.tag = e.tags.size > 1 ? "common" : [...e.tags]
 // etwas Gefühl: begeisterte Sätze schneller und heller, „Psst“ leiser und langsamer
 function prosody(e) {
   const v = VOICES[e.voice], s = e.said;
-  let rate = parseInt(v.rate, 10), pitch = 0, volume = 0;
+  let rate = v.rate || 0, pitch = v.pitch || 0, volume = 0;
   if (/^(Wow|Juhu|Super|Toll|Klasse|Prima|Fantastisch|Geschafft|Hurra|Spitze|Volltreffer|Gefunden|Da ist|Da sind|Saubergepustet|Zerquetscht|Eingeschlagen|Verglüht|Angekommen|Richtig)/.test(s) || (s.match(/!/g) || []).length >= 2) { rate += 4; pitch += 3; }
   if (/^(Psst|Pst)/.test(s)) { rate -= 8; volume -= 15; }
   if (/^(Puh|Oh nein|Hoppla|Brr|Nicht ganz)/.test(s)) rate -= 3;
