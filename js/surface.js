@@ -1571,12 +1571,21 @@ window.Surface = (function () {
     L.shadowSpot = [L.boulder[0] + SHADOW_DIR.x * 12, L.boulder[1] + SHADOW_DIR.z * 12];
     const craters = [MOON_CRATER, [60, -20, 14, 2.2], [-60, -6, 10, 1.6], [70, 110, 18, 2.6], [-80, 40, 12, 1.8], [90, 70, 9, 1.4],
       [-30, -40, 16, 2.4], [40, -70, 11, 1.8], [-95, -30, 20, 3], [0, -95, 13, 2], [100, 10, 8, 1.2], [25, -30, 6, 0.9]];
+    const moonKeep = [[...L.fallversuch, 6], [...L.himmel, 6], [...L.apollo, 10], [...L.boulder, 8], [...L.spawn, 5], [...L.waage, 9], [...L.wegweiser, 4], [...L.station, 22], [L.station[0], L.station[1] + 18, 28], [...L.spiegel, 5], [...L.antenne, 6], [MOON_CRATER[0], MOON_CRATER[1], MOON_CRATER[2] + 8], ...craters.map(([x, z, r]) => [x, z, r])];
+    const small = scatterCraters(L, moonKeep, W.fast ? 30 : 50, 501, 1.6, 7, 200);
+    craters.push(...small);
+    const fresh = small.filter((c, i) => i % 4 === 0); // junge Krater: heller Auswurf mit Strahlen
     const flats = [[0, 0, 11], [...L.fallversuch, 5], [...L.himmel, 4, "auto", 3], [...L.apollo, 10], [...L.boulder, 7], [...L.shadowSpot, 6], [...L.waage, 9], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 18, 24, "auto"], [...L.spiegel, 4], [...L.antenne, 5, "auto", 9]];
     const B = buildBase({
       height: makeHeight(craters, flats, 0, (x, z) => -MOAT_DEPTH * moonMoatK(x, z)),
       sky: 0x000000, stars: true, sunSize: 160,
       ground: 0x86837d, rock: 0x6b6863,
-      tint: (x, z) => { const m = (0.72 + 0.28 * smooth(0.35, 0.6, fbm2(x * 0.01 + 3, z * 0.01))) * (1 - 0.35 * moonMoatK(x, z)); return [m, m, m * 1.02]; }, // dunklere „Meere“, dunkler Graben
+      tint: (x, z) => { // dunklere „Meere“, dunkler Graben, heller Auswurf um junge Krater
+        let m = (0.72 + 0.28 * smooth(0.35, 0.6, fbm2(x * 0.01 + 3, z * 0.01))) * (1 - 0.35 * moonMoatK(x, z));
+        m *= 0.94 + 0.12 * fbm2(x * 0.09 + 5, z * 0.09);
+        for (const [cx, cz, r] of fresh) { const d = Math.hypot(x - cx, z - cz); if (d < r * 3.2) { const ray = 0.6 + 0.4 * Math.max(0, Math.sin(Math.atan2(z - cz, x - cx) * 7 + cx)); m += 0.22 * smooth(r * 3.2, r * 0.9, d) * (d > r * 1.1 ? ray : 1); } }
+        return [m, m, m * 1.02];
+      },
       keepFree: [[...L.fallversuch, 5], [...L.himmel, 6], [...L.apollo, 9], [...L.shadowSpot, 7], [...L.spawn, 4],
         [...L.waage, 8], [...L.wegweiser, 3], [...L.mondstein, 3], [L.station[0], L.station[1] + 2, 18], [L.station[0], L.station[1] + 18, 26], [...L.spiegel, 4], [...L.antenne, 4]],
       // grelle Sonne, kaum Umgebungslicht (auf dem Mond sind Schatten tiefschwarz), bläulicher Erdschein
@@ -3680,13 +3689,38 @@ window.Surface = (function () {
     geo.computeVertexNormals();
     return geo;
   }
+  // Kleine Einschlagkrater in der Landschaft: [x, z, Radius, Tiefe], nicht auf freizuhaltenden Plätzen und nicht auf den Wegen der Führung
+  function scatterCraters(L, keep, n, seed, rMin, rMax, area = 260) {
+    const segs = [];
+    for (const r of Object.values(L.route || {})) for (let i = 0; i < r.length - 1; i++) segs.push([r[i], r[i + 1]]);
+    const segDist = (x, z) => { let m = Infinity; for (const [[ax, az], [bx, bz]] of segs) { const vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz || 1))); m = Math.min(m, Math.hypot(x - ax - vx * t, z - az - vz * t)); } return m; };
+    const out = [];
+    for (let i = 0; i < n * 30 && out.length < n; i++) {
+      const x = (hash2(i, seed) - 0.5) * area, z = (hash2(i, seed + 1) - 0.5) * area, r = rMin + Math.pow(hash2(i, seed + 2), 2) * (rMax - rMin);
+      if (Math.hypot(x, z) < 16 + r || Math.hypot(x, z) > 145 || segDist(x, z) < r * 1.6 + 3) continue;
+      if (keep.some(([kx, kz, kr]) => Math.hypot(x - kx, z - kz) < kr + r * 1.6 + 2)) continue;
+      if (out.some(([cx, cz, cr]) => Math.hypot(x - cx, z - cz) < cr + r + 2)) continue;
+      out.push([x, z, r, r * (0.3 + hash2(i, seed + 3) * 0.12)]);
+    }
+    return out;
+  }
+  // Gleiche Eckpunkte zusammenführen (Index), damit die Normalen weich werden
+  function mergeVerts(src) {
+    const p = src.attributes.position, map = new Map(), pos = [], idx = [];
+    for (let i = 0; i < p.count; i++) {
+      const k = Math.round(p.getX(i) * 1e4) + "," + Math.round(p.getY(i) * 1e4) + "," + Math.round(p.getZ(i) * 1e4);
+      let j = map.get(k); if (j === undefined) { j = pos.length / 3; map.set(k, j); pos.push(p.getX(i), p.getY(i), p.getZ(i)); }
+      idx.push(j);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); return g;
+  }
   function naturalRockGeo(seed, detail = 3) {
-    const geo = new THREE.IcosahedronGeometry(1, detail), p = geo.attributes.position, v = new V(), col = new Float32Array(p.count * 3);
+    const geo = mergeVerts(new THREE.IcosahedronGeometry(1, detail)), p = geo.attributes.position, v = new V(), col = new Float32Array(p.count * 3);
     for (let i = 0; i < p.count; i++) {
       v.fromBufferAttribute(p, i);
-      const n = fbm2(v.x * 1.6 + seed * 3.1, v.z * 1.6 + v.y * 1.3 - seed) - 0.5;
-      const facet = (Math.round((v.x + v.y * 0.7) * 2.2 + seed) - Math.round(seed)) * 0.04; // grobe Bruchkanten (ohne die Größe zu ändern)
-      v.multiplyScalar(1 + n * 0.55 + facet);
+      const n = fbm2(v.x * 1.6 + seed * 3.1, v.z * 1.6 + v.y * 1.3 - seed) - 0.5, n2 = fbm2(v.x * 4.3 - seed, v.y * 4.1 + v.z * 3.7 + seed) - 0.5;
+      const facet = (Math.round((v.x + v.y * 0.7) * 2.2 + seed) - Math.round(seed)) * 0.03; // angedeutete Bruchkanten
+      v.multiplyScalar(1 + n * 0.55 + n2 * 0.16 + facet);
       if (v.y < -0.35) v.y = -0.35 + (v.y + 0.35) * 0.25; // unten flach, damit er aufliegt
       p.setXYZ(i, v.x, v.y, v.z);
       const k = 0.78 + 0.3 * fbm2(v.x * 3 + seed, v.y * 3 + v.z * 2);
@@ -4145,6 +4179,7 @@ window.Surface = (function () {
     const L = { ...MARS_LAYOUT };
     const rich = !W.fast; // „⚡ Flüssig“: weniger Zierrat
     const craters = [[60, -40, 16, 2], [-75, 65, 14, 1.8], [90, 50, 10, 1.2], [-45, -75, 18, 2.4], [45, 100, 12, 1.6], [70, 5, 6, 0.8]];
+    craters.push(...scatterCraters(L, [[...L.spawn, 6], [...L.station, 22], [L.station[0], L.station[1] + 16, 28], [...L.monde, 7], [...L.vulkan, 8], [...L.rover, 10], [...L.roverStart, 8], [...L.roverZiel, 24], [...L.eis, 9], [...L.wegweiser, 4], [...L.abend, 8], [...L.pad, 9], [...L.teufel, 6], [48, 62, 20], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 16 : 28, 777, 1.8, 6, 200));
     const up = (p, r) => [...p, r, "auto", 3]; // Plätze oben auf der Hochebene: eben, aber auf ihrer Höhe
     const flats = [up([0, 0], 10), [...L.station, 20], [L.station[0], L.station[1] + 16, 26], [...L.waage, 4], up(L.monde, 5), up(L.vulkan, 6), [...L.rover, 7], [...L.roverStart, 5], [...L.eis, 7], [...L.pad, 7], up(L.abend, 5), up(L.wegweiser, 2.5), up(MARS_MAST(L.abend), 2)];
     const dustColors = ["rgba(190,110,70,1)", "rgba(170,95,60,0.9)"];
@@ -4152,7 +4187,7 @@ window.Surface = (function () {
       height: makeHeight(craters, flats, 40, (x, z) => marsDunes(x, z) + marsPlateau(x, z)),
       // dünne, staubige Luft: gelbbrauner Himmel, Dunst in der Ferne, keine Sterne am Tag, die Sonne wirkt kleiner als auf der Erde
       sky: MARS_SKY.getHex(), fog: [90, 430], stars: false, sunSize: 105,
-      ground: 0xb8623a, rock: 0x7d4a35,
+      ground: 0xb8623a, rock: 0x5a2c1c,
       tint: (x, z) => {
         let m = 0.75 + 0.25 * fbm2(x * 0.015 + 9, z * 0.015), r = m, g = m * 0.95, b = m * 0.9;
         const d = duneMask(x, z); // in den Dünen: feiner, hellerer Sand
@@ -4161,6 +4196,8 @@ window.Surface = (function () {
         if (cliff > 0.4 && cliff < 7.6) { const band = 0.82 + 0.18 * Math.sin(cliff * 5.5); r *= band; g *= band * 0.96; b *= band * 0.92; }
         const delta = smooth(30, 12, Math.hypot(x - L.roverZiel[0], z - L.roverZiel[1])); // helles Flussdelta mit Rinnen
         if (delta > 0) { const ch = 0.5 + 0.5 * Math.sin((x - L.roverZiel[0]) * 0.5 + Math.sin(z * 0.2) * 3); r += (1.15 * (0.9 + 0.1 * ch) - r) * delta; g += (0.92 * (0.9 + 0.1 * ch) - g) * delta; b += (0.7 - b) * delta; }
+        const bas = smooth(0.58, 0.72, fbm2(x * 0.022 + 31, z * 0.022 - 7)) * (1 - d); // dunkler Basaltsand
+        if (bas > 0) { r *= 1 - 0.32 * bas; g *= 1 - 0.36 * bas; b *= 1 - 0.3 * bas; }
         m = 0.9 + 0.1 * hash2(Math.floor(x * 2), Math.floor(z * 2)); // feine Körnung
         return [r * m, g * m, b * m];
       },
@@ -4246,7 +4283,7 @@ window.Surface = (function () {
     const bands = bandTexture(["#8a4a33", "#9b5a3f", "#7a3f2b", "#a8694a", "#8f5038", "#b37757"], 3); // gedämpfte Rottöne, die im Dunst verschwimmen
     const buttes = [[-150, 120, 34, 42], [175, 95, 26, 30], [135, -165, 40, 36], [-195, -28, 30, 48], [60, 215, 44, 28], [-60, -205, 24, 26]];
     buttes.slice(0, rich ? 6 : 3).forEach(([x, z, r, h], i) => on(makeButte(r, h, bands, i * 7 + 1), x, z, h / 2 - 3));
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x6a3a26, roughness: 0.95, vertexColors: true });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x4a2418, roughness: 0.95, vertexColors: true });
     rockMat.userData.natural = true;
     const clusters = [[38, 14, 6], [34, 30, 5], [9, -9, 5], [-10, 36, 6], [38, 64, 5], [-46, 58, 6], [12, 30, 4], [-50, 8, 5], [28, -30, 6], [-18, -12, 4]];
     clusters.slice(0, rich ? 10 : 5).forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 13 + 2));
@@ -4257,7 +4294,7 @@ window.Surface = (function () {
     const npcs = addNpcs(B);
     const landing = makeHeliPad(); landing.scale.setScalar(2.4); on(landing, ...L.pad, 0.05); // Landeplatz des Transporters
     const shuttle = makeShuttle(B, L.pad);
-    if (rich && KIT.craterLarge) for (const [x, z, s] of [[40, -12, 9], [-52, 36, 7], [62, 30, 8], [-20, -52, 10], [8, 90, 9]]) on(kit("craterLarge", s), x, z, -0.2);
+
     for (const [x, z, r] of [[...L.monde, 3.2], [...L.vulkan, 2.3], [...L.rover, 1.1], [...L.eis, 1.6], [...L.wegweiser, 1.2], [...L.abend, 1], [...L.roverStart, 2.8]]) addBlob(B, x, z, r);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
