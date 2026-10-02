@@ -253,7 +253,7 @@ window.SPACE_DATA = {
       hint: "Er ist tiefblau und der letzte Planet. Flieg ganz weit nach außen, noch hinter Uranus!" },
     { target: "#order",  text: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge!",
       brief: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge! Tippe oben rechts auf 🧩 „Ordnen“.",
-      hint: "Denk an den Merksatz: Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten!" }
+      hint: "Denk an den Merksatz: Mein Vater erklärt mir jeden Sonntag unseren Nachthimmel!" }
   ],
 
   // Nora: Flugleiterin und Co-Pilotin – fliegt mit in der Rakete und steigt bei jeder Landung mit aus
@@ -279,9 +279,9 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "32",
+  version: "33",
 
-  mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
+  mnemonic: "Mein Vater erklärt mir jeden Sonntag unseren Nachthimmel.",
 
   /* Aussteigen & erkunden: pro Ort 3 Entdeckungen (eine davon ein großes Spiel), 3 Funk-Fragen, kurze Texte –
      das ganze Spiel soll in 45 bis 60 Minuten zu schaffen sein.

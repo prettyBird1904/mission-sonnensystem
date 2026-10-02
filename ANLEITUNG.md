@@ -66,7 +66,7 @@ Ja. Stempel, Sterne und Missionen bleiben beim Neuladen, Schließen und Neustart
 | 🧑‍🚀 **Bewohner** | Lea und Tom (Mondbasis), Mara und Bennett (Mars), Kofi (Merkur), Sara (Venus) und Jana (Erde) erzählen etwas, wenn man zu ihnen läuft. |
 | 🧭 **Orientierung** | Schwebende Symbole markieren die Stationen, ein Pfeil oben zeigt zur nächsten Entdeckung. Im leuchtenden Kreis startet eine Station. „Allein erkunden ✕“ beendet Noras Führung. |
 | 📷 **Echte Fotos** | Auf den Entdeckungskarten: Fotos von Raumsonden, Teleskopen und Astronauten – z. B. Buzz Aldrin auf dem Mond, der Boden der Venus. Quellen: `BILDNACHWEIS.md` |
-| 🧩 **Planeten ordnen** | Letzte Mission: Reihenfolge der Planeten + Merksatz „Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten“ |
+| 🧩 **Planeten ordnen** | Letzte Mission: Reihenfolge der Planeten + Merksatz „Mein Vater erklärt mir jeden Sonntag unseren Nachthimmel“ |
 | 📘 **Forscherpass** | Stempel für besuchte Orte, Sterne aus den Funk-Fragen, Ränge (Weltraum-Neuling → Weltraum-Profi) |
 | 📜 **Urkunde** | Nach Besuch aller 8 Planeten – mit Namen, druckbar |
 
