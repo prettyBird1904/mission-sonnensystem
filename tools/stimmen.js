@@ -29,7 +29,7 @@ vm.createContext(box);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "js/data.js"), "utf8"), box);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8"), box);
 const D = box.window.SPACE_DATA, V = box.window.Voice;
-const fill = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m));
+const fill = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung"); // Einzahl wie fmtVars() in surface.js
 
 // ---------- Alle Sätze sammeln (genau so zusammengesetzt wie im Spiel) ----------
 const lines = new Map(); // Schlüssel → { said, voice, tags }
@@ -75,7 +75,7 @@ for (const [id, S] of Object.entries(D.surfaces)) {
   // Versuche und Spiele (Texte unter dem Bild, Sprecherin Nora)
   const say = (t) => add(t, "nora", id), sayAll = (list) => list.forEach(say);
   if (S.fall) sayAll(asked(S.fall.guess, "Hammer und Feder liegen auf dem Tisch. Gleich lässt du beide gleichzeitig los.")); // startFall
-  if (S.moat) both(S.moat.fell, id);
+  if (S.longJump) for (const k of ["start", "good", "gold", "foul", "noJump", "done", "quit"]) both(S.longJump[k], id);
   if (S.dusk) { sayAll(asked(S.dusk.guess, S.dusk.ready)); sayAll(guessed(S.dusk.end)); }
   if (S.magnet) { sayAll(asked(S.magnet.guess, S.magnet.ready)); say(S.magnet.running); sayAll(guessed(S.magnet.end)); }
   if (S.rover) {
@@ -84,7 +84,7 @@ for (const [id, S] of Object.entries(D.surfaces)) {
     T.sample.forEach((s) => { say(s); say(`${s}\n\n🎉 ${T.done}`); });
     sayAll([T.dusty, T.clean, T.empty]);
   }
-  if (S.shadowRun) for (const k of ["start", "hot", "quit"]) both(S.shadowRun[k], id);
+  if (S.iceRun) for (const k of ["start", "melted", "quit"]) both(S.iceRun[k], id);
   if (S.sunScope) sayAll([S.sunScope.aim, S.sunScope.aimTouch, S.sunScope.found, S.sunScope.compare]);
   if (S.impact) { sayAll(asked(S.impact.guess, S.impact.ready)); say(S.impact.running); sayAll(guessed(S.impact.end)); }
   if (S.drone) sayAll([S.drone.rising, S.drone.top]);

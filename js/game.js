@@ -886,6 +886,13 @@
       W.setShipColor(Game.state.color);
       Sound.unlock();
       UI.onStateReady();
+      // Vorführung: Adresse mit „?abschluss“ zeigt gleich das Abschluss-Kino (z. B. für Lehrkräfte), danach geht es normal weiter
+      if (/[?&]abschluss/.test(location.search)) {
+        Game.state.introSeen = true; Game.save();
+        Game.mode = "cinema"; document.documentElement.classList.add("cinema");
+        Outro.play({ world: W, name: Game.state.name, color: Game.state.color, onDone: () => { document.documentElement.classList.remove("cinema"); beginFlight(); } });
+        return;
+      }
       // Beim allerersten Start: das Intro-Kino
       if (!Game.state.introSeen) { Game.state.introSeen = true; Game.save(); playIntro(true); }
       else beginFlight();

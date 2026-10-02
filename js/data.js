@@ -303,7 +303,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "30",
+  version: "31",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
@@ -314,7 +314,7 @@ window.SPACE_DATA = {
     mond: {
       gravity: 1.62, // m/s² – echte Mond-Schwerkraft (Erde: 9,81); gilt für den Hammer-und-Feder-Versuch
       moveGravity: 2.4, // fürs Laufen und Springen etwas stärker, damit es sich nicht zu zäh anfühlt
-      jump: 0.45,       // Sprunghöhe in Metern (mit schwerem Raumanzug)
+      jump: 0.6,        // Sprunghöhe in Metern (mit schwerem Raumanzug; so reicht es mit gutem Anlauf über die goldene 4-m-Linie)
       // Thermometer am Raumanzug: in der Sonne / im Schatten
       temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
@@ -327,7 +327,7 @@ window.SPACE_DATA = {
         arrive: {
           fallversuch: "Was fällt schneller: Hammer oder Feder? Probier es aus!",
           apollo: "Hier sind 1969 die ersten Menschen auf dem Mond gelandet! Stell dich in den Kreis am Seil.",
-          mondstein: "Siehst du das Glitzern hinter dem Graben? Nimm Anlauf und spring hinüber!",
+          mondstein: "Hier ist die Mond-Weitsprung-Bahn! Mal sehen, wie weit du hier springst.",
           wand: "An der Wand der Mondbasis siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit!"
         },
@@ -362,7 +362,7 @@ window.SPACE_DATA = {
         // hint = Tipp in der Liste „Meine Entdeckungen“ · small + auto = Fundstück: kleines Licht, Entdeckung beim Hingehen (Meter)
         apollo:      { label: "Landestelle von 1969", hint: "Stell dich in den Kreis am Seil vor der Mondfähre", again: "👣 Nochmal ansehen", auto: true },
         fallversuch: { label: "Hammer & Feder", hint: "Der Tisch mit Hammer und Feder steht neben der Apollo-Landestelle", action: "🪶 Hammer & Feder fallen lassen" },
-        mondstein:   { label: "Mondsprung", hint: "Unten im Krater liegt der Mondstein hinter einem Graben – nimm Anlauf und spring!", again: "🦘 Nochmal ansehen", small: true, auto: 2.6 },
+        mondstein:   { label: "Mond-Weitsprung", hint: "Unten im Krater ist die Weitsprung-Bahn – nimm Anlauf und spring über die goldene Linie!", action: "🦘 Weitsprung starten" },
         // Tafelwand der Mondstation: keine Entdeckung (info), öffnet die Liste „Meine Entdeckungen“
         wand:        { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
@@ -375,7 +375,18 @@ window.SPACE_DATA = {
         why: "Dein Körper bleibt gleich – aber der Mond ist viel kleiner als die Erde und zieht nur ein Sechstel so stark an dir.",
         less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
       },
-      moat: { fell: "Hoppla, in den Graben! Lauf über die flache Rampe raus und nimm mehr Anlauf." },
+      // Mond-Weitsprung: 3 Versuche, Ziel ist die goldene Linie (4 m); ein durchsichtiger Erd-Astronaut springt zum Vergleich mit
+      longJump: {
+        start: "Mond-Weitsprung! Nimm Anlauf und spring kurz vor der weißen Linie ab. Ein Erd-Astronaut springt zum Vergleich mit.",
+        label: "🦘 Versuch {n} von 3", best: "Bestweite: {m} m · Ziel: goldene Linie (4 m)",
+        result: "🦘 {mond} m weit! Auf der Erde wären es nur {erde} m.",
+        good: "Super Sprung! Schau mal, wie kurz der Erd-Astronaut gesprungen ist.",
+        gold: "Über die goldene Linie! Auf dem Mond springst du 6-mal so weit wie auf der Erde.",
+        foul: "Übergetreten! Spring kurz vor der weißen Linie ab.",
+        noJump: "Du bist nur gelaufen. Drück kurz vor der weißen Linie auf Springen!",
+        done: "Toll gesprungen! Auf dem Mond kommst du viel weiter als auf der Erde.",
+        quit: "Weitsprung abgebrochen. Am Start kannst du neu beginnen."
+      },
       // Hammer und Feder: erst vermuten, dann fallen lassen
       fall: { guess: { "q": "Hammer und Feder fallen gleichzeitig los. Was kommt zuerst unten an?", "a": ["Der Hammer", "Die Feder", "Beide gleichzeitig"], "c": 2 } },
       // {anzahl} = Zahl der Entdeckungen, {fragen} = Zahl der Funk-Fragen am Ende
@@ -513,7 +524,7 @@ window.SPACE_DATA = {
         wait: "Hier lang, {name}! Ich warte auf dich.",
         next: "Klasse! Weiter geht's – als Nächstes: {ziel}.",
         arrive: {
-          temperatur: "Hier startet der Schattenlauf! Lauf von Schatten zu Schatten bis zum großen Felsen.",
+          temperatur: "Kofi braucht Eis für sein Labor. Bring es zum großen Felsen – aber pass auf, in der Sonne schmilzt es!",
           sonne: "Oben auf dem Sonnenturm steht ein Fernrohr mit Filter. Schau, wie riesig die Sonne hier ist!",
           krater: "Lass einen Brocken aus dem All fallen und schau, was passiert!",
           wand: "An der Wand der Station siehst du alles, was du entdeckt hast.",
@@ -532,8 +543,8 @@ window.SPACE_DATA = {
           facts: ["Unsere Station steht unten im Krater. Der Kraterrand wirft seinen Schatten auf uns."] }
       ],
       discoveries: [
-        { key: "temperatur", icon: "🌡️", title: "Backofen und Eisschrank",
-          text: "Geschafft! In der Sonne wird es auf dem Merkur 430 °C heiß, im Schatten −180 °C. Es gibt keine Luft, die die Wärme verteilt." },
+        { key: "temperatur", icon: "🧊", title: "Backofen und Eisschrank",
+          text: "Geschafft, das Eis ist da! In der Sonne wird es auf dem Merkur 430 °C heiß, im Schatten −180 °C. Darum gibt es dort sogar Eis: in Kratern, in die nie die Sonne scheint." },
         { key: "sonne", icon: "☀️", title: "Die riesige Sonne",
           text: "Vom Merkur aus sieht die Sonne fast dreimal so breit aus wie bei uns! Kein Planet ist ihr näher. Schau aber niemals ohne Filter in die Sonne!" },
         { key: "krater", icon: "☄️", title: "Einschlag!", photo: "merkur-1.jpg",
@@ -541,7 +552,7 @@ window.SPACE_DATA = {
       ],
       stations: {
         wand:       { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
-        temperatur: { label: "Schattenlauf", hint: "Der Schattenlauf startet neben dem Sonnenturm – lauf von Schatten zu Schatten bis zum großen Felsen", action: "☀️ Schattenlauf starten" },
+        temperatur: { label: "Eis-Lieferung", hint: "Am Eis-Lager neben dem Sonnenturm wartet ein Eisblock – bring ihn im Schatten zum großen Felsen", action: "🧊 Eis-Lieferung starten" },
         sonne:      { label: "Sonnenturm", hint: "Oben auf dem Sonnenturm steht ein Fernrohr mit Sonnenfilter", action: "🔭 Durchschauen" },
         krater:     { label: "Einschlag-Messfeld", hint: "Probier den Einschlag-Versuch am Messpult aus", action: "☄️ Einschlag-Versuch starten" },
         // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
@@ -557,11 +568,12 @@ window.SPACE_DATA = {
       },
       // Größenvergleich (Extra): Erklärung zu den Kugeln am Gestell neben der Tafelwand
       sizes: { text: "Die Kugeln zeigen, wie groß die Himmelskörper im Vergleich sind. Der Merkur ist der kleinste Planet – nur ein bisschen größer als unser Mond. Die Erde ist mehr als doppelt so breit.", done: "Fertig ✓" },
-      shadowRun: {
-        start: "Los! Lauf von Schatten zu Schatten bis in den goldenen Kreis. In der Sonne wird dein Anzug heiß – im Schatten kühlt er ab!",
-        label: "🧑‍🚀 Anzug-Hitze", sun: "☀️ Sonne: 430 °C – schnell in den Schatten!", cool: "❄️ Schatten: Anzug kühlt ab",
-        hot: "Puh, zu heiß! Zurück zum Start. Bleib nicht so lange in der Sonne!",
-        quit: "Schattenlauf abgebrochen. Am Start kannst du neu beginnen."
+      // Eis-Lieferung: Eisblock vom Eis-Lager zum Kühlschrank am großen Felsen tragen; in der Sonne schmilzt er, im Schatten (blau) nicht
+      iceRun: {
+        start: "Hier ist dein Eisblock! Bring ihn zum Kühlschrank am großen Felsen. Lauf durch die blauen Schatten – in der Sonne schmilzt das Eis!",
+        label: "🧊 Eisblock", sun: "☀️ Sonne: 430 °C – dein Eis schmilzt!", cool: "❄️ Schatten: −180 °C – das Eis bleibt hart",
+        melted: "Oh nein, geschmolzen! Hier ist ein neuer Eisblock. Bleib länger in den blauen Schatten!",
+        quit: "Eis-Lieferung abgebrochen. Am Eis-Lager kannst du neu beginnen."
       },
       sunScope: {
         aim: "Dieses Fernrohr hat einen Sonnenfilter. Such die Sonne! Zieh mit der Maus oder nimm die Pfeiltasten.",
