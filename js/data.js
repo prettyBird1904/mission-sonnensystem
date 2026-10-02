@@ -303,7 +303,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "20",
+  version: "21",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 

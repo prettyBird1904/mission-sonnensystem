@@ -103,5 +103,7 @@ Lizenzen: **gemeinfrei** (Public Domain, v. a. NASA) · **CC0** · **CC BY 2.0 /
 ## 3D-Modelle
 
 - **Space Kit** von Kenney (www.kenney.nl) – Steuerpult und Krater auf dem Mars (Ersatz-Rover, falls die NASA-Modelle nicht laden). Die Marskolonie selbst (Glaskuppel, Wohntürme, Raumtransporter) ist selbst gebaut. Lizenz: CC0 (gemeinfrei), eingebettet in `models/spacekit.js`. Quelle: https://kenney.nl/assets/space-kit
+- **Nature Kit** von Kenney (www.kenney.nl) – Bäume, Büsche, Blumen, Gras, Pilze, Steine, Seerosen, Kanu, Zelt und Lagerfeuer auf der Erde (Farben angepasst). Lizenz: CC0, eingebettet in `models/naturekit.js` (erzeugt mit `tools/naturkit.js`). Quelle: https://kenney.nl/assets/nature-kit
+- **City Kit (Suburban)** und **City Kit (Roads)** von Kenney (www.kenney.nl) – Häuser, Vorgärten und Straßenlaternen im Dorf auf der Erde. Lizenz: CC0, eingebettet in `models/townkit.js` mit den Farbtafeln `models/kenney-*.png` (erzeugt mit `tools/stadtkit.js`). Quellen: https://kenney.nl/assets/city-kit-suburban · https://kenney.nl/assets/city-kit-roads
 - **NASA 3D Resources** (NASA, gemeinfrei/Public Domain, keine Befürwortung durch die NASA): *Perseverance* (Mars-Rover) und *Ingenuity* (Mars-Hubschrauber). Für das Spiel verkleinert (Draco-komprimiert) in `models/nasa/`. Quelle: https://nasa3d.arc.nasa.gov bzw. https://science.nasa.gov/3d-resources/
 - **Draco-Decoder** (Google, Apache-Lizenz 2.0) und `DRACOLoader.js` aus three.js (MIT-Lizenz) in `lib/`, zum Entpacken der NASA-Modelle.

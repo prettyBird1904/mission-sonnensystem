@@ -1,10 +1,10 @@
 /* Offline-Speicher: Nach dem ersten Öffnen funktioniert das Spiel ohne Internet.
    Updates kommen automatisch: Beim nächsten Start mit Internet wird die neue Fassung geholt. */
-const VERSION = "sonnensystem-v20"; // gleich wie version in js/data.js
+const VERSION = "sonnensystem-v21"; // gleich wie version in js/data.js
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "css/style.css", "fonts/fonts.css", "fonts/fredoka.woff2", "fonts/nunito.woff2",
-  "lib/three.min.js", "lib/GLTFLoader.js", "models/astronaut.js", "models/spacekit.js",
+  "lib/three.min.js", "lib/GLTFLoader.js", "models/astronaut.js", "models/spacekit.js", "models/naturekit.js", "models/townkit.js", "models/kenney-suburban.png", "models/kenney-roads.png",
   "js/data.js", "js/textures.js", "js/audio.js", "js/stimmen.js", "js/voice.js", "js/world.js", "js/intro.js", "js/ui.js", "js/surface.js", "js/game.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   // Echte Fotos (Galerie im Steckbrief)

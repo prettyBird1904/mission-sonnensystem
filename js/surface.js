@@ -199,13 +199,18 @@ window.Surface = (function () {
   // ---------- Fertige 3D-Modelle: „Space Kit“ von Kenney (CC0), eingebettet in models/spacekit.js ----------
   let kitPromise = null;
   const KIT = {};
+  const NATURE_PAL = { leafsGreen: 0x4a8a32, leafsDark: 0x2c6430, leafsFall: 0xd9822f, grass: 0x55a038, woodBark: 0x7a5232, woodBarkDark: 0x5e3f28, woodBirch: 0xeee6d8,
+    woodInner: 0xe4c79a, wood: 0xa8743f, woodDark: 0x7a5230, dirt: 0x7d5a3c, stone: 0xa9adb0, stoneDark: 0x878c90,
+    colorRed: 0xd8203a, colorYellow: 0xf2b200, colorPurple: 0x7a4ce0, colorTan: 0xe0a060 }; // kräftigere Blütenfarben
   function loadKit() {
     if (kitPromise) return kitPromise;
     kitPromise = (async () => {
       if (!THREE.GLTFLoader) await loadScript("lib/GLTFLoader.js");
       if (!window.SPACEKIT) await loadScript("models/spacekit.js");
+      if (!window.NATUREKIT) await loadScript("models/naturekit.js").catch(() => {}); // Bäume, Blumen, Steine … (Nature Kit, Namen mit „n_“)
+      if (!window.TOWNKIT) await loadScript("models/townkit.js").catch(() => {});   // Häuser, Zäune, Laternen … (City Kits, Namen mit „t_“)
       const loader = new THREE.GLTFLoader();
-      await Promise.all(Object.entries(window.SPACEKIT).map(([name, b64]) => new Promise((res) => {
+      await Promise.all([...Object.entries(window.SPACEKIT), ...Object.entries(window.NATUREKIT || {}), ...Object.entries(window.TOWNKIT || {})].map(([name, b64]) => new Promise((res) => {
         const bin = atob(b64), buf = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
         loader.parse(buf.buffer, "", (g) => {
@@ -220,6 +225,10 @@ window.Surface = (function () {
             // ohne Umgebungs-Spiegelung wirken metallische Flächen fast schwarz → matter machen
             o.material.metalness = Math.min(o.material.metalness, 0.2); o.material.roughness = Math.max(o.material.roughness, 0.55);
             if (/^(rock|meteor)/.test(name) && !o.material.userData.dimmed) { o.material.color.multiplyScalar(0.72); o.material.userData.dimmed = true; } // Felsen etwas dunkler, passend zum Boden
+            if (/^n_/.test(name)) for (const m of [].concat(o.material)) { // Nature Kit: Farben wie in echt (die Vorlage ist türkis), Laub durchlässig für die Kamera
+              if (NATURE_PAL[m.name] != null && !m.userData.recolored) { m.color.set(NATURE_PAL[m.name]).convertSRGBToLinear(); m.userData.recolored = true; }
+              if (/^n_(tree|plant|grass|flower)/.test(name)) m.userData.noCam = true;
+            }
           });
           KIT[name] = holder; res();
         }, () => res());
@@ -276,6 +285,23 @@ window.Surface = (function () {
     const src = KIT[name], g = src ? src.clone() : new THREE.Group();
     g.scale.setScalar(scale);
     return g;
+  }
+  // Viele Kopien eines Modells auf einmal (je Teil des Modells ein InstancedMesh): list = [[x, y, z, größe, drehung], …]
+  // Gibt false zurück, wenn das Modell fehlt (dann baut der Aufrufer etwas Eigenes).
+  function kitInstanced(scene, name, list, shadow = true, vary = false) {
+    const src = KIT[name]; if (!src) return false; if (!list.length) return true;
+    src.updateMatrixWorld(true);
+    const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V(0, 1, 0), p = new V(), s = new V(), c = new THREE.Color();
+    src.traverse((o) => {
+      if (!o.isMesh) return;
+      const m = new THREE.InstancedMesh(o.geometry, o.material, list.length), local = o.matrixWorld;
+      list.forEach(([x, y, z, k, ry], i) => {
+        mx.compose(p.set(x, y, z), q.setFromAxisAngle(up, ry || 0), s.set(k, k, k)).multiply(local); m.setMatrixAt(i, mx);
+        if (vary) { const v = 0.8 + hash2(x * 0.37, z * 0.53) * 0.32, w = (hash2(z * 0.71, x * 0.19) - 0.5) * 0.16; m.setColorAt(i, c.setRGB(v * (1 + w), v, v * (1 - w * 1.5))); } // jeder Baum etwas anders grün
+      });
+      m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false; scene.add(m);
+    });
+    return true;
   }
 
   const BONES = {
@@ -1192,7 +1218,7 @@ window.Surface = (function () {
     scene.add(ground);
 
     // Steine
-    const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: P.rock, roughness: 1, flatShading: true }), FAST ? 140 : 280);
+    const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: P.rock, roughness: 1, flatShading: true }), P.rocks != null ? P.rocks : FAST ? 140 : 280);
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V(), p = new V(), e = new THREE.Euler();
     let placed = 0, tries = 0;
     const keepFree = [[0, 0, 12], ...P.keepFree];
@@ -2032,6 +2058,11 @@ window.Surface = (function () {
     // Steilwände (Klippen, Kraterwände) kann man nicht hochlaufen – dafür gibt es Rampen und Wege
     // (Grenze in Höhe pro Meter – gleich bei jeder Bildrate und gleich für Nora, siehe navGrid)
     if (!boarding && ast.onGround && H(ast.pos.x, ast.pos.z) - oh > Math.max(0.015, Math.hypot(ast.pos.x - ox, ast.pos.z - oz) * MAX_SLOPE)) { ast.pos.x = ox; ast.pos.z = oz; ast.speed *= 0.5; }
+    // Nicht ins Wasser laufen (See auf der Erde): am Ufer entlanggleiten
+    if (!boarding && world.wet && world.wet(ast.pos.x, ast.pos.z)) {
+      const nx = ast.pos.x, nz = ast.pos.z;
+      if (!world.wet(nx, oz)) ast.pos.z = oz; else if (!world.wet(ox, nz)) ast.pos.x = ox; else { ast.pos.x = ox; ast.pos.z = oz; }
+    }
     const far = Math.hypot(ast.pos.x, ast.pos.z);
     if (far > 150) {
       ast.pos.x *= 150 / far; ast.pos.z *= 150 / far;
@@ -3079,7 +3110,7 @@ window.Surface = (function () {
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
       const x = x0 + i, z = z0 + j, k = j * nx + i;
       const H = world.height, hc = (h[k] = H(x, z));
-      let ok = Math.hypot(x, z) < 147;
+      let ok = Math.hypot(x, z) < 147 && !(world.wet && (world.wet(x, z) || world.wet(x + 0.5, z) || world.wet(x - 0.5, z) || world.wet(x, z + 0.5) || world.wet(x, z - 0.5)));
       if (ok) for (const [cx, cz, r] of cols) { const dx = x - cx, dz = z - cz, rr = r + 0.55; if (dx * dx + dz * dz < rr * rr) { ok = false; break; } }
       if (ok) for (const [ox, oz] of [[0.25, 0], [-0.25, 0], [0, 0.25], [0, -0.25], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5], [0.35, 0.35], [-0.35, 0.35], [0.35, -0.35], [-0.35, -0.35], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]]) {
         const d = Math.hypot(ox, oz); if (Math.abs(H(x + ox, z + oz) - hc) > d * MAX_SLOPE) { ok = false; break; } // Steilwand in der Nähe
@@ -3095,6 +3126,7 @@ window.Surface = (function () {
     for (let i = 1; i <= n; i++) {
       const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n, hh = world.height(x, z);
       if (hh - ph > (len / n) * MAX_SLOPE * 0.92) return false;
+      if (world.wet && world.wet(x, z)) return false; // nicht durchs Wasser
       for (const [cx, cz, r] of N.cols) { const dx = x - cx, dz = z - cz, rr = r + 0.5; if (dx * dx + dz * dz < rr * rr) return false; }
       px = x; pz = z; ph = hh;
     }
@@ -6045,6 +6077,297 @@ window.Surface = (function () {
     return g;
   }
 
+  // =========================================================
+  //  Erde, schön gestaltet: Wälder und Baumgruppen, Büsche, Blumenwiesen, Grasbüschel, Schilf und Seerosen am See,
+  //  ein Park um die Sonnenuhr und ein Dorf am Horizont – fast alles als InstancedMesh (viele Pflanzen, wenige Zeichenaufrufe)
+  // =========================================================
+  // viele gleiche Teile: list = [[x, y, z, sx, sy, sz, drehung, farbe], …] (Farbe wie im Malprogramm)
+  function instanced(scene, geo, mat, list, shadow = true) {
+    const m = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length)), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new V(), s = new V(), c = new THREE.Color();
+    list.forEach(([x, y, z, sx, sy, sz, ry, col], i) => {
+      e.set(0, ry || 0, 0); q.setFromEuler(e); mx.compose(p.set(x, y, z), q, s.set(sx, sy, sz)); m.setMatrixAt(i, mx);
+      m.setColorAt(i, c.set(col == null ? 0xffffff : col).convertSRGBToLinear());
+    });
+    m.count = list.length; m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); return m; // (Hüllkugel kennt die Instanzen nicht)
+  }
+  // Bäume als Instanzen: spots = [[x, z, Größe, Nadelbaum?, Zufallszahl], …]
+  function earthForest(B, spots, shadow = true) {
+    if (KIT.n_tree_oak) { // fertige Bäume aus dem Nature Kit (Kenney, CC0): Laubbäume und Nadelbäume in mehreren Formen
+      const LEAF = ["n_tree_oak", "n_tree_detailed", "n_tree_fat", "n_tree_default", "n_tree_oak_dark", "n_tree_detailed", "n_tree_oak"];
+      const PINE = ["n_tree_pineTallA_detailed", "n_tree_pineTallB_detailed", "n_tree_pineRoundA", "n_tree_pineRoundC", "n_tree_pineDefaultA"];
+      const by = {};
+      for (const [x, z, s, con, sd] of spots) {
+        const list = con ? PINE : LEAF, n = list[Math.floor(hash2(sd, 3) * list.length)];
+        (by[n] = by[n] || []).push([x, B.height(x, z) - 0.05, z, s * (con ? 4.6 : 4.2) * (0.9 + hash2(sd, 4) * 0.25), hash2(sd, 1) * 6.3]);
+      }
+      for (const [n, list] of Object.entries(by)) kitInstanced(B.scene, n, list, shadow, true);
+      return;
+    }
+    const trunks = [], tiers = [], crowns = [], std = (o = {}) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, envMapIntensity: 0.3, ...o });
+    for (const [x, z, s, con, sd] of spots) {
+      const y = B.height(x, z), th = (con ? 1.5 : 2.3) * s, ry = hash2(sd, 1) * 6;
+      trunks.push([x, y + th / 2, z, 0.2 * s, th, 0.2 * s, ry, con ? 0x5a3a22 : 0x6b4a2e]);
+      if (con) for (let k = 0; k < 4; k++) { const r = (1.6 - k * 0.33) * s, h = (1.45 - k * 0.12) * s; tiers.push([x, y + th * 0.6 + k * 0.92 * s + h / 2, z, r, h, r, ry + k, [0x2e6b30, 0x3d7d34, 0x2a5f3a, 0x356f35][(sd + k) % 4]]); }
+      else for (let k = 0; k < 3; k++) { const a = sd * 2.1 + k * 2.1, o = k ? 0.6 * s : 0, r = (k ? 1.0 : 1.4) * s; crowns.push([x + Math.cos(a) * o, y + th + (k ? 0.15 : 0.6) * s, z + Math.sin(a) * o, r, r * 0.85, r, ry + k, [0x4f8f3a, 0x5c9a3c, 0x6b9f3a, 0x3f7f3a, 0x78a83f][(sd + k) % 5]]); }
+    }
+    const leaf = std({ vertexColors: true }); leaf.userData.noCam = true;
+    instanced(B.scene, new THREE.CylinderGeometry(0.5, 0.7, 1, 7), std(), trunks);
+    instanced(B.scene, treeGeo("tier", 1), leaf, tiers);
+    instanced(B.scene, treeGeo("ball", 2), leaf, crowns);
+  }
+  // Pflanzen auf der Wiese: Büsche, Blumen (Stiel + Blüte), Grasbüschel; ok(x, z) = darf hier etwas wachsen?
+  function earthMeadow(B, ok, lite) {
+    const bushes = [], stems = [], blooms = [], tufts = [], H = B.height;
+    const flowerCols = [0xfacc15, 0xf472b6, 0xffffff, 0xa78bfa, 0xef4444, 0xfb923c, 0x60a5fa];
+    for (let i = 0, n = 0; i < 4000 && n < (lite ? 30 : 60); i++) { // Büsche in kleinen Gruppen
+      const x = (hash2(i, 81) - 0.5) * 280, z = (hash2(i, 82) - 0.5) * 280; if (!ok(x, z, 2.5)) continue; n++;
+      for (let k = 0; k < 3; k++) { const s = 0.55 + hash2(i + k, 83) * 0.6, a = hash2(i, 84 + k) * 6.3, xx = x + Math.cos(a) * k * 0.7, zz = z + Math.sin(a) * k * 0.7; bushes.push([xx, H(xx, zz) + s * 0.45, zz, s, s * 0.75, s, a, [0x3f7f3a, 0x4f8f3a, 0x5c9a3c, 0x2f6b34][(i + k) % 4]]); }
+    }
+    for (let i = 0, n = 0; i < 6000 && n < (lite ? 22 : 40); i++) { // Blumenflecken
+      const cx = (hash2(i, 91) - 0.5) * 230, cz = (hash2(i, 92) - 0.5) * 230; if (!ok(cx, cz, 3)) continue; n++;
+      const col = flowerCols[i % flowerCols.length], col2 = flowerCols[(i + 3) % flowerCols.length];
+      for (let k = 0; k < (lite ? 12 : 22); k++) {
+        const a = hash2(i, 100 + k) * 6.3, r = Math.sqrt(hash2(i, 200 + k)) * 2.6, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r, y = H(x, z), h = 0.22 + hash2(k, i) * 0.2;
+        stems.push([x, y + h / 2, z, 1, h, 1, 0, 0x3f8f35]);
+        blooms.push([x, y + h, z, 1, 0.55, 1, a, k % 4 ? col : col2]);
+      }
+    }
+    for (let i = 0, n = 0; i < 9000 && n < (lite ? 700 : 1600); i++) { // Grasbüschel
+      const x = (hash2(i, 301) - 0.5) * 200, z = (hash2(i, 302) - 0.5) * 200; if (!ok(x, z, 0.8)) continue; n++;
+      const s = 0.7 + hash2(i, 303) * 0.8; tufts.push([x, H(x, z) + 0.12 * s, z, s, s, s, hash2(i, 304) * 6, [0x4e8f2f, 0x5fa13a, 0x3f7f2a, 0x6aa84a][i % 4]]);
+    }
+    const cols = bushes.filter((b, i) => i % 3 === 0).map(([x, , z]) => [x, z, 0.7]); // Hindernisse (je Busch-Gruppe einer)
+    if (KIT.n_plant_bushDetailed) { // fertige Büsche, Blumen und Gräser aus dem Nature Kit
+      const pick = (lists, names, pos, k0, k1) => pos.forEach(([x, y, z, s, , , a], i) => { const n = names[i % names.length]; (lists[n] = lists[n] || []).push([x, H(x, z) - 0.02, z, k0 + hash2(i, 7) * k1, a]); });
+      const L = {};
+      pick(L, ["n_plant_bushDetailed", "n_plant_bushLarge", "n_plant_bush"], bushes, 2.6, 1.6);
+      pick(L, ["n_flower_redA", "n_flower_yellowA", "n_flower_purpleA", "n_flower_redB", "n_flower_yellowB", "n_flower_purpleB"], blooms.filter((b, i) => i % 2 === 0), 1.8, 0.8);
+      pick(L, ["n_grass", "n_grass_large", "n_grass_leafs"], tufts, 1.8, 1.2);
+      for (const [n, list] of Object.entries(L)) kitInstanced(B.scene, n, list, /bush/.test(n));
+      // Pilze, Baumstümpfe und Holz am Waldrand
+      const extra = { n_mushroom_redGroup: [], n_mushroom_tanGroup: [], n_stump_old: [], n_log: [], n_log_stack: [], n_rock_largeA: [], n_rock_largeB: [], n_rock_smallB: [] };
+      const names = Object.keys(extra);
+      for (let i = 0, n = 0; i < 3000 && n < (lite ? 40 : 80); i++) {
+        const x = (hash2(i, 401) - 0.5) * 260, z = (hash2(i, 402) - 0.5) * 260; if (!ok(x, z, 1.5)) continue; n++;
+        const nm = names[i % names.length], big = /rock_large|log_stack/.test(nm);
+        { const k = (big ? 3.2 : 2.6) * (0.8 + hash2(i, 403) * 0.5); extra[nm].push([x, H(x, z) - (big ? 0.12 * k : 0.02), z, k, hash2(i, 404) * 6.3]); }
+        if (big) cols.push([x, z, 1.1]);
+      }
+      for (const [n, list] of Object.entries(extra)) kitInstanced(B.scene, n, list);
+      return cols;
+    }
+    const std = (o = {}) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, envMapIntensity: 0.3, ...o });
+    const bushMat = std({ vertexColors: true }); bushMat.userData.noCam = true;
+    instanced(B.scene, treeGeo("ball", 0), bushMat, bushes);
+    instanced(B.scene, new THREE.CylinderGeometry(0.012, 0.016, 1, 4), std(), stems, false);
+    instanced(B.scene, new THREE.SphereGeometry(0.075, 8, 5), std({ roughness: 0.6 }), blooms, false);
+    instanced(B.scene, new THREE.ConeGeometry(0.09, 0.3, 5), std(), tufts, false);
+    return cols;
+  }
+  // Schilf und Seerosen am Ufer: entlang der Uferlinie (Höhe knapp unter/über dem Wasserspiegel)
+  function earthShore(B, [lx, lz], water, lite) {
+    const H = B.height, stalks = [], heads = [], pads = [], lilies = [];
+    for (let i = 0; i < 360; i++) {
+      const a = (i / 360) * Math.PI * 2 + hash2(i, 5) * 0.02; let r = 6;
+      while (r < 22 && H(lx + Math.cos(a) * r, lz + Math.sin(a) * r) < water) r += 0.1; // Uferlinie in dieser Richtung
+      if (hash2(i, 7) < (lite ? 0.55 : 0.3)) continue;
+      const big = hash2(Math.floor(i / 9), 8) > 0.45; if (!big && i % 4) continue; // Schilf wächst in Gruppen
+      for (let k = 0; k < 3; k++) {
+        const rr = r + (hash2(i, 10 + k) - 0.7) * 1.4, x = lx + Math.cos(a + k * 0.004) * rr, z = lz + Math.sin(a + k * 0.004) * rr, y = Math.max(H(x, z), water - 0.3), h = 0.9 + hash2(i, 20 + k) * 0.8;
+        stalks.push([x, y + h / 2, z, 1, h, 1, 0, [0x6b8f3a, 0x5a7d2f, 0x7a9a45][k]]);
+        if (k === 1 && hash2(i, 30) > 0.5) heads.push([x, y + h + 0.05, z, 1, 1, 1, 0, 0x6b4423]);
+      }
+    }
+    for (let i = 0; i < 14; i++) { // Seerosen auf dem Wasser, nahe am Ufer
+      const a = hash2(i, 41) * Math.PI * 2; let r = 4; while (r < 20 && H(lx + Math.cos(a) * r, lz + Math.sin(a) * r) < water - 0.35) r += 0.2;
+      r -= 1.2 + hash2(i, 42) * 1.5; const x = lx + Math.cos(a) * r, z = lz + Math.sin(a) * r, s = 0.35 + hash2(i, 43) * 0.25;
+      pads.push([x, water + 0.012, z, s, 1, s, hash2(i, 44) * 6, [0x3f8f35, 0x4a9a3c][i % 2]]);
+      if (i % 3 === 0) lilies.push([x + 0.1, water + 0.08, z, 1, 0.7, 1, 0, [0xf9a8d4, 0xffffff][i % 2]]);
+    }
+    const std = (o = {}) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, envMapIntensity: 0.3, ...o });
+    instanced(B.scene, new THREE.CylinderGeometry(0.014, 0.022, 1, 4), std(), stalks, false);
+    instanced(B.scene, new THREE.CylinderGeometry(0.045, 0.045, 0.24, 6), std(), heads, false);
+    if (KIT.n_lily_large) { // Seerosen aus dem Nature Kit (teils mit Blüte)
+      kitInstanced(B.scene, "n_lily_large", pads.filter((p, i) => i % 2 === 0).map(([x, y, z, s, , , a]) => [x, water - 0.02, z, 3 + s * 2, a]), false);
+      kitInstanced(B.scene, "n_lily_small", pads.filter((p, i) => i % 2).map(([x, y, z, s, , , a]) => [x, water - 0.01, z, 3 + s * 2, a]), false);
+      return;
+    }
+    const padGeo = new THREE.CircleGeometry(1, 16, 0.35, Math.PI * 2 - 0.7); padGeo.rotateX(-Math.PI / 2);
+    instanced(B.scene, padGeo, std({ side: THREE.DoubleSide, roughness: 0.5 }), pads, false);
+    instanced(B.scene, new THREE.SphereGeometry(0.11, 8, 5), std({ roughness: 0.6 }), lilies, false);
+  }
+  // Wasser: in der Mitte tiefblau, am Ufer hell-türkis (nach Wassertiefe), mit leichten, wandernden Wellen
+  function earthWater(B, [lx, lz], level) {
+    const geo = new THREE.RingGeometry(0.01, 18, 64, 12), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+    const deep = new THREE.Color(0x1d5fa8).convertSRGBToLinear(), shallow = new THREE.Color(0x5cc7c9).convertSRGBToLinear(), c = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) { const x = lx + pos.getX(i), z = lz - pos.getY(i), d = level - B.height(x, z); c.copy(shallow).lerp(deep, smooth(0.05, 1.3, d)); col.set([c.r, c.g, c.b], i * 3); }
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const tex = canvasTex(256, 256, (x) => {
+      x.fillStyle = "#d6e2ec"; x.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 70; i++) { const px = hash2(i, 1) * 256, py = hash2(i, 2) * 256, w = 20 + hash2(i, 3) * 50; for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) { x.fillStyle = `rgba(255,255,255,${0.35 + hash2(i, 4) * 0.4})`; x.beginPath(); x.ellipse(px + ox, py + oy, w, 2 + hash2(i, 5) * 2, 0, 0, 7); x.fill(); } }
+    });
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(5, 5);
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: tex, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.9 }));
+    m.rotation.x = -Math.PI / 2; m.position.set(lx, level, lz); m.receiveShadow = true; B.scene.add(m);
+    return m;
+  }
+  // Kleines Segelboot (vorn = +Z): weißer Rumpf mit blauem Streifen, Holzdeck, Mast mit Großsegel und Vorsegel
+  function earthSailboat(M) {
+    const g = new THREE.Group(), s = new THREE.Shape();
+    s.moveTo(-0.55, 1.3); s.lineTo(0.55, 1.3); s.quadraticCurveTo(0.68, 0, 0, -1.55); s.quadraticCurveTo(-0.68, 0, -0.55, 1.3); // Umriss von oben (Bug bei −y = vorn)
+    const hullGeo = new THREE.ExtrudeGeometry(s, { depth: 0.5, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2, curveSegments: 12 });
+    hullGeo.rotateX(-Math.PI / 2); hullGeo.translate(0, -0.2, 0);
+    const hull = put(g, new THREE.Mesh(hullGeo, [M.std({ color: srgb(0xc8955a), roughness: 0.7 }), M.std({ color: srgb(0xf8fafc), roughness: 0.4 })]), 0, 0, 0);
+    hull.userData.boat = true;
+    const wood = M.std({ color: srgb(0x8b5a2b), roughness: 0.6 });
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 3.2, 8), wood), 0, 1.9, 0.35);
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6), wood), 0, 0.85, -0.38).rotation.x = Math.PI / 2; // Baum
+    const sail = (pts, col) => { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3)); geo.computeVertexNormals();
+      return put(g, new THREE.Mesh(geo, M.std({ color: srgb(col), side: THREE.DoubleSide, roughness: 0.8 })), 0, 0, 0); };
+    sail([0, 0.9, 0.33, 0, 3.4, 0.33, 0, 0.9, -1.1], 0xfafafa); // Großsegel
+    sail([0, 3.2, 0.4, 0, 0.6, 0.4, 0, 0.55, 1.45], 0xf97316);   // Vorsegel
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.6), M.std({ color: srgb(0xef4444) })), 0, 3.55, 0.35, false); // Wimpel
+    return g;
+  }
+
+  // Park um die Sonnenuhr: Kiesplatz, Hecke im Kreis (offen zum Weg), runde Blumenbeete, Bänke mit Blick zur Uhr, Laternen, Bäume, Schild.
+  // open = Richtung des Eingangs (Einheitsvektor x, z). Gibt die Hindernis-Kreise zurück.
+  function earthPark(B, M, [tx, tz], [ox, oz]) {
+    const H = B.height, y0 = H(tx, tz), cols = [], oa = Math.atan2(oz, ox);
+    const off = (a) => Math.abs(Math.atan2(Math.sin(a - oa), Math.cos(a - oa))); // Winkelabstand zum Eingang
+    const at = (a, r) => [tx + Math.cos(a) * r, tz + Math.sin(a) * r];
+    const gm = new THREE.MeshStandardMaterial({ map: regolithTexture(), color: 0xe4d6b6, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 });
+    gm.map.repeat.set(4, 4);
+    const gravel = new THREE.Mesh(new THREE.CircleGeometry(4.7, 56), gm); gravel.rotation.x = -Math.PI / 2; gravel.position.set(tx, y0 + 0.03, tz); gravel.receiveShadow = true; B.scene.add(gravel);
+    // Weg vom Platz durch den Eingang hinaus
+    const [ex, ez] = at(oa, 4.4), [fx, fz] = at(oa, 9.5);
+    makePath(B, [[ex, ez], [fx, fz]], 2, [214, 204, 178]);
+    // Hecke
+    const hedge = [];
+    for (let i = 0; i < 64; i++) { const a = (i / 64) * Math.PI * 2; if (off(a) < 0.95) continue; const [x, z] = at(a, 6.6), s = 0.62 + hash2(i, 3) * 0.12; hedge.push([x, H(x, z) + 0.42, z, s, s * 0.85, s, a, [0x2f6b34, 0x3a7a3a, 0x356f35][i % 3]]); if (i % 2 === 0) cols.push([x, z, 0.55]); }
+    const hm = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.95, envMapIntensity: 0.3 }); hm.userData.noCam = true;
+    instanced(B.scene, treeGeo("ball", 1), hm, hedge);
+    // Blumenbeete zwischen Platz und Hecke
+    const soil = M.std({ color: srgb(0x5b3a24), roughness: 1 }), stems = [], blooms = [], fcols = [[0xf472b6, 0xffffff], [0xfacc15, 0xfb923c], [0xa78bfa, 0xf9a8d4], [0xef4444, 0xfacc15]];
+    [oa + Math.PI, oa + Math.PI / 2 + 0.25, oa - Math.PI / 2 - 0.25, oa + Math.PI - 0.95, oa + Math.PI + 0.95].forEach((a, i) => {
+      const [bx, bz] = at(a, 5.55), by = H(bx, bz);
+      const bed = put(B.scene, new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.78, 0.16, 24), soil), bx, by + 0.06, bz); bed.receiveShadow = true;
+      for (let k = 0; k < 14; k++) { const r = Math.sqrt(hash2(i, k + 10)) * 0.6, b = hash2(i, k + 40) * 6.3, x = bx + Math.cos(b) * r, z = bz + Math.sin(b) * r, h = 0.25 + hash2(k, i + 3) * 0.2;
+        stems.push([x, by + 0.14 + h / 2, z, 1, h, 1, 0, 0x3f8f35]); blooms.push([x, by + 0.14 + h, z, 1.3, 0.7, 1.3, b, fcols[i % 4][k % 2]]); }
+      cols.push([bx, bz, 0.75]);
+    });
+    const std = (o = {}) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, envMapIntensity: 0.3, ...o });
+    if (KIT.n_flower_redA) { // Blumen aus dem Nature Kit
+      const fl = ["n_flower_redA", "n_flower_yellowB", "n_flower_purpleA", "n_flower_redB", "n_flower_yellowA", "n_flower_purpleB"], by = {};
+      blooms.forEach(([x, y, z, , , , a], i) => { const n = fl[(i * 7 + Math.floor(i / 14)) % fl.length]; (by[n] = by[n] || []).push([x, H(x, z) + 0.13, z, 1.7 + hash2(i, 9) * 0.6, a]); });
+      for (const [n, list] of Object.entries(by)) kitInstanced(B.scene, n, list, false);
+    } else {
+      instanced(B.scene, new THREE.CylinderGeometry(0.014, 0.018, 1, 4), std(), stems, false);
+      instanced(B.scene, new THREE.SphereGeometry(0.08, 8, 5), std({ roughness: 0.6 }), blooms, false);
+    }
+    // Bänke mit Blick zur Sonnenuhr, Laternen dazwischen
+    for (const a of [oa + Math.PI, oa + Math.PI / 2 + 0.2, oa - Math.PI / 2 - 0.2]) {
+      const [x, z] = at(a, 3.9), b = on2(B, earthBench(M), x, z); b.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); cols.push([x, z, 0.75]);
+    }
+    const pole = M.std({ color: srgb(0x1f3b2d), roughness: 0.5, metalness: 0.5 }), lampGlass = new THREE.MeshStandardMaterial({ color: srgb(0xfff3c4), emissive: srgb(0xffd27a), emissiveIntensity: 0.9 });
+    for (const a of [oa + 1.25, oa - 1.25, oa + Math.PI + 0.62, oa + Math.PI - 0.62]) {
+      const [x, z] = at(a, 5.0), y = H(x, z), l = new THREE.Group(); l.position.set(x, y, z); B.scene.add(l);
+      put(l, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 2.5, 8), pole), 0, 1.25, 0);
+      put(l, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.38, 0.3), lampGlass), 0, 2.65, 0, false);
+      put(l, new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.22, 4), pole), 0, 2.95, 0).rotation.y = Math.PI / 4;
+      cols.push([x, z, 0.2]);
+    }
+    // Bäume rund um den Park (nicht vor dem Eingang)
+    const spots = [];
+    for (let i = 0; i < 9; i++) { const a = oa + 0.9 + (i / 8) * (Math.PI * 2 - 1.8), r = 9 + hash2(i, 61) * 2.5, [x, z] = at(a, r); spots.push([x, z, 0.85 + hash2(i, 62) * 0.35, hash2(i, 63) < 0.25, i * 3 + 1]); cols.push([x, z, 0.45]); }
+    earthForest(B, spots);
+    // Schild am Eingang
+    const [sx, sz] = at(oa + 0.78, 7.3), sign = on2(B, makeSignBoard(M, "🌳 SONNENUHR-PARK", "#15803d", 2.8), sx, sz); sign.rotation.y = Math.atan2(ox, oz);
+    cols.push([sx, sz, 0.3]);
+    return cols;
+  }
+  const on2 = (B, obj, x, z, lift = 0) => B.on(obj, x, z, lift);
+  // Dorfstraße: Fahrbahn mit Mittelstreifen auf einem Gehweg aus Pflaster, Straßenlaternen, links und rechts Häuser mit Vorgarten
+  // (Häuser, Zäune, Laternen aus den City Kits von Kenney, CC0). Gibt die Hindernis-Kreise zurück.
+  function earthTown(B, road, lite) {
+    const H = B.height, cols = [];
+    const asphalt = canvasTex(128, 256, (c) => {
+      const img = c.createImageData(128, 256);
+      for (let y = 0; y < 256; y++) for (let x = 0; x < 128; x++) { const n = hash2(x * 1.7, y * 0.9) * 22, i = (y * 128 + x) * 4; img.data[i] = 74 + n; img.data[i + 1] = 78 + n; img.data[i + 2] = 84 + n; img.data[i + 3] = 255; }
+      c.putImageData(img, 0, 0);
+      c.fillStyle = "#f4f4f2"; c.fillRect(7, 0, 4, 256); c.fillRect(117, 0, 4, 256); c.fillRect(62, 0, 4, 120); // Randlinien und Mittelstreifen (gestrichelt)
+    });
+    const paving = canvasTex(128, 128, (c) => {
+      c.fillStyle = "#cfcbc2"; c.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(0,0,0,${0.03 + hash2(i, 2) * 0.05})`; c.fillRect((i % 4) * 32, Math.floor(i / 4) * 32 % 128, 32, 32); }
+      c.strokeStyle = "rgba(90,85,78,0.45)"; c.lineWidth = 2;
+      for (let k = 0; k <= 128; k += 32) { c.beginPath(); c.moveTo(k, 0); c.lineTo(k, 128); c.stroke(); c.beginPath(); c.moveTo(0, k); c.lineTo(128, k); c.stroke(); }
+      c.fillStyle = "#9c978d"; c.fillRect(0, 0, 6, 128); c.fillRect(122, 0, 6, 128); // Bordstein
+    });
+    for (const t of [asphalt, paving]) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    paving.repeat.set(3, 1);
+    const walk = makePath(B, road, 10); walk.material = new THREE.MeshStandardMaterial({ map: paving, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -3 });
+    const street = makePath(B, road, 6.4); street.material = new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -6 });
+    street.position.y = 0.02; walk.receiveShadow = street.receiveShadow = true;
+    if (!KIT["t_building-type-a"]) return cols;
+    // Punkte entlang der Straße (alle 1 m) mit Richtung
+    const P = [];
+    for (let i = 0; i < road.length - 1; i++) {
+      const [ax, az] = road[i], [bx, bz] = road[i + 1], l = Math.hypot(bx - ax, bz - az);
+      for (let s = 0; s < l; s += 1) P.push([ax + (bx - ax) * s / l, az + (bz - az) * s / l, (bx - ax) / l, (bz - az) / l]);
+    }
+    const houses = ["t_building-type-a", "t_building-type-c", "t_building-type-g", "t_building-type-h", "t_building-type-i", "t_building-type-k", "t_building-type-r"];
+    const lists = {}, add = (n, x, z, k, ry, lift = 0) => (lists[n] = lists[n] || []).push([x, H(x, z) + lift, z, k, ry]);
+    let hi = 0;
+    for (let i = 22; i < Math.min(P.length - 12, lite ? 90 : 120); i += 13) for (const side of [-1, 1]) {
+      const [x, z, dx, dz] = P[i], nx = -dz * side, nz = dx * side; // nach außen (weg von der Straße)
+      if (Math.hypot(x + nx * 13, z + nz * 13) > 140) continue;
+      const hx = x + nx * 13, hz = z + nz * 13, face = Math.atan2(-nx, -nz); // Haustür (+Z) zur Straße
+      const name = houses[hi++ % houses.length];
+      add(name, hx, hz, 7.5, face, -0.1);
+      cols.push([hx, hz, 5]);
+      // Vorgarten: niedriger Zaun an der Straße, Weg zur Tür, Blumenkasten, ein Baum
+      const fx = x + nx * 6.2, fz = z + nz * 6.2;
+      if (KIT.n_fence_simple) for (const k of [-4.4, -2.2, 2.2, 4.4]) add("n_fence_simple", fx + dx * k, fz + dz * k, 2.2, face); // Holzzaun, in der Mitte offen für den Weg
+      add("t_path-stones-short", x + nx * 7.6, z + nz * 7.6, 7, face);
+      add("t_planter", hx + dx * 5.5 - nx * 2, hz + dz * 5.5 - nz * 2, 6, face);
+      add(hi % 2 ? "t_tree-large" : "t_tree-small", hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, 8, face);
+      cols.push([hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, 0.4]);
+    }
+    for (let i = 6; i < P.length - 4; i += 17) { // Straßenlaternen abwechselnd links und rechts, Arm über die Straße
+      const side = (i / 17) % 2 < 1 ? 1 : -1, [x, z, dx, dz] = P[i], nx = -dz * side, nz = dx * side, lx = x + nx * 4, lz = z + nz * 4;
+      if (Math.hypot(lx, lz) > 145) continue;
+      add("t_light-curved", lx, lz, 8.5, Math.atan2(-nx, -nz) + Math.PI / 2); cols.push([lx, lz, 0.2]);
+    }
+    { const [x, z, dx, dz] = P[3]; add("t_road-sign-object-warning", x - dz * 4.4, z + dx * 4.4, 9, Math.atan2(-dx, -dz)); }
+    for (const [n, list] of Object.entries(lists)) kitInstanced(B.scene, n, list);
+    return cols;
+  }
+  // Dorf am Horizont: Häuser mit roten Dächern und eine Kirche (außerhalb des Spielbereichs)
+  function earthVillage(B, [cx, cz], lite) {
+    const H = B.height, walls = [], roofs = [];
+    const box = new THREE.BoxGeometry(1, 1, 1); box.translate(0, 0.5, 0);
+    const tri = new THREE.Shape(); tri.moveTo(-0.5, 0); tri.lineTo(0.5, 0); tri.lineTo(0, 1); tri.closePath();
+    const prism = new THREE.ExtrudeGeometry(tri, { depth: 1, bevelEnabled: false }); prism.translate(0, 0, -0.5);
+    const wallCols = [0xfaf5e6, 0xfde68a, 0xffffff, 0xfbcfe8, 0xe7e5e4], roofCols = [0xb91c1c, 0x9a3412, 0xc2410c, 0x7f1d1d];
+    for (let i = 0; i < (lite ? 7 : 12); i++) {
+      const a = hash2(i, 71) * Math.PI * 2, r = 4 + hash2(i, 72) * 22, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r, y = H(x, z) - 0.3;
+      const w = 5 + hash2(i, 73) * 3, d = 4 + hash2(i, 74) * 2, h = 3 + hash2(i, 75) * 2.5, ry = Math.atan2(-cx, -cz) + (hash2(i, 76) - 0.5) * 0.8;
+      walls.push([x, y, z, w, h, d, ry, wallCols[i % wallCols.length]]);
+      roofs.push([x, y + h, z, w * 1.12, 2.2 + hash2(i, 77), d * 1.15, ry, roofCols[i % roofCols.length]]);
+    }
+    const std = (o = {}) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, envMapIntensity: 0.3, ...o });
+    instanced(B.scene, box, std(), walls);
+    // Dachflächen: Prisma, dessen Grat quer zur Hausbreite liegt
+    const r = instanced(B.scene, prism, std({ roughness: 0.7 }), roofs.map(([x, y, z, w, h, d, ry, c]) => [x, y, z, w, h, d, ry, c]));
+    const y = H(cx, cz) - 0.3, ch = new THREE.Group(); ch.position.set(cx, y, cz); ch.rotation.y = Math.atan2(-cx, -cz); B.scene.add(ch); // Kirche
+    put(ch, new THREE.Mesh(new THREE.BoxGeometry(3.2, 13, 3.2), std({ color: srgb(0xf5f0e1) })), 0, 6.5, 0);
+    put(ch, new THREE.Mesh(new THREE.ConeGeometry(2.4, 6.5, 4), std({ color: srgb(0x475569) })), 0, 16.2, 0).rotation.y = Math.PI / 4;
+    put(ch, new THREE.Mesh(new THREE.BoxGeometry(6, 6, 10), std({ color: srgb(0xf5f0e1) })), 0, 3, -6.5);
+    const nave = put(ch, new THREE.Mesh(prism, std({ color: srgb(0x9a3412) })), 0, 6, -6.5); nave.scale.set(6.6, 3.2, 10.6);
+    return r;
+  }
+
   function buildEarthCamp(g, add) {
     const M = colonyMats("erde");
     earthVisitorCenter(g, M, 0, 12, 26, 9, 5.2);
@@ -6067,6 +6390,7 @@ window.Surface = (function () {
   const ERDE_LAYOUT = {
     spawn: [-6.9, 4], waage: [-14, 14], luft: [18, 18], stern: [24, 40], mond: [-30, 68],
     see: [0, 40], wasser: [-17, 38], wald: [-38, 44], wegweiser: [6, 5],
+    road: [[-18, 101], [-36, 106], [-60, 107], [-84, 104], [-106, 98], [-142, 90]], // Dorfstraße hinter dem Besucherzentrum
     station: [0, 84], tag: [24, 70], groesse: [0, 77], meet: [16, 26],
     route: {
       wegweiser: [[4, 2.5]], waage: [[-6, 8], [-11, 9]], wasser: [[-18, 24], [-20, 34]], wald: [[-26, 42], [-30, 46]],
@@ -6081,6 +6405,16 @@ window.Surface = (function () {
   const ERDE_SOUTH = (() => { const b = Math.atan2(SUN_DIR.x, SUN_DIR.z) - Math.PI / 4; return new V(Math.sin(b), 0, Math.cos(b)); })();
   const ERDE_POLE = ERDE_SOUTH.clone().multiplyScalar(-Math.cos(0.87)).add(new V(0, Math.sin(0.87), 0)).normalize();
   const erdeSunAt = (hour, out = new V()) => out.copy(SUN_DIR).applyAxisAngle(ERDE_POLE, -(hour - 9) * Math.PI / 12);
+  // Schattenrichtung (x, z) des Schattenwerfers (parallel zur Erdachse) für eine Uhrzeit – hängt nur vom Stundenwinkel ab.
+  // Nachts zeigt die Linie die Verlängerung nach Süden (so wird der Zahlenring voll).
+  function dialDir(hour) {
+    const S = ERDE_SOUTH, U = new V(0, 1, 0), E = new V().crossVectors(U, S), Q = S.clone().multiplyScalar(Math.sin(0.87)).add(U.clone().multiplyScalar(Math.cos(0.87)));
+    const H = Math.atan2(-SUN_DIR.dot(E), SUN_DIR.dot(Q)) + (hour - 9) * Math.PI / 12; // Stundenwinkel (Mittag = 0, nachmittags positiv)
+    const d = Q.clone().multiplyScalar(Math.cos(H)).addScaledVector(E, -Math.sin(H)), P = ERDE_POLE;
+    let x, z;
+    if (Math.abs(d.y) < 1e-3) { x = -d.x; z = -d.z; } else { const k = P.y / d.y; x = P.x - k * d.x; z = P.z - k * d.z; if (d.y < 0) { x = -x; z = -z; } }
+    const l = Math.hypot(x, z); return [x / l, z / l];
+  }
   // Sonnenuhr: Steinsockel, Zifferblatt mit Stundenzahlen dort, wohin der Schatten zur jeweiligen Stunde zeigt, dreieckiger Schattenwerfer
   function earthSundial(M) {
     const g = new THREE.Group(), R = 1.15, TOP = 0.46, N = ERDE_SOUTH.clone().negate(), U = new V(0, 1, 0);
@@ -6089,15 +6423,16 @@ window.Surface = (function () {
       const px = (wx) => (wx / R + 1) * 512, pz = (wz) => (wz / R + 1) * 512;
       c.fillStyle = "#c9b48c"; c.fillRect(0, 0, 1024, 1024); // nicht zu hell, sonst sieht man den Schatten kaum
       c.strokeStyle = "#6b4f2a"; c.lineWidth = 12; c.beginPath(); c.arc(512, 512, 494, 0, 7); c.stroke();
-      const d = new V(), up = Math.atan2(N.x, -N.z); // Zahlen stehen aufrecht, wenn man von Süden auf die Uhr schaut
-      for (let h = 6; h <= 18; h++) {
-        erdeSunAt(h, d); if (d.y < 0.03) continue;
-        const k = ERDE_POLE.y / d.y, sx = ERDE_POLE.x - k * d.x, sz = ERDE_POLE.z - k * d.z, l = Math.hypot(sx, sz), ux = sx / l, uz = sz / l; // Schattenrichtung des Stabs
-        c.strokeStyle = "#4a3418"; c.lineWidth = h % 2 ? 5 : 9;
-        c.beginPath(); c.moveTo(px(ux * 0.1), pz(uz * 0.1)); c.lineTo(px(ux * (h % 2 ? 0.7 : 0.76)), pz(uz * (h % 2 ? 0.7 : 0.76))); c.stroke();
-        if (h % 2) continue; // Zahlen nur zu den geraden Stunden – sonst stehen sie zu eng
+      const up = Math.atan2(N.x, -N.z); // Zahlen stehen aufrecht, wenn man von Süden auf die Uhr schaut
+      c.strokeStyle = "#6b4f2a"; c.lineWidth = 4; c.beginPath(); c.arc(512, 512, 395, 0, 7); c.stroke();
+      // ganzer Zahlenring 0 bis 23 Uhr – jede Zahl genau dort, wohin der Schatten des Schattenwerfers zu dieser Stunde zeigt
+      // (Tagstunden braun im Norden, Nachtstunden blau im Süden: nachts gibt es keinen Sonnenschatten)
+      for (let h = 0; h < 24; h++) {
+        const [ux, uz] = dialDir(h), night = h < 6 || h > 18;
+        c.strokeStyle = night ? "#6b7fa8" : "#4a3418"; c.lineWidth = night ? 3 : h % 2 ? 5 : 8;
+        c.beginPath(); c.moveTo(px(ux * 0.12), pz(uz * 0.12)); c.lineTo(px(ux * 0.74), pz(uz * 0.74)); c.stroke();
         c.save(); c.translate(px(ux * 0.88), pz(uz * 0.88)); c.rotate(up);
-        c.fillStyle = "#2f210d"; c.font = "bold 92px serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(h), 0, 0);
+        c.fillStyle = night ? "#3b4f7a" : "#2f210d"; c.font = `bold ${night ? 50 : 56}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(h), 0, 0);
         c.restore();
       }
     });
@@ -6142,6 +6477,11 @@ window.Surface = (function () {
     return (TREE.geos[key] = geo);
   }
   function makeTree(s, seed = 0) {
+    if (KIT.n_tree_oak) { // fertiges Modell aus dem Nature Kit (gleiche Bäume wie im Rest der Landschaft)
+      const con = hash2(seed, 9) < 0.62, list = con ? ["n_tree_pineTallA_detailed", "n_tree_pineTallB_detailed", "n_tree_pineRoundA", "n_tree_pineDefaultA"] : ["n_tree_oak", "n_tree_detailed", "n_tree_fat"];
+      const g = kit(list[Math.floor(hash2(seed, 5) * list.length)], s * (con ? 4.8 : 4.4)); g.rotation.y = hash2(seed, 6) * 6.3;
+      return g;
+    }
     const g = new THREE.Group(), M = treeMats(), v = Math.floor(hash2(seed, 5) * 3), conifer = hash2(seed, 9) < 0.62;
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.24 * s, (conifer ? 1.8 : 2.4) * s, 8), M.bark);
     trunk.position.y = (conifer ? 0.9 : 1.2) * s; trunk.castShadow = true; g.add(trunk);
@@ -6165,13 +6505,23 @@ window.Surface = (function () {
     const L = { ...ERDE_LAYOUT };
     const craters = [[...L.see, 18, 2.4]]; // die Senke für den See
     const hills = [[L.mond[0], L.mond[1] + 2, 16, 4.5], [L.station[0], L.station[1] + 8, 34, 3]]; // Sternwarten-Hügel und Hügel des Besucherzentrums
-    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 12, 20, "auto"], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 6, "auto"]];
+    const flats = [[0, 0, 11], [...L.station, 20, "auto"], [L.station[0], L.station[1] + 12, 20, "auto"], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 10, "auto"]];
+    for (let i = 0; i < L.road.length - 1; i++) { const [ax, az] = L.road[i], [bx, bz] = L.road[i + 1], n = Math.ceil(Math.hypot(bx - ax, bz - az) / 8); for (let k = 0; k <= n; k++) flats.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n, 12, "auto", 12]); } // Dorf eben
+    const hgt = makeHeight(craters, flats, 200, null, hills);
+    const G0 = new THREE.Color(0x4f9440), mul = (hex) => { const c = new THREE.Color(hex); return [c.r / G0.r, c.g / G0.g, c.b / G0.b]; };
+    const SAND = mul(0xcfbf8e), MUD = mul(0x8a7a52), MEADOW = [mul(0x5a9e3c), mul(0x6aa83f), mul(0x4a8a3a), mul(0x7cae46)];
     const B = buildBase({
-      height: makeHeight(craters, flats, 200, null, hills),
+      height: hgt, rocks: KIT.n_rock_largeA ? 0 : 36, // auf der Erde: Felsen aus dem Nature Kit (mit Gras obendrauf)
       // Luft: blauer Himmel, leichter Dunst in der Ferne, am Tag keine Sterne
       sky: ERDE_SKY.getHex(), fog: [160, 560], stars: false, sunSize: 150,
-      ground: 0x4f9440, rock: 0x7a7a76,
-      tint: (x, z) => { const m = 0.75 + 0.3 * fbm2(x * 0.02 + 6, z * 0.02); return [m * 0.95, m, m * 0.85]; },
+      ground: 0x4f9440, rock: 0x8d918a,
+      tint: (x, z) => { // Wiese in vielen Grüntönen, am Seeufer Sand und feuchte Erde
+        const n = fbm2(x * 0.02 + 6, z * 0.02), n2 = fbm2(x * 0.07 + 2, z * 0.07 + 9), m = 0.85 + 0.25 * n;
+        const k = Math.min(3, Math.floor(n2 * 4.2)), g = MEADOW[Math.max(0, k)], f = (a) => a.map((v) => v * m);
+        let c = f(g);
+        if (Math.hypot(x - ERDE_LAYOUT.see[0], z - ERDE_LAYOUT.see[1]) < 26) { const h = hgt(x, z), s = smooth(-0.1, -0.55, h), w = smooth(-0.55, -0.75, h); c = c.map((v, i) => v + (SAND[i] - v) * s); c = c.map((v, i) => v + (MUD[i] - v) * w); }
+        return c;
+      },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.luft, 4], [...L.stern, 4], [...L.mond, 4],
         [...L.see, 20], [...L.wald, 9], [...L.wegweiser, 3]],
       ambient: [0xffffff, 0.55], hemi: [0xbfe3ff, 0x4a7a3a, 0.5], sun: [0xfff4e0, 1.5],
@@ -6182,8 +6532,10 @@ window.Surface = (function () {
     const M = colonyMats("erde");
 
     // See: flüssiges Wasser gibt es nur auf der Erde
-    const water = new THREE.Mesh(new THREE.CircleGeometry(17.5, 48), new THREE.MeshStandardMaterial({ color: 0x2f7fd0, roughness: 0.12, metalness: 0.35, transparent: true, opacity: 0.88 }));
-    water.rotation.x = -Math.PI / 2; water.position.set(L.see[0], -0.7, L.see[1]); water.receiveShadow = true; scene.add(water);
+    const WATER = -0.7, lite = W.fast || W.lite;
+    const water = earthWater(B, L.see, WATER);
+    earthShore(B, L.see, WATER, lite);
+    B.wet = (x, z) => Math.hypot(x - L.see[0], z - L.see[1]) < 24 && height(x, z) < WATER + 0.08; // im Wasser (Kind und Nora laufen außen herum)
     // Wald
     const trees = new THREE.Group();
     for (let i = 0; i < 16; i++) {
@@ -6196,6 +6548,43 @@ window.Surface = (function () {
       const t = makeTree(0.9 + hash2(i, 23) * 0.8, i * 11 + 3); t.position.set(x, height(x, z), z); trees.add(t);
     }
     scene.add(trees);
+    // Landschaft: Wälder am Rand, Baumgruppen, Büsche, Blumenflecken und Grasbüschel – nicht auf Wegen, Plätzen und im See
+    const tourPts = [[L.spawn[0] + 2, L.spawn[1] + 2]];
+    for (const k of [...cfg.guide.order, "wand"]) for (const p of (L.route[k] || [])) tourPts.push(p);
+    const pathDist = (x, z) => { let m = Infinity; for (let i = 0; i < tourPts.length - 1; i++) { const [ax, az] = tourPts[i], [bx, bz] = tourPts[i + 1], vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz || 1))); m = Math.min(m, Math.hypot(x - ax - vx * t, z - az - vz * t)); } return m; };
+    const keep = [[0, 0, 14], [...L.station, 24], [L.station[0], L.station[1] + 14, 22], [...L.see, 21], [...L.tag, 13], [...L.mond, 11], [...L.luft, 7], [...L.stern, 7], [...L.waage, 6],
+      [...L.wegweiser, 5], [...L.spawn, 7], [L.wald[0] + 12, L.wald[1] - 13, 7], [L.wald[0] - 1, L.wald[1] - 15, 5], [...L.wald, 13]];
+    const roadDist = (x, z) => { let m = Infinity; for (let i = 0; i < L.road.length - 1; i++) { const [ax, az] = L.road[i], [bx, bz] = L.road[i + 1], vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz))); m = Math.min(m, Math.hypot(x - ax - vx * t, z - az - vz * t)); } return m; };
+    const free = (x, z, r) => Math.hypot(x, z) < 146 && pathDist(x, z) > r + 1.6 && roadDist(x, z) > r + 21 && !keep.some(([kx, kz, kr]) => Math.hypot(x - kx, z - kz) < kr + r);
+    const forest = [], treeCols = [];
+    for (let i = 0; i < (lite ? 260 : 520); i++) { // Waldgürtel am Rand – in Gruppen (Rauschen entscheidet, wo Wald ist)
+      const a = hash2(i, 51) * Math.PI * 2, r = 78 + hash2(i, 52) * 120, x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (fbm2(x * 0.025 + 3, z * 0.025) < 0.5 || roadDist(x, z) < 12 || (r < 146 && !free(x, z, 1.5))) continue;
+      const s = 0.95 + hash2(i, 53) * 0.75; forest.push([x, z, s, hash2(i, 54) < 0.6, i]); if (r < 148) treeCols.push([x, z, 0.4 * s]);
+    }
+    for (let i = 0, n = 0; i < 3000 && n < (lite ? 14 : 26); i++) { // Baumgruppen auf der Wiese
+      const x = (hash2(i, 55) - 0.5) * 150, z = (hash2(i, 56) - 0.5) * 150; if (!free(x, z, 4)) continue; n++;
+      for (let k = 0; k < 1 + (i % 3); k++) { const xx = x + (hash2(i, 57 + k) - 0.5) * 6, zz = z + (hash2(i, 60 + k) - 0.5) * 6; if (!free(xx, zz, 1.5)) continue; const s = 0.9 + hash2(i, 63 + k) * 0.6; forest.push([xx, zz, s, hash2(i, 66 + k) < 0.3, i * 5 + k]); treeCols.push([xx, zz, 0.4 * s]); }
+    }
+    for (let i = 0; i < 16; i++) { const a = hash2(i, 11) * Math.PI * 2, r = 9 + hash2(i, 12) * 8, x = L.wald[0] + Math.cos(a) * r, z = L.wald[1] + Math.sin(a) * r; if (pathDist(x, z) > 3 && Math.hypot(x - L.wald[0] - 12, z - L.wald[1] + 13) > 7) { forest.push([x, z, 1 + hash2(i, 13) * 0.6, true, i + 900]); treeCols.push([x, z, 0.5]); } } // dichterer Wald hinter der Foto-Safari
+    earthForest(B, forest.filter(([x, z]) => Math.hypot(x, z) < 95)); // nahe Bäume werfen Schatten, ferne nicht (spart Rechenzeit)
+    earthForest(B, forest.filter(([x, z]) => Math.hypot(x, z) >= 95), false);
+    const bushCols = earthMeadow(B, (x, z, r) => free(x, z, r) && Math.hypot(x, z) < 140, lite);
+    const townCols = earthTown(B, L.road, lite); // Dorfstraße mit Häusern hinter dem Besucherzentrum
+    if (KIT.n_tent_detailedOpen) { // Zeltplatz: Zelt, Lagerfeuer, zwei Baumstämme zum Sitzen
+      let spot = null;
+      for (let i = 0; i < 200 && !spot; i++) { const a = 3.2 + (i % 20) * 0.08, r = 26 + Math.floor(i / 20) * 1.5, x = L.see[0] + Math.cos(a) * r, z = L.see[1] + Math.sin(a) * r; if (free(x, z, 4.5)) spot = [x, z]; }
+      if (spot) {
+        const [x, z] = spot, toLake = Math.atan2(L.see[0] - x, L.see[1] - z), y = (a, d) => [x + Math.sin(toLake + a) * d, z + Math.cos(toLake + a) * d];
+        const [fx, fz] = y(0, 1.2), [tx2, tz2] = y(Math.PI, 2.2), [l1x, l1z] = y(1.3, 2.6), [l2x, l2z] = y(-1.3, 2.6);
+        kitInstanced(scene, "n_tent_detailedOpen", [[tx2, height(tx2, tz2), tz2, 4.2, toLake]]);
+        kitInstanced(scene, "n_campfire_logs", [[fx, height(fx, fz), fz, 3.5, 0]]);
+        kitInstanced(scene, "n_log", [[l1x, height(l1x, l1z), l1z, 3.2, toLake + Math.PI / 2], [l2x, height(l2x, l2z), l2z, 3.2, toLake + Math.PI / 2]]);
+        const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,230,150,1)", "rgba(255,120,30,0.8)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+        flame.position.set(fx, height(fx, fz) + 0.45, fz); flame.scale.setScalar(1.1); scene.add(flame); B.campFlame = flame;
+        treeCols.push([tx2, tz2, 1.6], [fx, fz, 0.6], [l1x, l1z, 0.6], [l2x, l2z, 0.6]);
+      }
+    }
     // Wolken
     const clouds = new THREE.Group(), white = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, transparent: true, opacity: 0.9 });
     for (let i = 0; i < 9; i++) {
@@ -6230,27 +6619,41 @@ window.Surface = (function () {
       const bed = on(new THREE.Mesh(new THREE.RingGeometry(1.6, 2.05, 48, 1, gap + 0.55, Math.PI * 2 - 1.1), M.std({ color: srgb(0x5b3a24), roughness: 1 })), tx, tz, 0.03);
       bed.rotation.x = -Math.PI / 2; bed.receiveShadow = true;
       const cols = [0xf472b6, 0xfacc15, 0xef4444, 0xa78bfa, 0xffffff, 0xfb923c];
+      const fl = ["n_flower_redA", "n_flower_yellowA", "n_flower_purpleA", "n_flower_redB", "n_flower_yellowB", "n_flower_purpleB"], byF = {};
       for (let i = 0; i < 28; i++) {
-        const a = gap + 0.62 + (i / 27) * (Math.PI * 2 - 1.24), r = 1.7 + hash2(i, 41) * 0.25; // a: Winkel im Ring
+        const a = gap + 0.62 + (i / 27) * (Math.PI * 2 - 1.24), r = 1.7 + hash2(i, 41) * 0.25, x = tx + Math.cos(a) * r, z = tz - Math.sin(a) * r; // a: Winkel im Ring
+        if (KIT.n_flower_redA) { const n = fl[i % fl.length]; (byF[n] = byF[n] || []).push([x, height(x, z) + 0.03, z, 1.8 + hash2(i, 42) * 0.5, hash2(i, 43) * 6]); continue; }
         const f = earthFlower(M, cols[i % cols.length], 0.28 + hash2(i, 42) * 0.14); f.rotation.y = hash2(i, 43) * 6;
-        on(f, tx + Math.cos(a) * r, tz - Math.sin(a) * r);
+        on(f, x, z);
       }
-      for (const [dx, dz, r] of [[-2.6, 1.4, 2.1], [2.4, 2, -2.2]]) on(earthBench(M), tx + dx, tz + dz).rotation.y = r;
-      for (const [dx, dz] of [[4, 4], [-4, 4.5]]) { const t = makeTree(0.9, dx > 0 ? 4 : 13); t.position.set(tx + dx, height(tx + dx, tz + dz), tz + dz); trees.add(t); }
+      for (const [n, list] of Object.entries(byF)) kitInstanced(scene, n, list, false);
     }
+    // Park um die Sonnenuhr: Eingang zwischen dem Rundweg (Wegpunkt am Park) und der Station vor der Uhr
+    const parkOpen = (() => { const [tx, tz] = L.tag, r = L.route.tag[L.route.tag.length - 1], ax = r[0] - tx, az = r[1] - tz, l = Math.hypot(ax, az), x = ax / l + ERDE_SOUTH.x, z = az / l + ERDE_SOUTH.z, m = Math.hypot(x, z); return [x / m, z / m]; })();
+    const parkCols = earthPark(B, M, L.tag, parkOpen);
     { // Waage mit Schild „So viel wiegst du wirklich“
       on(makeSignBoard(M, "⚖️ WAAGE – WIE SCHWER BIST DU?", "#2563eb", 3.2), L.waage[0] + 2.4, L.waage[1] + 1).rotation.y = Math.atan2(-L.waage[0], -L.waage[1]);
     }
     // Am See: Steg mit Boot und Enten
-    const [lx, lz] = L.see, jetty = new THREE.Group(); on(jetty, lx - 16, lz + 2); jetty.rotation.y = Math.PI / 2;
-    for (let i = 0; i < 8; i++) put(jetty, new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.1, 0.6), wood(M, 1, 0.3)), 0, 0.35 - i * 0.02, i * 0.65);
-    for (const s of [-0.85, 0.85]) for (let i = 0; i < 3; i++) put(jetty, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2, 8), wood(M, 0.2, 1)), s, -0.3, i * 2.2);
-    const boat = new THREE.Group(); scene.add(boat);
-    const hull = put(boat, new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.std({ color: srgb(0xf8fafc), side: THREE.DoubleSide })), 0, 0.2, 0);
-    hull.scale.set(0.9, 0.5, 2.2);
-    put(boat, new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3, 6), wood(M, 0.2, 1)), 0, 1.7, 0.2);
-    const sail = new THREE.BufferGeometry(); sail.setAttribute("position", new THREE.Float32BufferAttribute([0, 0.5, 0.3, 0, 3.1, 0.3, 0, 0.5, -1.6], 3)); sail.computeVertexNormals();
-    put(boat, new THREE.Mesh(sail, new THREE.MeshStandardMaterial({ color: srgb(0xef4444), side: THREE.DoubleSide })), 0, 0, 0);
+    const [lx, lz] = L.see, jetty = new THREE.Group();
+    { // Steg: beginnt am Westufer auf dem Trockenen und führt 6 m aufs Wasser hinaus, Pfosten bis zum Grund
+      const dx = -0.99, dz = 0.12; let r = 6; while (r < 22 && height(lx + dx * r, lz + dz * r) < WATER) r += 0.1;
+      const sx = lx + dx * (r + 1.4), sz = lz + dz * (r + 1.4), ry = Math.atan2(-dx, -dz), deckY = WATER + 0.45;
+      jetty.position.set(sx, deckY, sz); jetty.rotation.y = ry; scene.add(jetty);
+      for (let i = 0; i < 12; i++) put(jetty, new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.09, 0.56), wood(M, 1, 0.3)), 0, 0, i * 0.62);
+      for (const s of [-0.85, 0.85]) for (const k of [0.4, 3.2, 6.6]) {
+        const wx = sx + Math.sin(ry) * k + Math.cos(ry) * s, wz = sz + Math.cos(ry) * k - Math.sin(ry) * s, bottom = Math.min(height(wx, wz), WATER) - 0.3, h = deckY - bottom + 0.7;
+        put(jetty, new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, h, 8), wood(M, 0.2, 1)), s, 0.7 - h / 2, k);
+      }
+      for (const s of [-0.85, 0.85]) put(jetty, new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 6.4), wood(M, 1, 0.2)), s, 0.6, 3.6); // Geländer
+    }
+    const boat = earthSailboat(M); scene.add(boat);
+    if (KIT.n_canoe) { // Kanu am Steg und ein kleiner Zeltplatz mit Lagerfeuer am Ufer
+      const ry = jetty.rotation.y, side = [Math.cos(ry), -Math.sin(ry)], fwd = [Math.sin(ry), Math.cos(ry)];
+      const cx = jetty.position.x + fwd[0] * 4.6 + side[0] * 2.0, cz = jetty.position.z + fwd[1] * 4.6 + side[1] * 2.0;
+      kitInstanced(scene, "n_canoe", [[cx, WATER - 0.12, cz, 3.2, ry]]);
+      kitInstanced(scene, "n_canoe_paddle", [[jetty.position.x + fwd[0] * 2 + side[0] * 0.3, jetty.position.y + 0.05, jetty.position.z + fwd[1] * 2 + side[1] * 0.3, 2.6, ry + 0.5]], false);
+    }
     const ducks = [0, 1, 2, 3].map(() => { const d = earthDuck(M); scene.add(d); return d; });
     // Lebewesen für die Foto-Safari
     const MC = [L.wald[0] + 12, L.wald[1] - 13]; // Blumenwiese zwischen See und Wald
@@ -6275,7 +6678,10 @@ window.Surface = (function () {
       const ob = rollRoof.userData; if (ob.open !== ob.target) { ob.open += Math.sign(ob.target - ob.open) * Math.min(Math.abs(ob.target - ob.open), dt * 0.6); ob.set(smooth(0, 1, ob.open)); }
       weather.userData.cups.rotation.y += dt * (4 + 2 * Math.sin(t * 0.4));
       const bt = (t % 40) / 40, bl = weather.userData.balloon; bl.position.set(0.8 + bt * 6, 3.3 + bt * bt * 140, bt * 10); bl.visible = bt < 0.96; // Wetterballon steigt auf
-      boat.position.set(lx + Math.cos(t * 0.04) * 8, -0.55 + Math.sin(t * 1.3) * 0.05, lz + Math.sin(t * 0.04) * 6); boat.rotation.y = -t * 0.04; boat.rotation.z = Math.sin(t * 0.9) * 0.05;
+      { const a = t * 0.035; boat.position.set(lx + Math.cos(a) * 6.5, WATER + 0.05 + Math.sin(t * 1.3) * 0.04, lz + Math.sin(a) * 5); // segelt im Kreis, Bug in Fahrtrichtung
+        boat.rotation.set(0, Math.atan2(-Math.sin(a) * 6.5, Math.cos(a) * 5), Math.sin(t * 0.9) * 0.05 - 0.06); }
+      water.material.map.offset.set(t * 0.004, t * 0.0025); // Wellen ziehen langsam über den See
+      if (B.campFlame) B.campFlame.scale.setScalar(0.95 + 0.25 * Math.abs(Math.sin(t * 7) * Math.sin(t * 3.1))); // Lagerfeuer flackert
       ducks.forEach((d, i) => { const a = t * 0.08 + i * 0.5; d.position.set(lx - 6 + Math.cos(a) * 5 + i * 0.6, -0.62, lz + Math.sin(a) * 4 + i * 0.4); d.rotation.y = -a; });
       for (const tb of turbines) tb.userData.rotor.rotation.z += dt * 0.9;
       for (const d of [doe, fawn]) { const u = d.userData, ph = (t * 0.16 + u.seed) % 1; u.neck.rotation.x = 1.25 * smooth(0.05, 0.15, ph) * (1 - smooth(0.62, 0.72, ph)); } // grasen
@@ -6298,7 +6704,7 @@ window.Surface = (function () {
       { mond: MARS_SCOPE_DOOR(L.mond), tag: [ERDE_SOUTH.x * 2.6, ERDE_SOUTH.z * 2.6] }); // vor der Sonnenuhr (Süden), nicht auf ihr
     const npcs = addNpcs(B);
     const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 1.4],
-      ...rackCols];
+      ...rackCols, ...parkCols, ...treeCols, ...bushCols, ...townCols];
 
     // Lebewesen: Art, Objekt, Höhe der Bildmitte, Größe (für das Teleobjektiv), größte Foto-Entfernung
     const life = [...ducks.map((o) => ({ kind: "ente", obj: o, h: 0.3, size: 0.7 })), ...trees.children.map((o) => ({ kind: "baum", obj: o, h: 2.6, size: 5, far: 26 })),
