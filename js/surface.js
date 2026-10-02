@@ -6157,10 +6157,44 @@ window.Surface = (function () {
     return b;
   }
   // Fahnenmast mit Fahne, die leicht weht
-  function earthFlag(M, color) {
+  // Fahnen am Besucherzentrum (Seitenverhältnis 5 : 3): Deutschland, Stadt Hannover, NASA
+  function flagTex(kind) {
+    return canvasTex(500, 300, (c) => {
+      if (kind === "de") { [["#000000", 0], ["#dd0000", 100], ["#ffce00", 200]].forEach(([col, y]) => { c.fillStyle = col; c.fillRect(0, y, 500, 100); }); return; }
+      if (kind === "hannover") { // Rot-Weiß mit dem Stadtwappen: roter Schild, silberne Mauer mit zwei Türmen, goldener Löwe, goldenes Schildchen mit grünem Kleeblatt
+        c.fillStyle = "#d4111a"; c.fillRect(0, 0, 500, 150); c.fillStyle = "#ffffff"; c.fillRect(0, 150, 500, 150);
+        c.save(); c.translate(250, 150);
+        c.fillStyle = "#c4141c"; c.strokeStyle = "#7a0a0f"; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(-62, -82); c.lineTo(62, -82); c.lineTo(62, 10); c.quadraticCurveTo(62, 70, 0, 92); c.quadraticCurveTo(-62, 70, -62, 10); c.closePath(); c.fill(); c.stroke();
+        c.fillStyle = "#eef0f2"; c.strokeStyle = "#8a8f96"; c.lineWidth = 2;
+        c.fillRect(-48, -2, 96, 50); c.strokeRect(-48, -2, 96, 50);                               // Mauer
+        for (const x of [-48, 22]) { c.fillRect(x, -50, 26, 50); c.strokeRect(x, -50, 26, 50); for (let k = 0; k < 3; k++) c.fillRect(x + k * 10, -60, 6, 12); } // Türme mit Zinnen
+        for (let k = 0; k < 5; k++) c.fillRect(-20 + k * 9, -10, 6, 10);                          // Zinnen dazwischen
+        c.fillStyle = "#1f2937"; c.beginPath(); c.moveTo(-14, 48); c.lineTo(-14, 26); c.quadraticCurveTo(0, 12, 14, 26); c.lineTo(14, 48); c.fill(); // Tor
+        c.fillStyle = "#f2c230"; c.beginPath(); c.ellipse(0, -26, 13, 9, 0, 0, 7); c.fill(); c.fillRect(-10, -20, 4, 9); c.fillRect(6, -20, 4, 9); c.beginPath(); c.arc(11, -34, 6, 0, 7); c.fill(); // Löwe (vereinfacht)
+        c.fillStyle = "#f2c230"; c.beginPath(); c.moveTo(-8, 28); c.lineTo(8, 28); c.lineTo(8, 36); c.quadraticCurveTo(8, 44, 0, 46); c.quadraticCurveTo(-8, 44, -8, 36); c.closePath(); c.fill(); // goldenes Schildchen
+        c.fillStyle = "#15803d"; for (const [x, y] of [[-3, 33], [3, 33], [0, 28]]) { c.beginPath(); c.arc(x, y + 3, 3, 0, 7); c.fill(); } c.fillRect(-0.7, 36, 1.4, 6); // Kleeblatt
+        c.restore(); return;
+      }
+      // NASA: dunkelblaues Tuch mit dem runden Abzeichen (blaue Kugel, Sterne, Umlaufbahn, rote Pfeilform, Schriftzug)
+      c.fillStyle = "#0b3d91"; c.fillRect(0, 0, 500, 300);
+      c.save(); c.translate(250, 150);
+      c.fillStyle = "#1e5bc6"; c.beginPath(); c.arc(0, 0, 112, 0, 7); c.fill(); c.strokeStyle = "#ffffff"; c.lineWidth = 3; c.stroke();
+      c.fillStyle = "#ffffff"; for (let i = 0; i < 26; i++) { const a = hash2(i, 7) * 6.3, r = Math.sqrt(hash2(i, 8)) * 100; c.beginPath(); c.arc(Math.cos(a) * r, Math.sin(a) * r, 1 + hash2(i, 9) * 1.6, 0, 7); c.fill(); }
+      c.strokeStyle = "#ffffff"; c.lineWidth = 3; c.beginPath(); c.ellipse(4, 2, 104, 36, -0.35, 0, 7); c.stroke(); // Umlaufbahn
+      c.fillStyle = "#fc3d21"; c.beginPath(); c.moveTo(-120, 52); c.quadraticCurveTo(-10, 8, 128, -58); c.quadraticCurveTo(10, -4, -96, 76); c.closePath(); c.fill(); // roter „Vektor“
+      c.fillStyle = "#ffffff"; c.font = "bold 58px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("NASA", 0, 6);
+      c.restore();
+    });
+  }
+  function earthFlag(M, kind) {
     const g = new THREE.Group();
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 6, 8), M.steel), 0, 3, 0);
-    const cloth = put(g, new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1, 10, 1), new THREE.MeshStandardMaterial({ color: srgb(color), side: THREE.DoubleSide, roughness: 0.8 })), 0.92, 5.3, 0, false);
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), M.steel), 0, 6.02, 0, false); // Knauf
+    const tex = flagTex(kind), back = tex.clone(); back.needsUpdate = true; back.wrapS = THREE.RepeatWrapping; back.repeat.x = -1; back.offset.x = 1; // Rückseite nicht spiegelverkehrt
+    const geo = new THREE.PlaneGeometry(1.8, 1.08, 10, 1);
+    const cloth = put(g, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.FrontSide, roughness: 0.8 })), 0.92, 5.4, 0, false);
+    cloth.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: back, side: THREE.BackSide, roughness: 0.8 })));
     g.userData.cloth = cloth;
     return g;
   }
@@ -6786,7 +6820,7 @@ window.Surface = (function () {
       for (let i = 0; i < 6; i++) { const x = -10.8 + i * 4.3; put(g, new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.6), glass), x, 3, 16.53, false); put(g, new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.15, 0.2), M.hull(1, 1)), x, 2.1, 16.6); }
       for (const s of [-1, 1]) for (const z of [9.5, 14.5]) put(g, new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.6), glass), s * 13.03, 3, z, false).rotation.y = s * Math.PI / 2;
     }
-    for (const [x, c] of [[-15, 0x2563eb], [-17, 0x16a34a], [-19, 0xf59e0b]]) { const f = earthFlag(M, c); f.position.set(x, 0, 4); g.add(f); (g.userData.flags = g.userData.flags || []).push(f.userData.cloth); }
+    for (const [x, c] of [[-15, "de"], [-17, "hannover"], [-19, "nasa"]]) { const f = earthFlag(M, c); f.position.set(x, 0, 4); g.add(f); (g.userData.flags = g.userData.flags || []).push(f.userData.cloth); }
     for (const [x, z] of [[-9.5, 3], [9.5, 3]]) colonyLamp(g, M, x, z);
     for (const [x, z, r] of [[-12, 2, 0.3], [12, 1.5, -0.3]]) { const b = earthBench(M); b.position.set(x, 0, z); b.rotation.y = Math.PI + r; g.add(b); }
     // Blumenbeete vor dem Haus
