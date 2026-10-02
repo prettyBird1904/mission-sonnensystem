@@ -189,6 +189,7 @@ window.Voice = (function () {
     halt();
   }
   // Sprechblasen bleiben stehen, solange ihr Text noch gesprochen wird
+  const busy = () => !!(cur && performance.now() < cur.until); // spricht gerade jemand? (Hintergrundgeräusche werden dann leiser)
   const speaking = (id) => !!(id && ((cur && cur.id === id && performance.now() < cur.until) || queue.some((j) => j.id === id)));
   function stopModal() { if (cur && cur.modal) halt(); }
   // Aufnahmen eines Ortes schon im Hintergrund laden (dann gibt es keine Pause vor dem Sprechen)
@@ -213,7 +214,7 @@ window.Voice = (function () {
   document.addEventListener("visibilitychange", () => { if (document.hidden) halt(); });
 
   return {
-    say, stop, speaking, stopModal, prefetch, unlock, toggle, list, setVoice, speakable,
+    say, stop, speaking, busy, stopModal, prefetch, unlock, toggle, list, setVoice, speakable,
     setName(n) { childName = n || ""; },
     get enabled() { return enabled; }, get supported() { return OK; }, get recorded() { return HAS_CLIPS; },
     get voiceName() { return devNora ? devNora.name : ""; },

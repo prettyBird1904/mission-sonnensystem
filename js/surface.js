@@ -311,7 +311,20 @@ window.Surface = (function () {
     armL: "LeftArm", armR: "RightArm", foreL: "LeftForeArm", foreR: "RightForeArm",
     legL: "LeftUpLeg", legR: "RightUpLeg", kneeL: "LeftLeg", kneeR: "RightLeg"
   };
-  function makeModelAstronaut(gltf, accent) {
+  // Anzüge der Figuren: Jede Person sieht anders aus (Grundfarbe, Staub des Ortes, Visier) – nach echten Vorbildern:
+  // Apollo (weiß, goldenes Visier), der moderne NASA-Anzug xEMU (weiß mit hellblauen Teilen), der orange Start-Anzug („Kürbis-Anzug“),
+  // ein silberner Hitzeschutz-Anzug, ein dick gefütterter Kälte-Anzug und Janas blauer Trainingsanzug.
+  const SUITS = {
+    kind:   { base: 0xccc6b8, dust: 0x66625b, visor: 0xd9a520 },
+    nora:   { base: 0xe4e8ee, lower: 0x9db7d6, dust: 0x8a8f96, visor: 0x7fa6c9, lamps: true },
+    mond:   { base: 0xd6d3cc, dust: 0x5f5c57, visor: 0xd9a520, lamps: true, lower2: 0x8fa3c4 },
+    mars:   { base: 0xe2d6c4, lower: 0xc77a4a, lower2: 0x6f7c8c, dust: 0x9a4e2c, visor: 0xc79a3a, lamps: true },
+    merkur: { base: 0xe3e6ea, dust: 0x6a645c, visor: 0xc9ced6, metal: 0.2, lamps: true }, // silbrig glänzender Hitzeschutz
+    venus:  { base: 0xf08a2c, dust: 0x8a5a2e, visor: 0x5a4632, lamps: true },
+    erde:   { base: 0x3b64b0, lower: 0x2a4a86, dust: 0x3b64b0, visor: 0x8fc6e8 },
+    pluto:  { base: 0xebe6f5, lower: 0xb9a9dc, dust: 0x8a7a68, visor: 0x3a4f8a, lamps: true }
+  };
+  function makeModelAstronaut(gltf, accent, style = SUITS.kind) {
     const root = gltf.scene;
     const g = new THREE.Group();
     root.updateMatrixWorld(true);
@@ -337,11 +350,11 @@ window.Surface = (function () {
       }
       if (o.material && /transparent|mask/i.test(o.material.name)) {
         // Goldenes Helmvisier: spiegelnd wie bei echten Raumanzügen
-        o.material = new THREE.MeshStandardMaterial({ color: 0xd9a520, metalness: 0.95, roughness: 0.12, emissive: 0x2a1c00 });
+        o.material = new THREE.MeshStandardMaterial({ color: style.visor, metalness: 0.95, roughness: 0.12, emissive: new THREE.Color(style.visor).multiplyScalar(0.12) });
       }
     });
-    paintSuit(g, rig, accent);
-    addSuitParts(g, rig);
+    paintSuit(g, rig, accent, style);
+    addSuitParts(g, rig, style);
     g.userData = { rig };
     return g;
   }
@@ -349,9 +362,9 @@ window.Surface = (function () {
   // Farben nach dem Vorbild der Apollo-Anzüge (z. B. Buzz Aldrin, 1969):
   // gebrochenes Weiß mit Stoff-Falten, dunkle Handschuhe & Stiefel, grauer Mondstaub an den Beinen,
   // farbige Streifen an Oberarmen, Oberschenkeln und Helm (bei Apollo: rot für den Kommandanten).
-  function paintSuit(g, rig, accent) {
+  function paintSuit(g, rig, accent, style = SUITS.kind) {
     const C = (h) => new THREE.Color(h);
-    const BASE = C(0xccc6b8), DUST = C(0x66625b), GLOVE = C(0x303236), BOOT = C(0x46474c), SOLE = C(0x222327), RING = C(0x8e9196);
+    const BASE = C(style.base), LOWER = style.lower != null ? C(style.lower) : null, DUST = C(style.dust), GLOVE = C(0x303236), BOOT = C(0x46474c), SOLE = C(0x222327), RING = C(0x8e9196);
     const tmpC = new THREE.Color();
     g.updateMatrixWorld(true);
     rig.accentVerts = [];
@@ -369,7 +382,7 @@ window.Surface = (function () {
         const x = v.x, y = v.y, z = v.z, ax = Math.abs(x);
         // Stoff-Falten: leichte Helligkeitsschwankung
         const fold = 0.8 + 0.2 * noise2(x * 22 + z * 9, y * 22 - z * 7);
-        tmpC.copy(BASE).multiplyScalar(fold);
+        tmpC.copy(LOWER && y < 0.95 && y > 0.16 && z > -0.2 && !o.name.startsWith("Helmet") ? LOWER : BASE).multiplyScalar(fold); // zweifarbige Anzüge: Beine anders
         let isAcc = false;
         if (ax > 0.7 && y > 1.2) tmpC.copy(GLOVE).multiplyScalar(0.9 + 0.2 * fold - 0.1);           // Handschuhe
         else if (y < 0.035) tmpC.copy(SOLE);                                                          // Sohlen
@@ -389,7 +402,7 @@ window.Surface = (function () {
       o.geometry.setAttribute("color", attr);
       rig.accentVerts.push({ attr, idx: acc });
     });
-    whiteMats.forEach((m) => { m.vertexColors = true; m.color.set(0xffffff); m.roughness = 0.9; m.metalness = 0; m.needsUpdate = true; });
+    whiteMats.forEach((m) => { m.vertexColors = true; m.color.set(0xffffff); m.roughness = style.metal ? 0.55 : 0.9; m.metalness = style.metal || 0; m.needsUpdate = true; });
     setSuitAccent(rig, accent);
   }
   // Grauer Modellteil: Hände → dunkle Handschuhe, Rest → metallische Gelenkringe
@@ -424,7 +437,17 @@ window.Surface = (function () {
     mesh.castShadow = true;
     bone.add(mesh);
   }
-  function addSuitParts(g, rig) {
+  function addSuitParts(g, rig, style = SUITS.kind) {
+    const helmBone = rig.bones.spine2 || rig.bones.spine; // der Helm sitzt fest auf dem Anzug (wie bei Apollo)
+    if (style.lamps && helmBone) { // Helmlampen links und rechts (leuchten)
+      const lampMat = new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.4, metalness: 0.6 }), glow = new THREE.MeshBasicMaterial({ color: 0xfff4c8, toneMapped: false });
+      for (const sx of [-1, 1]) {
+        const lamp = new THREE.Group();
+        lamp.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.075, 12), lampMat));
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.026, 12), glow); lens.position.y = 0.039; lens.rotation.x = -Math.PI / 2; lamp.add(lens);
+        attachToBone(g, helmBone, lamp, new V(sx * 0.175, 1.7, 0.05), new THREE.Quaternion().setFromAxisAngle(new V(1, 0, 0), Math.PI / 2));
+      }
+    }
     const chest = rig.bones.spine2 || rig.bones.spine;
     if (chest) {
       // Steuerbox auf der Brust (bei Apollo: „Remote Control Unit“)
@@ -2011,7 +2034,7 @@ window.Surface = (function () {
     $("guideBtn").classList.add("hidden"); guide = null;
     if (!S.active) return;
     S.active = false; probe = null;
-    Sound.engine(0); Sound.wind(0); Voice.stop();
+    Sound.engine(0); Sound.wind(0); Sound.ambience(null); Voice.stop();
     if (chal) endChallenge();
     compassShown = ""; $("surfCompass").classList.add("hidden");
     $("surfaceHud").classList.add("hidden");
@@ -2059,9 +2082,31 @@ window.Surface = (function () {
     });
     return (world.camBlock = list);
   }
+  // Leise Hintergrundgeräusche je Ort (Sound.ambience): Wo es Luft gibt, weht leiser Wind; ohne Luft hört man draußen nichts –
+  // nur das Brummen des eigenen Raumanzugs. Dazu Vögel und Wasser auf der Erde, blubbernde Lava auf der Venus.
+  let ambBird = 4, ambBubble = 1;
+  function ambience(dt, t) {
+    const p = ast.pos, gust = 0.5 + 0.5 * Math.sin(t * 0.07) * Math.sin(t * 0.113 + 1); // langsame, seltene Böen
+    const duck = UI.modalOpen() || Voice.busy();
+    let L;
+    if (bodyId === "erde") {
+      const air = view.special && view.special.key === "luft" ? view.special.a : 1; // Luft-Versuch: ohne Luft wird es still
+      const lake = smooth(28, 10, Math.hypot(p.x - world.L.see[0], p.z - world.L.see[1]));
+      L = { wind: (0.18 + 0.2 * gust) * air, water: 0.8 * lake * air };
+      ambBird -= dt;
+      if (ambBird <= 0) { ambBird = 3 + Math.random() * 7; if (air > 0.9 && !duck) Sound.bird(0.6 + Math.random() * 0.4); }
+    } else if (bodyId === "mars") L = { wind: 0.3 + 0.35 * gust };
+    else if (bodyId === "venus") {
+      const dl = Math.abs(p.z - VENUS_LAVA_Z(p.x)) + Math.max(0, Math.abs(p.x) - 46), near = smooth(26, 3, dl);
+      L = { wind: 0.2 + 0.1 * gust, lava: near };
+      ambBubble -= dt * (0.4 + 2.5 * near);
+      if (ambBubble <= 0) { ambBubble = 1 + Math.random(); if (near > 0.15 && !duck) Sound.bubble(near); }
+    } else L = { hum: 0.6 }; // Mond, Merkur, Pluto: keine Luft – kein Wind
+    Sound.ambience(L, duck);
+  }
   S.update = function (dt, elapsed) {
     if (!S.active || !world) return;
-    if (probe) { updateProbe(dt, elapsed); return; }
+    if (probe) { Sound.ambience(null); updateProbe(dt, elapsed); return; }
     const H = world.height, g = cfg.moveGravity || cfg.gravity;
     const paused = UI.modalOpen();
 
@@ -2257,6 +2302,7 @@ window.Surface = (function () {
 
     if (radioTimer < 1 && Voice.speaking(radioVoice)) radioTimer = 1; // Funkspruch bleibt, solange er vorgelesen wird
     updateCamera(dt);
+    ambience(dt, elapsed);
     updateLabels();
     // Raketen-Markierung erst zeigen, wenn man sich entfernt hat (oder heim soll) – direkt nach der Landung stört sie nur
     const rk = world.stations.rakete;
@@ -2961,14 +3007,14 @@ window.Surface = (function () {
   function addNpcs(B) {
     const list = (cfg.npcs || []).map((c, i) => {
       if (!npcModels[i]) return null;
-      const obj = makeModelAstronaut(npcModels[i], c.color);
+      const st = SUITS[bodyId] || SUITS.mond, obj = makeModelAstronaut(npcModels[i], c.color, i % 2 && st.lower2 ? { ...st, lower: st.lower2 } : st); // Anzug passend zum Ort, zweite Person mit anderen Hosen
       const [x, z] = c.path[0];
       obj.position.set(x, B.height(x, z), z);
       B.scene.add(obj);
       return { c, obj, rig: obj.userData.rig, i: 0, wait: 1 + i * 2, heading: 0, phase: 0, col: [x, z, 0.7], talk: 0, cool: 0, waveT: 0, said: 0, el: null };
     }).filter(Boolean);
     if (noraModel) { // Nora, die Co-Pilotin: steht zuerst an der Leiter der Rakete
-      const obj = makeModelAstronaut(noraModel, D.nora.color), x = HATCH.x * 2.6, z = HATCH.z * 2.6;
+      const obj = makeModelAstronaut(noraModel, D.nora.color, SUITS.nora), x = HATCH.x * 2.6, z = HATCH.z * 2.6;
       obj.position.set(x, B.height(x, z), z); B.scene.add(obj);
       list.push({ c: { name: D.nora.name, color: D.nora.color, path: [[x, z]] }, isNora: true, obj, rig: obj.userData.rig, i: 0, wait: 0, heading: 0, phase: 0,
         col: [x, z, 0.7], talk: 0, cool: 0, waveT: 0, said: 0, el: null, climbY: null });
