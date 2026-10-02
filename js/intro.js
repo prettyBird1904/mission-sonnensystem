@@ -27,7 +27,7 @@ window.Intro = (function () {
     [3.9, 7.1, "… gab es hier nur Staub und Gas."],
     [7.9, 11.0, "Dann erwachte ein Stern: unsere Sonne."],
     [11.8, 15.4, "Um sie herum entstanden die Planeten."],
-    [15.8, 19.6, "Und ganz am Rand: der kleine Pluto."],
+    [15.8, 19.6, "Acht Planeten – vom kleinen Merkur bis zum eisigen Neptun."],
     [21.6, 24.6, "Auf einem kleinen, blauen Planeten …"],
     [24.9, 28.0, "… schaut jemand zu den Sternen hinauf."],
     [28.3, 30.5, "Das bist du, {name}!", "big"]
@@ -39,7 +39,7 @@ window.Intro = (function () {
   ];
   const PLANETS = [ // id, Position x, Größe im Intro
     ["merkur", 32, 1], ["venus", 44, 1], ["erde", 58, 1], ["mars", 71, 1], ["jupiter", 96, 0.85],
-    ["saturn", 128, 0.8], ["uranus", 154, 0.9], ["neptun", 172, 0.9], ["pluto", 186, 1.2]
+    ["saturn", 128, 0.8], ["uranus", 154, 0.9], ["neptun", 172, 0.9]
   ];
 
   const clamp01 = (x) => Math.max(0, Math.min(1, x));

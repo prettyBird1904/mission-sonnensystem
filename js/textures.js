@@ -193,17 +193,6 @@
       const e = Math.sqrt(Math.pow((lon - 4) / 0.3, 2) + Math.pow((lat + 0.35) / 0.12, 2));
       if (e < 1) c = mix(c, hex("#0d1a55"), smooth(1, 0.4, e));
       return c;
-    },
-    pluto(x, y, z, lat, lon) {
-      const n = fbm(x * 3, y * 3, z * 3, 5);
-      let c = ramp([[0, hex("#5b4636")], [0.5, hex("#a8876a")], [1, hex("#e9d8c4")]], n);
-      // Herz: zwei Kreise + Dreieck (ungefähr)
-      const hx = (lon - 3.1) / 0.5, hy = (lat - 0.05) / 0.5;
-      const lobe1 = Math.hypot(hx + 0.42, hy - 0.3) < 0.5;
-      const lobe2 = Math.hypot(hx - 0.42, hy - 0.3) < 0.5;
-      const tip = hy <= 0.35 && hy > -0.9 && Math.abs(hx) < (hy + 0.9) * 0.78;
-      if (lobe1 || lobe2 || tip) c = mix(c, hex("#fbf4ea"), 0.85);
-      return c;
     }
   };
 

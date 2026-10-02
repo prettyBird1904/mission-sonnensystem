@@ -214,27 +214,6 @@ window.SPACE_DATA = {
         { q: "Was ist auf Neptun besonders stark?", a: ["Der Wind", "Der Regen aus Schokolade", "Die Hitze"], c: 0, why: "Winde mit über 2.000 km/h!" },
         { q: "Wie heißt Neptuns größter Mond?", a: ["Triton", "Titan", "Deimos"], c: 0, why: "Triton – mit Geysiren aus Eis." }
       ]
-    },
-    {
-      id: "pluto", name: "Pluto", kind: "Zwergplanet", emoji: "🤍",
-      color: "#d8c3a5",
-      radius: 1.1, distance: 350, orbitYears: 248, tilt: 120,
-      diameterKm: 2377, distanceKm: 5900000000,
-      day: "ca. 6 Erdtage", year: "248 Erdjahre",
-      tempText: "etwa −230 °C", tempC: -230,
-      moons: "5", gravity: 0.06,
-      intro: "Pluto galt früher als 9. Planet. Seit 2006 nennt man ihn „Zwergplanet“, weil er so klein ist. Er ist kleiner als unser Mond!",
-      facts: [
-        "Auf Pluto gibt es eine riesige Fläche in Form eines Herzens!",
-        "Seit 2006 ist Pluto kein richtiger Planet mehr, sondern ein Zwergplanet.",
-        "Die Raumsonde New Horizons ist 2015 an Pluto vorbeigeflogen und hat Fotos gemacht.",
-        "Ein Jahr auf Pluto dauert 248 Erdjahre."
-      ],
-      quiz: [
-        { q: "Was ist Pluto heute?", a: ["Ein Zwergplanet", "Ein Stern", "Ein Komet"], c: 0, why: "Seit 2006 zählt Pluto zu den Zwergplaneten." },
-        { q: "Welche Form hat eine große Fläche auf Pluto?", a: ["Ein Stern", "Ein Herz", "Ein Quadrat"], c: 1, why: "Die Tombaugh-Region sieht aus wie ein Herz." },
-        { q: "Ist Pluto größer oder kleiner als unser Mond?", a: ["Größer", "Kleiner", "Genau gleich"], c: 1, why: "Pluto ist sogar kleiner als der Erdmond." }
-      ]
     }
   ],
 
@@ -272,9 +251,6 @@ window.SPACE_DATA = {
     { target: "neptun",  text: "Fliege zum stürmischen blauen Planeten ganz außen.",
       brief: "Fliege zum stürmischen blauen Planeten ganz außen. Halt dich fest – dort weht der stärkste Wind!",
       hint: "Er ist tiefblau und der letzte Planet. Flieg ganz weit nach außen, noch hinter Uranus!" },
-    { target: "pluto",   text: "Suche den kleinen Zwergplaneten mit dem Herz.",
-      brief: "Suche den kleinen Zwergplaneten mit dem Herz. Er liegt ganz am Rand unseres Sonnensystems.",
-      hint: "Er ist winzig und liegt noch hinter Neptun – ganz weit draußen." },
     { target: "#order",  text: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge!",
       brief: "Letzte Mission: Bringe alle Planeten in die richtige Reihenfolge! Tippe oben rechts auf 🧩 „Ordnen“.",
       hint: "Denk an den Merksatz: Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten!" }
@@ -303,7 +279,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "31",
+  version: "32",
 
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unsere Nachbarplaneten.",
 
@@ -415,7 +391,7 @@ window.SPACE_DATA = {
           hello: "Hallo {name}! Ich bin Mara und erforsche den Mars. Schön, dass du da bist!",
           hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
           done: "Wow, du hast alles entdeckt! Du bist ein echter Mars-Profi!",
-          facts: ["In unserem Gewächshaus wächst Salat unter Lampen. Draußen würde er sofort erfrieren."] },
+          facts: ["In unserem Gewächshaus wächst Salat unter Lampen. Draußen würde er sofort erfrieren.", "Weißt du, warum der Mars rot ist? Im Staub steckt verrostetes Eisen. Probier es im Proben-Labor mit dem Magneten aus!"] },
         { name: "Techniker Bennett", color: "#3b82f6", path: [[14, 50], [19, 45], [12, 43]], work: true,
           hello: "Hi {name}, ich bin Bennett! Ich kümmere mich um Strom, Luft und Wasser.",
           hint: "Tipp von mir: Probier mal „{ziel}“ aus!",
@@ -424,7 +400,7 @@ window.SPACE_DATA = {
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
-        order: ["abend", "rover", "rost"],
+        order: ["abend", "rover", "curling"],
         hello: "Da sind wir, {name}! Warte, ich komme auch runter.",
         welcome: "Willkommen auf dem Mars! Unten im Tal liegt der Außenposten von Mara und Bennett. Komm mit!",
         wait: "Hier lang, {name}! Ich warte auf dich.",
@@ -432,7 +408,7 @@ window.SPACE_DATA = {
         arrive: {
           abend: "Mit der Himmelskamera spulen wir bis zum Abend vor. Welche Farbe hat wohl der Sonnenuntergang?",
           rover: "Das ist der Rover-Leitstand! Fahr mit dem Rover los und sammle 3 Gesteinsproben.",
-          rost: "Im Proben-Labor findest du heraus, warum der Mars rot ist!",
+          curling: "Das ist der Eis-Krater! Auf dem Mars gibt es echtes Eis. Spiel eine Runde Eis-Curling – mal sehen, wie weit der Stein rutscht!",
           wand: "An dieser Wand siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit. Tschüss, Mars!"
         },
@@ -447,16 +423,17 @@ window.SPACE_DATA = {
           text: "Auf dem Mars ist der Sonnenuntergang blau! Bei uns ist es umgekehrt: Am Tag ist der Himmel blau, am Abend rot. Das macht der feine Staub in der Marsluft." },
         { key: "rover", icon: "🤖", title: "Rover auf Spurensuche", gallery: ["mars-1.jpg", "mars-2.jpg"],
           text: "Kügelchen und Steine mit Schichten: Hier gab es vor langer Zeit Wasser! So etwas hat der echte Rover Opportunity gefunden. Und Staubteufel haben ihm oft die Solarzellen sauber gepustet." },
-        { key: "rost", icon: "🧲", title: "Rost im Marsstaub",
-          text: "Der Staub bleibt am Magneten hängen – in ihm steckt Eisen! Das Eisen ist verrostet, und Rost ist rotbraun. Darum ist der ganze Mars rot." }
+        { key: "curling", icon: "🥌", title: "Rutschpartie auf dem Mars-Eis",
+          text: "Auf dem Mars gibt es Eis – sogar Krater voller Eis! Hier bist du leichter, und der Stein auch. Er drückt nicht so fest aufs Eis und rutscht darum fast dreimal so weit wie auf der Erde." }
       ],
       stations: {
         wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
         rover:     { label: "Rover-Expedition", hint: "Am Rover-Leitstand unten im Tal startet die Rover-Expedition", action: "🤖 Rover-Expedition starten" },
-        rost:      { label: "Proben-Labor", hint: "Untersuch den Marsstaub im Proben-Labor am Labor-Turm", action: "🧲 Magnet-Versuch starten" },
+        curling:   { label: "Eis-Curling", hint: "Im Eis-Krater hinter der Bohranlage wartet ein Eis-Curling-Spiel", action: "🥌 Eis-Curling spielen" },
         abend:     { label: "Wetterstation", hint: "An der Wetterstation auf der Hochebene steht eine Himmelskamera", action: "⏩ Zeit vorspulen bis zum Abend" },
         // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
         waage:     { label: "Waage", action: "⚖️ Auf die Waage stellen", extra: true },
+        rost:      { label: "Proben-Labor", action: "🧲 Magnet-Versuch starten", extra: true },
         rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
       },
       // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf dem Mars zeigt ({mond}); why = die Erklärung
@@ -483,6 +460,19 @@ window.SPACE_DATA = {
         done: "Alle 3 Proben gesammelt!",
         doneBtn: "Was hat der Rover entdeckt? ▶"
       },
+      curling: {
+        aim: "Eis-Curling! Ziel mit ⬅️ ➡️ (oder A und D) auf die Zielscheibe.",
+        aimTouch: "Eis-Curling! Ziel mit dem Joystick auf die Zielscheibe.",
+        aimBtn: "🎯 Richtung passt!",
+        power: "Der Pfeil zeigt den Schwung: grün = sanft, rot = kräftig. Drück im richtigen Moment!",
+        throwBtn: "🥌 Jetzt schieben!",
+        slide: "Der Stein rutscht und rutscht … auf dem Mars bremst er viel weniger als bei uns!",
+        r3: "🎯 Volltreffer – mitten im Ziel!", r2: "Super, im Ziel!", r1: "Knapp – aber im Ziel!",
+        short: "Zu kurz – gib etwas mehr Schwung!", long: "Zu weit! Auf dem Mars rutscht der Stein viel weiter – weniger Schwung reicht.",
+        fact: "Hier ist der Stein leichter und drückt nicht so fest aufs Eis. Darum rutscht er fast dreimal so weit wie auf der Erde!",
+        earth: "🥌 {mars} m gerutscht! Auf der Erde wären es mit dem gleichen Schwung nur {erde} m.",
+        again: "🥌 Nochmal werfen (noch {n})", done: "Fertig ✓", quit: "Später"
+      },
       magnet: {
         guess: { "q": "Bleibt der rote Marsstaub am Magneten hängen?", "a": ["Ja", "Nein"], "c": 0 },
         ready: "In der Schale liegt Marsstaub. Halte einen Magneten hinein!",
@@ -507,7 +497,7 @@ window.SPACE_DATA = {
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
       quiz: [
-        { q: "Warum ist der Mars rot?", a: ["Weil er so heiß ist", "Wegen Rost im Staub", "Wegen roter Pflanzen"], c: 1, why: "Im Marsstaub steckt verrostetes Eisen – und Rost ist rotbraun." },
+        { q: "Warum rutscht der Curling-Stein auf dem Mars so weit?", a: ["Weil das Eis dort warm ist", "Weil er dort leichter ist und weniger bremst", "Weil der Wind ihn schiebt"], c: 1, why: "Auf dem Mars wiegt alles nur gut ein Drittel. Der Stein drückt weniger aufs Eis – und bremst darum weniger." },
         { q: "Welche Farbe hat der Sonnenuntergang auf dem Mars?", a: ["Rot", "Blau", "Grün"], c: 1, why: "Der feine Staub in der dünnen Marsluft lässt den Himmel um die Abendsonne blau leuchten." },
         { q: "Was hat dein Rover entdeckt?", a: ["Spuren von altem Wasser", "Einen Marsmenschen", "Einen Goldschatz"], c: 0, why: "Die Kügelchen und die Schichten im Stein zeigen: Früher gab es auf dem Mars Wasser." }
       ]
@@ -605,102 +595,6 @@ window.SPACE_DATA = {
         { q: "Warum verglühen Brocken aus dem All auf dem Merkur nicht?", a: ["Weil es dort keine Luft gibt", "Weil es dort zu kalt ist", "Weil sie zu klein sind"], c: 0, why: "Ohne Luft bremst und erhitzt nichts die Brocken – sie schlagen ein und hinterlassen Krater." },
         { q: "Warum ist es auf dem Merkur in der Sonne glühend heiß und im Schatten eiskalt?", a: ["Weil keine Luft die Wärme verteilt", "Weil er sich so schnell dreht", "Weil dort Eis liegt"], c: 0, why: "Ohne Luft wird die Wärme nicht verteilt: In der Sonne sind es 430 °C, im Schatten −180 °C." },
         { q: "Wie sieht die Sonne vom Merkur aus?", a: ["Kleiner als bei uns", "Genauso groß wie bei uns", "Fast dreimal so breit"], c: 2, why: "Der Merkur ist der Sonne am nächsten – darum sieht sie dort riesig aus." }
-      ]
-    },
-
-    pluto: {
-      gravity: 0.62, // m/s² – echte Schwerkraft auf Pluto
-      moveGravity: 1.2, // fürs Laufen und Springen stärker, sonst schwebt man ewig
-      jump: 1.6,
-      temp: { sun: -228, shade: -233, sunText: "☀️ Sonne – sie wärmt kaum!", shadeText: "❄️ Schatten – eisig!" },
-      // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
-      guide: {
-        order: ["herz", "eis", "funk"],
-        hello: "Da sind wir – am Rand des Sonnensystems! Warte, ich komme.",
-        welcome: "Brr, {name}! Auf Pluto ist es so kalt, dass sogar die Luft gefriert. Spring mal – hier fliegst du richtig hoch! Und dann komm mit.",
-        wait: "Hier lang, {name}! Ich warte auf dich.",
-        next: "Toll! Weiter geht's – als Nächstes: {ziel}.",
-        arrive: {
-          herz: "Hier startet eine Kameradrohne. Flieg hoch und schau dir die Eisfläche von oben an!",
-          eis: "Auf dem glatten Eis rutscht alles ewig weit. Spiel eine Runde Eis-Curling!",
-          funk: "Mit der großen Antenne funkt die Station zur Erde. Schick einen Funkspruch – wie lange braucht er wohl?",
-          wand: "An der Wand der Station siehst du alles, was du entdeckt hast.",
-          rakete: "Steig ein – ich komme mit. Der Weg nach Hause ist lang!"
-        },
-        quiz: "Geschafft, {name}! Jetzt noch {fragen} Funk-Fragen – dann fliegen wir weiter.",
-        home: "Super gemacht, {name}! Komm, wir gehen zur Rakete.",
-        alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
-        again: "🧭 Nora, zeig mir den Weg"
-      },
-      npcs: [
-        { name: "Forscherin Yuki", color: "#8b5cf6", path: [[-40, 44], [-30, 44], [-34, 38]],
-          hello: "Hallo {name}! Ich bin Yuki. Willkommen am kältesten Ort, den du je besucht hast!",
-          hint: "Warst du schon bei „{ziel}“? Der Pfeil oben zeigt dir den Weg!",
-          done: "Du hast alles entdeckt – bis zum Rand des Sonnensystems! Toll gemacht.",
-          facts: ["Die Berge da hinten sind aus Wassereis. Bei −230 °C ist Eis so hart wie Stein."] }
-      ],
-      discoveries: [
-        { key: "herz", icon: "🤍", title: "Das Herz von Pluto", photo: "pluto.jpg",
-          text: "Von oben siehst du es: ein riesiges Herz aus Eis, über 1.000 Kilometer breit! Die Raumsonde New Horizons hat es 2015 entdeckt." },
-        { key: "eis", icon: "🥌", title: "Rutschpartie auf Stickstoff-Eis",
-          text: "Der Stein rutscht und rutscht! Das Herz ist aus gefrorenem Stickstoff – bei uns ein Gas in der Luft. Bei −230 °C wird er zu spiegelglattem Eis." },
-        { key: "funk", icon: "📡", title: "Unendlich weit weg",
-          text: "Dein Funkspruch braucht 5½ Stunden bis zur Erde – obwohl er so schnell ist wie Licht! Pluto ist 5,9 Milliarden Kilometer von der Sonne entfernt." }
-      ],
-      stations: {
-        wand:      { label: "Wusstest du?", action: "📋 Meine Entdeckungen lesen", info: true, reach: 6.5 },
-        herz:      { label: "Drohnen-Start", hint: "Steig am Drohnen-Landeplatz mit der Kameradrohne auf", action: "🚁 Mit der Drohne aufsteigen" },
-        funk:      { label: "Große Antenne", hint: "Schick an der großen Antenne einen Funkspruch zur Erde", action: "📡 Funkspruch zur Erde schicken" },
-        eis:       { label: "Eis-Curling", hint: "Auf dem glatten Eis des Herzens wartet ein Eis-Curling-Spiel", action: "🥌 Eis-Curling spielen" },
-        // Extras zum Anschauen (extra = keine Mission: kein Licht, zählt nicht mit, Nora führt nicht hin)
-        waage:     { label: "Waage", action: "⚖️ Auf die Waage stellen", extra: true },
-        groesse:   { label: "Größenvergleich", action: "🪐 Größen vergleichen", extra: true },
-        rakete:    { label: "Deine Rakete", action: "🚀 Einsteigen", home: true }
-      },
-      // Waage (Extra): eigenes Gewicht einstellen ({erde}) und ablesen, was die Waage auf Pluto zeigt ({mond}); why = die Erklärung
-      weigh: {
-        text: "Stell ein, wie viel du auf der Erde wiegst: {erde} Kilo. Hier auf Pluto zeigt die Waage nur {mond} Kilo!",
-        why: "Pluto ist sogar kleiner als unser Mond. Darum zieht er kaum an dir.",
-        less: "➖ leichter", more: "➕ schwerer", done: "Fertig ✓"
-      },
-      // Größenvergleich (Extra): Erklärung zu den Kugeln am Gestell neben der Tafelwand
-      sizes: { text: "Die Kugeln zeigen, wie groß die Himmelskörper im Vergleich sind. Pluto ist sogar kleiner als unser Mond! Darum zählt er heute zu den Zwergplaneten. Fünf Plutos nebeneinander wären etwa so breit wie die Erde.", done: "Fertig ✓" },
-      curling: {
-        aim: "Eis-Curling! Ziel mit ⬅️ ➡️ (oder A und D) auf die Zielscheibe.",
-        aimTouch: "Eis-Curling! Ziel mit dem Joystick auf die Zielscheibe.",
-        aimBtn: "🎯 Richtung passt!",
-        power: "Der Pfeil zeigt den Schwung: grün = sanft, rot = kräftig. Drück im richtigen Moment!",
-        throwBtn: "🥌 Jetzt schieben!",
-        slide: "Der Stein rutscht und rutscht … auf Stickstoff-Eis bremst fast nichts!",
-        r3: "🎯 Volltreffer – mitten im Ziel!", r2: "Super, im Ziel!", r1: "Knapp – aber im Ziel!",
-        short: "Zu kurz – gib etwas mehr Schwung!", long: "Zu weit! Das Eis ist so glatt, dass weniger Schwung reicht.",
-        fact: "Bei −230 °C gefriert sogar Stickstoff zu spiegelglattem Eis.",
-        again: "🥌 Nochmal werfen (noch {n})", done: "Fertig ✓", quit: "Später"
-      },
-      drone: {
-        rising: "Die Kameradrohne steigt auf … Schau dir die helle Fläche dort hinten an!",
-        top: "Siehst du es? Die helle Eisfläche hat die Form eines Herzens!",
-        done: "Landen ✓"
-      },
-      signal: {
-        guess: { "q": "Wie lange braucht ein Funkspruch von Pluto bis zur Erde?", "a": ["1 Sekunde", "8 Minuten", "5½ Stunden"], "c": 2 },
-        ready: "Wir funken zur Erde: „Hallo von Pluto!“ Achtung …",
-        run: "Der Funkspruch fliegt so schnell wie Licht … unterwegs seit",
-        end: "Angekommen – nach 5½ Stunden! Und die Antwort braucht noch einmal so lange.",
-        again: "📡 Nochmal", done: "Fertig ✓"
-      },
-      radio: {
-        start: "Hier ist die Bodenstation! Willkommen auf Pluto, {name}! Hier gibt es {anzahl} Dinge zu entdecken – der Pfeil oben führt dich hin.",
-        found: "Klasse! Noch {rest} übrig.",
-        back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
-        tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
-        quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
-      },
-      quiz: [
-        { q: "Welche Form hat die große Eisfläche auf Pluto?", a: ["Ein Stern", "Ein Herz", "Ein Quadrat"], c: 1, why: "Die riesige Eisfläche sieht aus wie ein Herz – entdeckt 2015 von der Sonde New Horizons." },
-        { q: "Warum rutschst du auf Plutos Herz?", a: ["Es ist glattes Eis aus gefrorenem Stickstoff", "Es ist nasser Schlamm", "Es ist poliertes Metall"], c: 0, why: "Bei −230 °C gefriert sogar Stickstoff – das Gas aus unserer Luft – zu glattem Eis." },
-        { q: "Wie lange braucht ein Funkspruch von Pluto bis zur Erde?", a: ["1 Sekunde", "8 Minuten", "5½ Stunden"], c: 2, why: "Pluto ist 5,9 Milliarden Kilometer entfernt – selbst Licht braucht dafür Stunden." }
       ]
     },
 
@@ -1251,22 +1145,6 @@ window.SPACE_DATA = {
         "caption": "Triton, der größte Neptunmond, fotografiert von Voyager 2. Die dunklen Streifen stammen von Eis-Geysiren, die Staub in die Luft spucken.",
         "credit": "NASA / JPL / USGS · gemeinfrei",
         "url": "https://commons.wikimedia.org/wiki/File:Triton_moon_mosaic_Voyager_2_(large).jpg"
-      }
-    ],
-    "pluto": [
-      {
-        "file": "pluto.jpg",
-        "tag": "Aus dem All",
-        "caption": "Pluto, fotografiert 2015 von der Raumsonde New Horizons. Siehst du das helle Herz?",
-        "credit": "NASA / JHU APL / SwRI · gemeinfrei",
-        "url": "https://commons.wikimedia.org/wiki/File:Pluto_in_True_Color_-_High-Res.jpg"
-      },
-      {
-        "file": "pluto-1.jpg",
-        "tag": "Ganz nah dran",
-        "caption": "Plutos Berge und Ebenen, kurz nach dem Vorbeiflug von New Horizons fotografiert. Die Berge bestehen aus Eis – und darüber schweben Nebelschichten.",
-        "credit": "NASA / JHU APL / SwRI · gemeinfrei",
-        "url": "https://commons.wikimedia.org/wiki/File:Pluto's_Majestic_Mountains,_Frozen_Plains_and_Foggy_Hazes.jpg"
       }
     ]
   }

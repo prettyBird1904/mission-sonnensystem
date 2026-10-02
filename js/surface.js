@@ -318,8 +318,7 @@ window.Surface = (function () {
     mars:   { base: 0xe2d6c4, lower: 0xc77a4a, lower2: 0x6f7c8c, dust: 0x9a4e2c, visor: 0xc79a3a, lamps: true },
     merkur: { base: 0xe3e6ea, dust: 0x6a645c, visor: 0xc9ced6, metal: 0.2, lamps: true }, // silbrig glänzender Hitzeschutz
     venus:  { base: 0xf08a2c, dust: 0x8a5a2e, visor: 0x5a4632, lamps: true },
-    erde:   { base: 0x3b64b0, lower: 0x2a4a86, dust: 0x3b64b0, visor: 0x8fc6e8 },
-    pluto:  { base: 0xebe6f5, lower: 0xb9a9dc, dust: 0x8a7a68, visor: 0x3a4f8a, lamps: true }
+    erde:   { base: 0x3b64b0, lower: 0x2a4a86, dust: 0x3b64b0, visor: 0x8fc6e8 }
   };
   function makeModelAstronaut(gltf, accent, style = SUITS.kind) {
     const root = gltf.scene;
@@ -571,7 +570,7 @@ window.Surface = (function () {
   };
   // wer was tut (die übrigen gehen ihre Wege und arbeiten wie bisher)
   const NPC_ACTS = { "Forscherin Mara": "giessen", "Techniker Bennett": "putzen", "Kommandantin Lea": "tablet", "Ingenieur Tom": "werkeln",
-    "Forscher Kofi": "tablet", "Pilotin Sara": "tablet", "Astronautin Jana": "sport", "Forscherin Yuki": "werkeln" };
+    "Forscher Kofi": "tablet", "Pilotin Sara": "tablet", "Astronautin Jana": "sport" };
   // Werkzeug zur Tätigkeit, an der Hand bzw. vor der Brust befestigt; userData.drops = Wassertropfen der Gießkanne
   function makeActProp(g, rig, act) {
     const keepP = g.position.clone(), keepR = g.rotation.y; g.position.set(0, 0, 0); g.rotation.y = 0; // Anbauteile werden in der Grundhaltung am Nullpunkt angebracht
@@ -845,8 +844,7 @@ window.Surface = (function () {
     mond:   { env: [0x0a0b10, 0x3a3a3e, 0x8a8883], a: 0x1d4ed8, b: 0xf59e0b, hull: "#eef0f3" },
     merkur: { env: [0x07070a, 0x4a4540, 0x8f877c], a: 0xb45309, b: 0x475569, hull: "#f4f1ea" },
     venus:  { env: [0xe8b25a, 0xc98a3a, 0x4a3420], a: 0x7c2d12, b: 0x0f766e, hull: "#d9d4c7" },
-    erde:   { env: [0x9fd0f5, 0xd8ecf8, 0x4f7a3a], a: 0x2563eb, b: 0x16a34a, hull: "#fafaf7" },
-    pluto:  { env: [0x05070d, 0x2b3550, 0xb8b0a4], a: 0x6d28d9, b: 0xf59e0b, hull: "#eef2f7" }
+    erde:   { env: [0x9fd0f5, 0xd8ecf8, 0x4f7a3a], a: 0x2563eb, b: 0x16a34a, hull: "#fafaf7" }
   };
   const envCache = {};
   function envFor(key) { // weiche Spiegelung von Himmel und Boden – ohne sie wirken glatte Flächen stumpf
@@ -1160,10 +1158,10 @@ window.Surface = (function () {
     flag.geometry.computeVertexNormals();
   }
 
-  const CAMPS = { mars: buildMarsCamp, mond: buildMoonCamp, merkur: buildMercCamp, venus: buildVenusCamp, pluto: buildPlutoCamp, erde: buildEarthCamp };
-  const CAMP_COLLIDERS = { mars: marsCampColliders, mond: moonCampColliders, merkur: mercCampColliders, venus: venusCampColliders, pluto: plutoCampColliders, erde: earthCampColliders };
+  const CAMPS = { mars: buildMarsCamp, mond: buildMoonCamp, merkur: buildMercCamp, venus: buildVenusCamp, erde: buildEarthCamp };
+  const CAMP_COLLIDERS = { mars: marsCampColliders, mond: moonCampColliders, merkur: mercCampColliders, venus: venusCampColliders, erde: earthCampColliders };
   // Überdachung der „Wusstest du?“-Wand, passend zum Ort (lokal: Wand bei z = 0, vorn = −Z): zwei Stützen und ein Dach über dem Schild.
-  // Mond und Pluto: Tonnendach wie ein kleiner Hangar · Mars: zwei Sonnensegel · Merkur: weißer Hitzeschild · Venus: schweres Panzerdach
+  // Mond: Tonnendach wie ein kleiner Hangar · Mars: zwei Sonnensegel · Merkur: weißer Hitzeschild · Venus: schweres Panzerdach
   const canopyColliders = ([sx, sz]) => [[sx - 8.7, sz - 1.7, 0.3], [sx + 8.7, sz - 1.7, 0.3], [sx - 8.7, sz + 1.5, 0.3], [sx + 8.7, sz + 1.5, 0.3]];
   function wallCanopy(g, M, style) {
     const X = 8.7, Y = 7.0, Z0 = -1.7, Z1 = 1.5, D = Z1 - Z0, zc = (Z0 + Z1) / 2;
@@ -1175,11 +1173,10 @@ window.Surface = (function () {
     }
     for (const z of [Z0, Z1]) P(new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.5, 0.22, 0.22), M.metal), 0, Y, z); // Längsträger
     for (const x of [-X, X]) P(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, D + 0.3), M.metal), x, Y, zc);
-    if (style === "mond" || style === "pluto") { // Tonnendach
+    if (style === "mond") { // Tonnendach
       const R = D / 2 + 0.35, shell = P(new THREE.Mesh(new THREE.CylinderGeometry(R, R, 2 * X + 1.2, 28, 1, true, 0, Math.PI), M.hull(6, 1)), 0, Y + 0.05, zc);
       shell.rotation.z = Math.PI / 2; shell.material = shell.material.clone(); shell.material.side = THREE.DoubleSide;
       for (const x of [-X - 0.6, -X / 3, X / 3, X + 0.6]) { const rib = P(new THREE.Mesh(new THREE.TorusGeometry(R + 0.02, 0.09, 8, 28, Math.PI), M.orange), x, Y + 0.05, zc, false); rib.rotation.y = Math.PI / 2; }
-      if (style === "pluto") { const strip = P(new THREE.Mesh(new THREE.BoxGeometry(2 * X, 0.08, 0.1), new THREE.MeshBasicMaterial({ color: srgb(0xc4b5fd), toneMapped: false })), 0, Y - 0.15, Z0 - 0.05, false); g.userData.blink.push(strip); }
     } else if (style === "mars") { // zwei gespannte Sonnensegel
       const sail = M.std({ color: srgb(0xf97316), roughness: 0.8, side: THREE.DoubleSide });
       for (const sx of [-1, 1]) {
@@ -2186,7 +2183,7 @@ window.Surface = (function () {
       L = { wind: 0.2 + 0.1 * gust, lava: near };
       ambBubble -= dt * (0.4 + 2.5 * near);
       if (ambBubble <= 0) { ambBubble = 1 + Math.random(); if (near > 0.15 && !duck) Sound.bubble(near); }
-    } else L = { hum: 0.6 }; // Mond, Merkur, Pluto: keine Luft – kein Wind
+    } else L = { hum: 0.6 }; // Mond, Merkur: keine Luft – kein Wind
     Sound.ambience(L, duck);
   }
   S.update = function (dt, elapsed) {
@@ -2210,7 +2207,7 @@ window.Surface = (function () {
     const right = tmp2.set(-Math.cos(view.yaw), 0, Math.sin(view.yaw));
     // Apollo-Astronauten liefen im „Lope“ mit etwa 1 bis 2 m/s – fürs Spiel etwas flotter
     const LOPE_SPEED = 3.8;
-    const lowG = g < 3; // Mond, Pluto: Hüpf-Galopp wie die Apollo-Astronauten – sonst normales Laufen
+    const lowG = g < 3; // Mond: Hüpf-Galopp wie die Apollo-Astronauten – sonst normales Laufen
     let targetSpeed = 0;
     if (len > 0.12) {
       const mvx = fwd.x * my + right.x * mx, mvz = fwd.z * my + right.z * mx;
@@ -3656,16 +3653,21 @@ window.Surface = (function () {
     rost: [MARS_TOWER[0] + LAB_DIR.x * (TOWER_R + 2.8), 56 + MARS_TOWER[1] + LAB_DIR.z * (TOWER_R + 2.8)],
     monde: [-12, 12], vulkan: [24, 6], rover: [-22, 44], roverStart: [-27, 50], roverZiel: [-54, 72],
     eis: [30, 46], wegweiser: [8, 5], teufel: [-48, 40],
+    curling: [38.5, 41], // Startkreis der Curling-Bahn im Eis-Krater (Bahn nach Osten, siehe MARS_CURL_DIR)
     station: [0, 56], abend: [-28, 6], pad: [-34, 74], // Landeplatz des Raumtransporters
     meet: [-24, 12], // hier kommt Mia zu Beginn her
     // Weg der Führung (Wegpunkte bis zum Standplatz neben der Station)
     route: {
       wegweiser: [[5, 2.5]], vulkan: [[14, 3], [20.5, 2.6]], monde: [[8, 8], [-4, 8.6]], abend: [[-16, 5], [-23, 3.5]],
       rover: [[-33, 9], [-37, 16], [-37, 34], [-31, 40], [-25.5, 41]], teufel: [[-36, 40]], waage: [[-30, 52], [-25.5, 60.5]],
-      rost: [[-12, 50], [2, 59], [6.5, 63.2]], eis: [[16, 56], [25, 47], [26.2, 43.2]], wand: [[14, 48], [3.5, 49.5]],
+      rost: [[-12, 50], [2, 59], [6.5, 63.2]], curling: [[-12, 49], [3.5, 49.5], [14, 48], [25, 47], [29, 42.5], [35.6, 42.8]], eis: [[16, 56], [25, 47], [26.2, 43.2]], wand: [[14, 48], [3.5, 49.5]],
       rakete: [[-12, 49], [-31, 40], [-37, 34], [-37, 16], [-30, 8], [-5, 4.5]]
     }
   };
+  const MARS_CURL_DIR = (() => { const l = Math.hypot(1, 0.12); return [1 / l, -0.12 / l]; })();
+  // Eis-Krater: flacher Eisboden (Ellipse längs der Bahn, 17 × 8 m Halbachsen), Mitte 12 m hinter dem Startkreis
+  const MARS_ICE = (() => { const [sx, sz] = MARS_LAYOUT.curling, [dx, dz] = MARS_CURL_DIR; return { cx: sx + dx * 12, cz: sz + dz * 12, a: 17, b: 8, dx, dz }; })();
+  const onMarsIce = (x, z) => { const I = MARS_ICE, ox = x - I.cx, oz = z - I.cz, u = ox * I.dx + oz * I.dz, v = ox * I.dz - oz * I.dx; return (u / I.a) ** 2 + (v / I.b) ** 2 < 1; };
   // Hochebene mit gezackter Kante (ca. 8 m hoch), im Westen eine sanfte Rampe ins Tal
   function marsPlateau(x, z) {
     const edge = 22 + Math.sin(x * 0.06) * 3 + Math.sin(x * 0.17 + 1) * 1.2;
@@ -4463,10 +4465,14 @@ window.Surface = (function () {
   function buildMars() {
     const L = { ...MARS_LAYOUT };
     const rich = !W.fast; // „⚡ Flüssig“: weniger Zierrat
-    const craters = [[60, -40, 16, 2], [-75, 65, 14, 1.8], [90, 50, 10, 1.2], [-45, -75, 18, 2.4], [45, 100, 12, 1.6], [70, 5, 6, 0.8]];
-    craters.push(...scatterCraters(L, [[...L.spawn, 6], [...L.station, 22], [L.station[0], L.station[1] + 16, 28], [...L.monde, 7], [...L.vulkan, 8], [...L.rover, 10], [...L.roverStart, 8], [...L.roverZiel, 24], [...L.eis, 9], [...L.wegweiser, 4], [...L.abend, 8], [...L.pad, 9], [...L.teufel, 6], [48, 62, 20], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 16 : 28, 777, 1.8, 6, 200));
+    const I = MARS_ICE, alongIce = (k) => [L.curling[0] + I.dx * k, L.curling[1] + I.dz * k];
+    const craters = [[60, -40, 16, 2], [-75, 65, 14, 1.8], [90, 50, 10, 1.2], [-45, -75, 18, 2.4], [45, 100, 12, 1.6], [70, 5, 6, 0.8], [I.cx, I.cz, 17, 1.2]];
+    craters.push(...scatterCraters(L, [[I.cx, I.cz, 24], [...L.spawn, 6], [...L.station, 22], [L.station[0], L.station[1] + 16, 28], [...L.monde, 7], [...L.vulkan, 8], [...L.rover, 10], [...L.roverStart, 8], [...L.roverZiel, 24], [...L.eis, 9], [...L.wegweiser, 4], [...L.abend, 8], [...L.pad, 9], [...L.teufel, 6], [48, 62, 20], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 16 : 28, 777, 1.8, 6, 200));
     const up = (p, r) => [...p, r, "auto", 3]; // Plätze oben auf der Hochebene: eben, aber auf ihrer Höhe
     const flats = [up([0, 0], 10), [...L.station, 20], [L.station[0], L.station[1] + 16, 26], [...L.waage, 4], up(L.monde, 5), up(L.vulkan, 6), [...L.rover, 7], [...L.roverStart, 5], [...L.eis, 7], [...L.pad, 7], up(L.abend, 5), up(L.wegweiser, 2.5), up(MARS_MAST(L.abend), 2)];
+    // Eisboden im Krater: drei Ebenen auf gleicher Höhe längs der Bahn
+    const iceLvl = makeHeight(craters, [], 40, (x, z) => marsDunes(x, z) + marsPlateau(x, z))(I.cx, I.cz) + 0.3;
+    for (const k of [1, 12, 23]) flats.push([...alongIce(k), 10, iceLvl, 4]);
     const dustColors = ["rgba(190,110,70,1)", "rgba(170,95,60,0.9)"];
     const B = buildBase({
       height: makeHeight(craters, flats, 40, (x, z) => marsDunes(x, z) + marsPlateau(x, z)),
@@ -4487,7 +4493,7 @@ window.Surface = (function () {
         return [r * m, g * m, b * m];
       },
       keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [L.station[0], L.station[1] + 16, 26], [...L.monde, 6], [...L.vulkan, 6], [...L.rover, 8],
-        [...L.roverZiel, 3], [...L.eis, 7], [...L.wegweiser, 3], [...L.abend, 6]],
+        [...L.roverZiel, 3], [...L.eis, 7], [...L.wegweiser, 3], [...L.abend, 6], [I.cx, I.cz, 19]],
       ambient: [0xffd2a8, 0.5], hemi: [0xe8b98a, 0x6b3a22, 0.35], sun: [0xfff0dc, 1.45],
       dust: dustColors
     });
@@ -4557,6 +4563,19 @@ window.Surface = (function () {
     const station = on(makeStation(cfg.discoveries, "Marsstation", "mars"), ...L.station);
     on(makeSkyCam(M, new V(SUN_DIR.x, 0.12, SUN_DIR.z)), ...L.abend); // Himmelskamera der Wetterstation, schaut zum Sonnenuntergang
     const weather = on(makeWeatherMast(M), ...MARS_MAST(L.abend)); // Mast seitlich, damit er beim Sonnenuntergang nicht im Bild steht
+    // Eis-Krater: Eisfläche mit Staub am Rand, Zielscheibe, Eisstein, Ständer mit Ersatzsteinen und Schild
+    const ice = new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshStandardMaterial({ map: marsIceTex(), roughness: 0.22, metalness: 0.05, transparent: true, polygonOffset: true, polygonOffsetFactor: -1 }));
+    ice.rotation.x = -Math.PI / 2; ice.rotation.z = Math.atan2(-I.dz, I.dx); ice.scale.set(I.a + 1.2, I.b + 1.2, 1); ice.receiveShadow = true;
+    on(ice, I.cx, I.cz, 0.02);
+    const lane = curlLane(L), curl = makeCurling();
+    curl.target.position.set(lane.tx, height(lane.tx, lane.tz) + 0.05, lane.tz); scene.add(curl.target, curl.stone, curl.arrow);
+    curl.stone.visible = curl.arrow.visible = false;
+    const startRing = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.7, 32), new THREE.MeshBasicMaterial({ color: 0xdc2626, transparent: true, opacity: 0.8, depthWrite: false }));
+    startRing.rotation.x = -Math.PI / 2; on(startRing, lane.sx + lane.dx * 1.4, lane.sz + lane.dz * 1.4, 0.05);
+    const cside = [-lane.dz, lane.dx]; // quer zur Bahn: Schild und Steine-Ständer
+    on(makeSignBoard(M, "🥌 EIS-KRATER · CURLING", "#0e7490", 3), lane.sx - cside[0] * 3.2 - lane.dx * 1.5, lane.sz - cside[1] * 3.2 - lane.dz * 1.5).rotation.y = Math.atan2(-lane.dx, -lane.dz);
+    const rackAt = [lane.sx + cside[0] * 2.6, lane.sz + cside[1] * 2.6];
+    for (let i = 0; i < 3; i++) { const st = makeCurling().stone; st.rotation.y = i * 1.3; on(st, rackAt[0] + lane.dx * (i - 1) * 0.75, rackAt[1] + lane.dz * (i - 1) * 0.75, 0.03); }
     const magnetTable = on(makeMagnetTable(), ...L.rost); // unter dem Vordach „Proben-Labor“
     magnetTable.rotation.y = Math.atan2(LAB_DIR.x, LAB_DIR.z);
     // Trampelpfad: der Rundgang, den Mia mit dem Kind läuft – über die Hochebene, die Rampe hinab ins Tal, durch den Außenposten
@@ -4583,7 +4602,7 @@ window.Surface = (function () {
     for (const [x, z, r] of [[...L.monde, 3.2], [...L.vulkan, 2.3], [...L.rover, 1.1], [...L.eis, 1.6], [...L.wegweiser, 1.2], [...L.abend, 1], [...L.roverStart, 2.8]]) addBlob(B, x, z, r);
 
     const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
-      waage: L.waage, rover: L.rover, rost: L.rost, vulkan: L.vulkan, monde: L.monde, abend: L.abend, eis: L.eis, teufel: L.teufel,
+      waage: L.waage, rover: L.rover, rost: L.rost, curling: L.curling, vulkan: L.vulkan, monde: L.monde, abend: L.abend, eis: L.eis, teufel: L.teufel,
       wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { monde: MARS_SCOPE_DOOR(L.monde) });
 
     const hutAt = [hut.position.x, hut.position.z], parkP = (x, z) => [L.roverStart[0] + x * Math.cos(MARS_ROVER_PARK) + z * Math.sin(MARS_ROVER_PARK), L.roverStart[1] - x * Math.sin(MARS_ROVER_PARK) + z * Math.cos(MARS_ROVER_PARK)];
@@ -4591,10 +4610,10 @@ window.Surface = (function () {
       [L.eis[0] + 2.7, L.eis[1] + 1.7, 1.3], [L.eis[0] + 1.5, L.eis[1] - 0.5, 0.6], [L.eis[0] + 4.3, L.eis[1] - 0.3, 0.2], [...MARS_MAST(L.abend), 0.3],
       ...[[-1.8, -2.4], [1.8, -2.4], [-1.8, 2.4], [1.8, 2.4]].map(([x, z]) => [...parkP(x, z), 0.2]),
       [...L.rost, 1], [...L.abend, 0.5], [...L.roverZiel, 0.7], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25],
-      ...marsCampColliders(L.station), ...canopyColliders(L.station), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
+      ...marsCampColliders(L.station), ...canopyColliders(L.station), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5], [...rackAt, 0.9]];
     for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
-    return { ...B, L, station, scale, telescope, phobos, deimos, volcano, volcanoLabel, everest, zugspitze, heli, heliY: heli.position.y, rover, samples, drill,
+    return { ...B, L, curl, lane, station, scale, telescope, phobos, deimos, volcano, volcanoLabel, everest, zugspitze, heli, heliY: heli.position.y, rover, samples, drill,
       devil, magnetTable, skyDome, veils, patrol, patrolCol, npcs, shuttle, observatory, weather, blink: [...station.userData.blink, ...console_.userData.blink, ...field.userData.lights, weather.userData.lamp],
       stations, colliders, shadowCasters: [rocket, station] };
   }
@@ -5403,111 +5422,7 @@ window.Surface = (function () {
     }
   }
 
-  // =========================================================
-  //  Pluto
-  // =========================================================
-  // =========================================================
-  //  Pluto-Station: Die Sonne ist hier so schwach wie bei uns in der Dämmerung – Strom kommt aus einer „Atom-Batterie“ (wie bei New Horizons).
-  //  Gut gedämmte Module in gesteppten Wärmedecken, eine Iglu-Sternwarte aus Wassereis-Blöcken, ein beheizter Pavillon,
-  //  ein Drohnen-Landeplatz, eine große Antenne zur Erde, Eisberge am Horizont und blauer Dunst
-  // =========================================================
-  // Gesteppte Wärmedecke (wie auf Raumsonden)
-  let quiltTexCache = null;
-  function quiltTex() {
-    if (quiltTexCache) return quiltTexCache;
-    const t = canvasTex(256, 256, (c) => {
-      c.fillStyle = "#e9e6f2"; c.fillRect(0, 0, 256, 256);
-      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
-        const g = c.createRadialGradient(x * 64 + 32, y * 64 + 32, 4, x * 64 + 32, y * 64 + 32, 44);
-        g.addColorStop(0, "rgba(255,255,255,0.5)"); g.addColorStop(1, "rgba(80,70,110,0.28)");
-        c.fillStyle = g; c.fillRect(x * 64, y * 64, 64, 64);
-      }
-      c.strokeStyle = "rgba(90,80,120,0.5)"; c.lineWidth = 2;
-      for (let i = 0; i <= 4; i++) { c.beginPath(); c.moveTo(i * 64, 0); c.lineTo(i * 64, 256); c.stroke(); c.beginPath(); c.moveTo(0, i * 64); c.lineTo(256, i * 64); c.stroke(); }
-    });
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; quiltTexCache = t;
-    return t;
-  }
-  function quilt(M, rx, ry) { const t = quiltTex().clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return M.std({ map: t, roughness: 0.85 }); }
-  // Liegendes, gedämmtes Modul auf Kufen (lokal: Tür nach +Z) mit warmem Licht aus den Fenstern
-  function plutoModule(g, M, x, z, face, len, label) {
-    const m = new THREE.Group(); m.position.set(x, 0, z); m.rotation.y = face; g.add(m);
-    const body = put(m, new THREE.Mesh(new THREE.CapsuleGeometry(2.1, len, 8, 28), quilt(M, 6, 3)), 0, 2.6, 0); body.rotation.x = Math.PI / 2;
-    for (const s of [-1, 1]) {
-      put(m, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, len + 2), M.metal), s * 1.5, 0.15, 0); // Kufen
-      for (const dz of [-len / 3, len / 3]) put(m, new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, 0.2), M.metal), s * 1.5, 0.6, dz);
-      for (let i = 0; i < 3; i++) { const w = put(m, new THREE.Mesh(new THREE.CircleGeometry(0.34, 20), M.glow), s * 2.09, 2.9, -len / 3 + i * len / 3, false); w.rotation.y = s * Math.PI / 2; }
-    }
-    put(m, new THREE.Mesh(new THREE.TorusGeometry(2.12, 0.12, 10, 28), M.orange), 0, 2.6, len / 2 - 0.2, false);
-    const door = put(m, new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.3, 24), M.teal), 0, 2.2, len / 2 + 2); door.rotation.x = Math.PI / 2;
-    put(m, new THREE.Mesh(new THREE.CircleGeometry(0.7, 24), M.glow), 0, 2.2, len / 2 + 2.16, false);
-    for (let i = 0; i < 4; i++) put(m, new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.12, 0.35), M.metal), 0, 0.3 + i * 0.45, len / 2 + 2.6 + (3 - i) * 0.35); // Treppe
-    put(m, new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.45), signMat(label, "#6d28d9", 600, 112, 54)), 0, 4.5, len / 2 + 1.2, false);
-    const l = new THREE.PointLight(0xffc987, 0.9, 12, 1.5); l.position.set(0, 3.5, len / 2 + 3); m.add(l);
-    return m;
-  }
-  // Atom-Batterie (RTG): schwarzer Zylinder mit Kühlrippen, glimmt schwach – liefert Strom auch in der Dunkelheit
-  function plutoRTG(M) {
-    const g = new THREE.Group(), dark = M.std({ color: srgb(0x1f2230), roughness: 0.5, metalness: 0.6 });
-    const glow = new THREE.MeshStandardMaterial({ color: srgb(0x2a0a05), emissive: srgb(0xff5a2a), emissiveIntensity: 0.5 });
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.8, 20), dark), 0, 1.3, 0);
-    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; put(g, new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.6, 0.5), glow), Math.sin(a) * 0.6, 1.3, Math.cos(a) * 0.6).rotation.y = a; }
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 0.4, 20), M.metal), 0, 0.2, 0);
-    put(g, new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.34), signMat("☢️ ATOM-BATTERIE", "#f59e0b", 480, 102, 44)), 0, 2.45, 0.02, false);
-    return g;
-  }
-  // Iglu-Sternwarte: runde Mauer aus Wassereis-Blöcken, oben offen (lokal: Eingang nach +Z)
-  function plutoIgloo(M) {
-    const g = new THREE.Group(), R = 2.6, rows = 4, ice = M.std({ color: srgb(0xcfe3ff), roughness: 0.25, metalness: 0.05, transparent: true, opacity: 0.92, envMapIntensity: 1.3 });
-    for (let r = 0; r < rows; r++) {
-      const rr = R - r * 0.12, n = 14, h = 0.34;
-      for (let i = 0; i < n; i++) {
-        const a = ((i + (r % 2) * 0.5) / n) * Math.PI * 2;
-        if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.3 && r < 3) continue; // Eingang
-        const b = put(g, new THREE.Mesh(new THREE.BoxGeometry(1.08, h - 0.03, 0.45), ice), Math.sin(a) * rr, 0.18 + r * h, Math.cos(a) * rr);
-        b.rotation.y = a; b.receiveShadow = true;
-      }
-    }
-    put(g, new THREE.Mesh(new THREE.CircleGeometry(R, 32), M.std({ color: srgb(0xe8edf7), roughness: 0.6 })), 0, 0.02, 0, false).rotation.x = -Math.PI / 2;
-    const l = new THREE.PointLight(0x9fc2ff, 0.6, 7, 1.5); l.position.set(0, 1, 0); g.add(l);
-    return g;
-  }
-  // Beheizter Pavillon: Dach mit orange glühenden Heizstrahlern darunter
-  function plutoHeatPavilion(M) {
-    const g = new THREE.Group();
-    for (const [x, z] of [[-1.9, -1.9], [1.9, -1.9], [-1.9, 1.9], [1.9, 1.9]]) put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 8), M.steel), x, 1.5, z);
-    const roof = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.4, 3.2, 0.9, 6), quilt(M, 3, 1)), 0, 3.4, 0); roof.rotation.y = Math.PI / 6;
-    const hot = new THREE.MeshBasicMaterial({ color: srgb(0xff7a2a), toneMapped: false });
-    for (const [x, z] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.18), hot), x, 2.9, z, false).rotation.y = z ? Math.PI / 2 : 0;
-    const l = new THREE.PointLight(0xff9a50, 1.1, 8, 1.5); l.position.set(0, 2.6, 0); g.add(l);
-    put(g, new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.42), signMat("🔥 WÄRME-PAVILLON", "#6d28d9", 640, 84, 50)), 0, 3.25, -2.5, false).rotation.y = Math.PI;
-    return g;
-  }
-  // Drohnen-Landeplatz: sechseckige Plattform mit Lichtern und kleiner Garage
-  function plutoDronePad(M) {
-    const g = new THREE.Group(), lights = [];
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.3, 0.2, 6), M.metal), 0, 0.1, 0).receiveShadow = true;
-    put(g, new THREE.Mesh(new THREE.RingGeometry(1.4, 1.6, 6), new THREE.MeshBasicMaterial({ color: srgb(0xf59e0b), toneMapped: false })), 0, 0.21, 0, false).rotation.x = -Math.PI / 2;
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + Math.PI / 6; lights.push(blinkLamp(g, 0x7dd3fc, Math.sin(a) * 2.1, 0.3, Math.cos(a) * 2.1)); }
-    const garage = put(g, new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.6, 2), quilt(M, 2, 1)), 3.6, 0.8, 0);
-    put(g, new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), M.metal), 3.6, 0.7, 1.01, false);
-    put(g, new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.4), signMat("🚁 DROHNEN-START", "#6d28d9", 560, 102, 48)), 3.6, 1.85, 1.02, false);
-    g.userData.lights = lights;
-    return g;
-  }
-  // Große Antenne zur Erde: Schüssel auf einem Sockel, daneben die Atom-Batterie
-  function plutoDish(M, dir) {
-    const g = new THREE.Group();
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, 2.2, 16), quilt(M, 2, 1)), 0, 1.1, 0);
-    const head = new THREE.Group(); head.position.y = 2.4; head.quaternion.setFromUnitVectors(new V(0, 1, 0), dir.clone().normalize()); g.add(head);
-    put(head, dishCap(M, 3, 0.75), 0, -2.2, 0);
-    for (let i = 0; i < 3; i++) { const a = i * 2.09; pipeSeg(head, M, new V(Math.sin(a) * 1.9, 0.0, Math.cos(a) * 1.9), new V(0, 1.6, 0), 0.04, M.steel); }
-    put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 0.4, 12), M.orange), 0, 1.7, 0);
-    const rtg = plutoRTG(M); rtg.position.set(2.6, 0, 1.6); g.add(rtg);
-    return g;
-  }
-  // Antennenschüssel (Wölbung oben wie eine Kugelkappe, Öffnung nach unten): hellgrau mit dunklem Rand,
-  // Halterung hinten und Empfänger in der Mitte – damit sie nicht wie eine weiße Kugel aussieht
+  // Parabolantenne (Schüssel mit Rand, Halterung und Empfänger), z. B. für Sonden und Funkmasten
   function dishCap(M, R, open) {
     const g = new THREE.Group(), rimR = R * Math.sin(open), rimY = R * Math.cos(open);
     g.add(new THREE.Mesh(new THREE.SphereGeometry(R, 36, 10, 0, Math.PI * 2, 0, open), M.std({ color: srgb(0xd5dbe4), side: THREE.DoubleSide, roughness: 0.55 })));
@@ -5517,220 +5432,27 @@ window.Surface = (function () {
     put(g, new THREE.Mesh(new THREE.ConeGeometry(R * 0.09, R * 0.3, 12), M.std({ color: srgb(0x374151), roughness: 0.5 })), 0, rimY - R * 0.3, 0).rotation.x = Math.PI; // Empfänger
     return g;
   }
-  // New Horizons: flacher, dreieckiger Körper in Goldfolie, große weiße Schüssel, schwarze Atom-Batterie an einem Arm
-  function makeNewHorizons(M) {
-    const g = new THREE.Group(), gold = new THREE.MeshStandardMaterial({ map: foilTex(), roughness: 0.3, metalness: 0.75, envMap: M.env });
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.2, 8), M.metal), 0, 0.6, 0);
-    const body = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.6, 3), gold), 0, 1.5, 0);
-    const dish = put(g, dishCap(M, 1.2, 0.7), 0, 1.0, -0.4);
-    dish.rotation.x = -Math.PI / 2 - 0.2; dish.position.set(0, 1.6, -1.2);
-    pipeSeg(g, M, new V(0.5, 1.5, 0.3), new V(1.4, 1.4, 0.9), 0.05, M.steel);
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.9, 12), M.std({ color: srgb(0x1f2230), roughness: 0.5 })), 1.5, 1.4, 1, false).rotation.z = Math.PI / 2;
-    return g;
-  }
 
-  function buildPlutoCamp(g, add) {
-    const M = colonyMats("pluto");
-    plutoModule(g, M, -12, 12, Math.atan2(5, -12), 8, "🏠 WOHNMODUL");
-    plutoModule(g, M, 12, 12, Math.atan2(-5, -12), 8, "🔬 LABOR");
-    const rtg = plutoRTG(M); rtg.position.set(0, 0, 14); g.add(rtg);
-    const rtg2 = plutoRTG(M); rtg2.position.set(3, 0, 16); g.add(rtg2);
-    // Scheinwerfermasten: Die Sonne ist hier so schwach wie bei uns in der Dämmerung
-    for (const [x, z] of [[-20, 2], [20, 3], [0, 24]]) {
-      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 7, 8), M.steel), x, 3.5, z);
-      put(g, new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.4), new THREE.MeshBasicMaterial({ color: srgb(0xfff1d0), toneMapped: false })), x, 7, z, false);
-      const l = new THREE.PointLight(0xffe7c0, 1.2, 30, 1.2); l.position.set(x, 6.6, z); g.add(l);
-    }
-    for (const [x, z, s, c, r, y] of [[16, 3, 1.1, M.orange, 0.3, 0], [17.2, 4.3, 0.9, M.teal, -0.2, 0]]) colonyCrate(g, M, x, z, s, c, r, y);
-  }
-  function plutoCampColliders([sx, sz]) {
-    const c = [[sx, sz + 14, 1], [sx + 3, sz + 16, 1], [sx - 20, sz + 2, 0.3], [sx + 20, sz + 3, 0.3], [sx, sz + 24, 0.3], [sx + 16.5, sz + 3.6, 1.3]];
-    for (const [x, z, f] of [[-12, 12, Math.atan2(5, -12)], [12, 12, Math.atan2(-5, -12)]]) for (const d of [-4, -1.5, 1.5, 4, 6.8]) c.push([sx + x + Math.sin(f) * d, sz + z + Math.cos(f) * d, 2.5]);
-    for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
-    return c;
-  }
-
-  // Zellmuster auf dem Herz (echte Eis-Zellen, in denen das Stickstoff-Eis langsam umgewälzt wird): 0 = Zellmitte … 1 = Rand
-  function heartCells(x, z) {
-    const S = 11, cx = Math.floor(x / S), cz = Math.floor(z / S);
-    let d1 = 1e9, d2 = 1e9;
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-      const px = (cx + i + hash2(cx + i, cz + j)) * S, pz = (cz + j + hash2(cz + j + 17, cx + i + 5)) * S, d = Math.hypot(x - px, z - pz);
-      if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
-    }
-    return 1 - smooth(0, 1.6, d2 - d1);
-  }
-  // Pluto: Die Rakete landet zwischen Eisbergen und dem „Herz“, einer riesigen Ebene aus Stickstoff-Eis. Der Weg führt hinauf
-  // auf eine Eis-Terrasse zur Iglu-Sternwarte, hinunter zum Herz (rutschen!), zur Station am Fuß der Berge und über den Grat zurück.
-  const PLUTO_LAYOUT = {
-    spawn: [-6.9, 4], waage: [12, 16], charon: [32, 30], herz: [28, 54], funk: [-38, 22], wegweiser: [6, 5], sonde: [-20, 6],
-    eis: [8, 62], heart: [0, 92], // das „Herz“: eine riesige glatte Eisfläche direkt vor der Station
-    station: [-34, 56], jahr: [-40, 49], groesse: [-28, 49], meet: [-14, 24],
-    route: {
-      wegweiser: [[4, 2.5]], waage: [[8, 9], [15.5, 12]], charon: [[22, 18], [28, 24]], herz: [[30, 40], [25, 49.5]], eis: [[16, 54], [8, 58]],
-      jahr: [[-14, 50], [-33, 45], [-40, 45]], groesse: [[-28, 45]], funk: [[-30, 38], [-35, 28], [-34, 19]], sonde: [[-26, 12], [-17, 9]],
-      wand: [[-24, 24], [-30, 44], [-31, 51]], rakete: [[-30, 40], [-20, 16], [-4, 5]]
-    }
-  };
-  // Eisberg aus Wassereis (Größe 1, Fuß bei y = 0): zerklüftet, unten grauer Staub, an den Flanken bläuliches Eis, oben Schnee
-  function plutoIceMountainGeo(seed) {
-    const geo = mergeVerts(new THREE.IcosahedronGeometry(1, 5)), pos = geo.attributes.position, cols = [];
-    const DUST = srgb(0x5b534c), ICE = srgb(0x93abc9), DEEP = srgb(0x667ea2), SNOW = srgb(0xf1f5fb), c = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) {
-      let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-      if (y < 0) y *= 0.05; // flacher Fuß
-      const n = fbm2(x * 2.4 + seed * 7.3, z * 2.4 + y * 3.1), r = 1 - 0.72 * y; // nach oben spitz zulaufen
-      const ridge = 1 - Math.abs(2 * fbm2(Math.atan2(z, x) * 1.6 + seed, y * 2.2) - 1); // Grate und Rinnen an den Flanken
-      x *= r * (0.75 + 0.55 * n) * (0.9 + 0.18 * ridge); z *= r * (0.75 + 0.55 * n) * (0.9 + 0.18 * ridge);
-      y *= 0.8 + 0.5 * fbm2(x * 1.6 + seed * 3.1, z * 1.6 - seed);
-      pos.setXYZ(i, x, y, z);
-      const snow = 0.5 + 0.25 * fbm2(x * 4 + seed, z * 4 - seed);
-      c.copy(DUST).lerp(ICE, smooth(0.04, 0.22, y + 0.08 * n)).lerp(DEEP, 0.55 * smooth(0.45, 0.75, fbm2(x * 5 + 9, y * 6 + z * 5)));
-      c.lerp(SNOW, smooth(snow - 0.06, snow + 0.06, y));
-      cols.push(c.r, c.g, c.b);
-    }
-    geo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
-    geo.computeVertexNormals();
-    return geo;
-  }
-  const CHARON_DIR = new V(-0.55, 0.5, 0.65).normalize(), HEART_SIZE = 48;
-  // Herzform (von oben gesehen): (x² + y² − 1)³ − x²·y³ ≤ 0
-  function inHeart(x, z) { return heartK(x, z) >= 0.5; }
-  // 0 = außerhalb, 1 = im Herz, dazwischen ein weicher, leicht ausgefranster Rand
-  function heartK(x, z) {
-    const X = (x - PLUTO_LAYOUT.heart[0]) / HEART_SIZE, Y = (z - PLUTO_LAYOUT.heart[1]) / HEART_SIZE, a = X * X + Y * Y - 1;
-    const fr = (fbm2(x * 0.15, z * 0.15) - 0.5) * 0.06;
-    return smooth(0.025, -0.025, a * a * a - X * X * Y * Y * Y + fr);
-  }
-  function makeDrone() {
-    const g = new THREE.Group();
-    const dark = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.5, metalness: 0.4 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.6), new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.5 }));
-    body.position.y = 0.55; body.castShadow = true; g.add(body);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), dark); eye.position.set(0, 0.38, 0.22); g.add(eye);
-    const flames = new THREE.Group();
-    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.45, 8), dark); leg.position.set(x * 0.38, 0.28, z * 0.38); g.add(leg);
-      const fl = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.5, 8), new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
-      fl.rotation.x = Math.PI; fl.position.set(x * 0.38, -0.2, z * 0.38); flames.add(fl);
-    }
-    flames.visible = false; g.add(flames);
-    g.scale.setScalar(1.5);
-    g.userData = { flames };
-    return g;
-  }
-  function buildPluto() {
-    const L = { ...PLUTO_LAYOUT };
-    const craters = [[60, 20, 12, 1.6], [-75, -40, 16, 2], [50, -70, 14, 2], [-95, 75, 12, 1.6], [90, -20, 9, 1.2], [-30, -80, 10, 1.4]];
-    craters.push(...scatterCraters(L, [[...L.spawn, 6], [...L.station, 20], [L.station[0], L.station[1] + 14, 22], [...L.waage, 6], [...L.charon, 9], [...L.herz, 9], [...L.funk, 9], [...L.wegweiser, 4], [...L.sonde, 5],
-      [L.heart[0], L.heart[1] + 5, 70], [-58, 40, 28], ...craters.map(([x, z, r]) => [x, z, r])], W.fast ? 14 : 24, 333, 1.6, 6, 220)); // das Herz ist jung – dort gibt es keine Krater
-    const flats = [[0, 0, 11], [...L.station, 18], [L.station[0], L.station[1] + 14, 20], [...L.waage, 4], [...L.charon, 5, "auto", 4], [...L.herz, 7], [...L.funk, 5, "auto", 4], [L.heart[0], L.heart[1] + 5, 62], rackFlat(L)];
-    const hills = [[L.charon[0] + 2, L.charon[1] + 2, 18, 6], [L.funk[0] - 3, L.funk[1], 16, 5], [-58, 40, 26, 8]]; // Eis-Terrasse, Grat, Bergfuß
-    const B = buildBase({
-      height: makeHeight(craters, flats, 120, null, hills),
-      // fast keine Luft, schwarzer Himmel – die Sonne ist so weit weg, dass sie nur noch ein sehr heller Stern ist
-      sky: 0x000000, stars: true, sunSize: 34,
-      ground: 0xa89680, rock: 0x8a7a68,
-      tint: (x, z) => { // außen rotbraune Tholine (organischer Staub), im Herz helles Stickstoff-Eis mit Zellen – mit weichem Übergang
-        const m = 0.42 + 0.28 * fbm2(x * 0.012 + 2, z * 0.012), th = smooth(0.45, 0.7, fbm2(x * 0.02 - 8, z * 0.02 + 4));
-        const out = [m * (1 + 0.25 * th), m * (0.88 - 0.12 * th), m * (0.76 - 0.2 * th)];
-        const h = heartK(x, z); if (h <= 0) return out;
-        const e = 1 - 0.3 * heartCells(x, z), ice = [1.9 * e, 1.9 * e, 1.85 * e];
-        return out.map((v, i) => v + (ice[i] - v) * h);
-      },
-      keepFree: [[...L.spawn, 4], [L.station[0], L.station[1] + 2, 18], [...L.waage, 4], [...L.charon, 4], [...L.herz, 4], [...L.funk, 4],
-        [...L.wegweiser, 3], [...L.sonde, 3], [L.heart[0], L.heart[1] + 5, 66]],
-      ambient: [0x8fa0c0, 0.34], hemi: [0x6f86b8, 0x000000, 0.22], sun: [0xeef2ff, 0.95],
-      dust: ["rgba(235,240,250,1)", "rgba(200,210,230,0.9)"]
-    });
-    const { scene, height, on, rocket } = B;
-    const iceBlockCols = [];
-    const common = addCommon(B, L, "Plutostation", "pluto");
-    const M = colonyMats("pluto");
-
-    // Charon: Plutos großer Mond, steht immer an derselben Stelle am Himmel; daneben (nur im Fernrohr) unser Mond zum Vergleich
-    const charon = new THREE.Mesh(new THREE.SphereGeometry(30, 40, 28), new THREE.MeshStandardMaterial({ map: W.bodies.mond.mesh.material.map, color: 0x9a948c, roughness: 1 }));
-    charon.position.copy(CHARON_DIR).multiplyScalar(900);
-    const side = new V().crossVectors(CHARON_DIR, new V(0, 1, 0)).normalize();
-    const cmpMoon = new THREE.Mesh(new THREE.SphereGeometry(4, 24, 16), new THREE.MeshStandardMaterial({ map: W.bodies.mond.mesh.material.map, color: 0xd8d8d8, roughness: 1 }));
-    cmpMoon.position.copy(charon.position).addScaledVector(side, 46); cmpMoon.visible = false;
-    scene.add(charon, cmpMoon);
-    const igloo = on(plutoIgloo(M), ...L.charon); // Iglu-Sternwarte aus Wassereis-Blöcken, Eingang zur Rakete
-    igloo.rotation.y = Math.atan2(-L.charon[0], -L.charon[1]);
-    const telescope = on(makeTelescope(CHARON_DIR), ...L.charon);
-    on(makeSignBoard(M, "🔭 IGLU-STERNWARTE", "#6d28d9", 2.6), L.charon[0] - 3.4, L.charon[1] - 2).rotation.y = Math.atan2(-L.charon[0], -L.charon[1]);
-
-    const dronePad = on(plutoDronePad(M), ...L.herz); dronePad.rotation.y = Math.atan2(-L.herz[0], -L.herz[1]);
-    const drone = on(makeDrone(), ...L.herz, 0.2);
-    // Funk-Antenne zeigt zur Sonne: Von hier aus steht die Erde ganz dicht neben ihr
-    on(plutoDish(M, SUN_DIR), ...L.funk); // große Antenne zur Erde (die Erde steht von hier aus ganz dicht neben der Sonne)
-    const signalFrom = new V(L.funk[0], height(...L.funk) + 3.2, L.funk[1]);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 880, 8, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
-    beam.position.copy(signalFrom).addScaledVector(SUN_DIR, 440);
-    beam.quaternion.setFromUnitVectors(new V(0, 1, 0), SUN_DIR);
-    const pulse = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(220,255,220,1)", "rgba(74,222,128,0.7)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-    beam.visible = pulse.visible = false;
-    scene.add(beam, pulse);
-
-    const board = on(makeInfoBoard(M, "PLUTO-STATION", ["☀️ Sonne: 5,9 Mrd. km", "📡 Funk zur Erde: 5½ Std.", "🌡️ −230 °C"]), ...L.wegweiser);
-    board.rotation.y = Math.atan2(L.spawn[0] - L.wegweiser[0], L.spawn[1] - L.wegweiser[1]);
-    on(makeNewHorizons(M), ...L.sonde).rotation.y = -0.5; // Nachbau als Denkmal
-    const np = on(makePlaque(M, [["NEW HORIZONS", 48], ["flog 2015 an Pluto vorbei", 30], ["und schickte die ersten", 30], ["Nahaufnahmen", 30]]), L.sonde[0] + 2.4, L.sonde[1] + 2);
-    np.rotation.y = Math.atan2(-np.position.x, -np.position.z);
-    on(plutoHeatPavilion(M), ...L.waage).rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
-    // Eisberge aus Wassereis am Rand des Herzens und blauer Dunst am Horizont
-    const iceMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, envMapIntensity: 0.6 });
-    { // Eisblöcke aus Wassereis am Fuß der Berge und verstreut (kantig, bläulich-weiß – wie auf den Fotos von New Horizons)
-      const blockMat = new THREE.MeshStandardMaterial({ color: srgb(0xc9d8ee), roughness: 0.35, flatShading: true, vertexColors: true }), geos = [0, 1, 2].map((k) => naturalRockGeo(70 + k * 5, 1));
-      const sets = geos.map((g) => { const m = new THREE.InstancedMesh(g, blockMat, 40); m.count = 0; return m; }), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new V(), sc = new V();
-      const keep = [[...L.spawn, 7], [...L.station, 22], [L.station[0], L.station[1] + 14, 22], [...L.charon, 8], [...L.herz, 8], [...L.funk, 8], [...L.waage, 6], [...L.wegweiser, 4], [...L.sonde, 5]];
-      let n = 0;
-      for (let i = 0; i < 2000 && n < (W.fast ? 50 : 100); i++) {
-        const a = hash2(i, 81) * Math.PI * 2, r = 30 + hash2(i, 82) * 110, x = Math.cos(a) * r, z = Math.sin(a) * r;
-        if (heartK(x, z) > 0 || keep.some(([kx, kz, kr]) => Math.hypot(x - kx, z - kz) < kr) || Math.hypot(x, z) > 145) continue;
-        const big = hash2(i, 83) < 0.25, s = big ? 1.4 + hash2(i, 84) * 2 : 0.3 + hash2(i, 84) * 0.8;
-        e.set((hash2(i, 85) - 0.5) * 0.6, hash2(i, 86) * 6.3, (hash2(i, 87) - 0.5) * 0.6); q.setFromEuler(e);
-        mx.compose(p.set(x, height(x, z) + s * 0.15, z), q, sc.set(s, s * (0.7 + hash2(i, 88) * 0.5), s * (0.8 + hash2(i, 89) * 0.4)));
-        const m = sets[n % 3]; m.setMatrixAt(m.count, mx); m.setColorAt(m.count, new THREE.Color().setRGB(1, 1, 1)); m.count++; n++;
-        if (big) iceBlockCols.push([x, z, s * 0.9]);
-      }
-      for (const m of sets) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
-    }
-    for (let i = 0; i < 9; i++) {
-      const m = new THREE.Mesh(plutoIceMountainGeo(i), iceMat); // zerklüftete Gipfel: Staub am Fuß, Eis an den Flanken, Schnee oben
-      const sy = 40 + hash2(i, 2) * 34;
-      m.scale.set(30 + hash2(i, 1) * 20, sy, 26 + hash2(i, 4) * 18);
-      const [px, pz] = [[-80, -14], [-88, 18], [-82, 50], [-94, 82], [-72, 116], [58, -54], [18, -74], [-32, -68], [96, 14]][i].map((v) => v * 1.25);
-      m.position.set(px, height(px, pz) - 2, pz); m.rotation.y = hash2(i, 3) * 6.3; scene.add(m);
-    }
-    const hazeTex = canvasTex(8, 128, (c) => { const gr = c.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "rgba(90,150,255,0)"); gr.addColorStop(0.6, "rgba(110,165,255,0.45)"); gr.addColorStop(1, "rgba(150,195,255,0.85)"); c.fillStyle = gr; c.fillRect(0, 0, 8, 128); });
-    const haze = new THREE.Mesh(new THREE.CylinderGeometry(430, 430, 70, 48, 1, true), new THREE.MeshBasicMaterial({ map: hazeTex, transparent: true, side: THREE.BackSide, depthWrite: false, fog: false }));
-    haze.position.y = 22; scene.add(haze);
-    drawTour(B, L, [206, 196, 182], 1.8);
-    const npcs = addNpcs(B);
-    const orrery = on(makeOrrery("pluto", 1.95, 0.6), ...L.jahr);
-    const { rack, cols: rackCols, spot: rackSpot } = placeSizeRack(B, ["pluto", "mond", "erde"], L.station);
-
-    // Eis-Curling: Zielscheibe auf dem Herz, Eisstein und Richtungspfeil
-    const lane = curlLane(L), curl = makeCurling();
-    curl.target.position.set(lane.tx, height(lane.tx, lane.tz) + 0.04, lane.tz); scene.add(curl.target, curl.stone, curl.arrow);
-    curl.stone.visible = curl.arrow.visible = false;
-    on(makeSignBoard(M, "🥌 EIS-CURLING", "#0e7490", 2.4), lane.sx - lane.dz * 3, lane.sz + lane.dx * 3).rotation.y = Math.atan2(-lane.dx, -lane.dz);
-    const stations = addMarkers(B, { wand: [L.station[0], L.station[1] - 2.2],
-      waage: L.waage, charon: L.charon, herz: L.herz, funk: L.funk, jahr: L.jahr, groesse: rackSpot,
-      eis: L.eis, sonde: L.sonde, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] }, { charon: MARS_SCOPE_DOOR(L.charon) });
-    const colliders = [...common.colliders, ...iceBlockCols, [...L.charon, 2.9], [...L.herz, 0.7], [L.herz[0] + 3.6 * Math.cos(dronePad.rotation.y), L.herz[1] - 3.6 * Math.sin(dronePad.rotation.y), 1.4], [...L.funk, 1.2], [L.funk[0] + 2.6, L.funk[1] + 1.6, 0.9], [...L.wegweiser, 0.3], [...L.sonde, 1.4], ...npcs.map((n) => n.col),
-      [...L.jahr, 1.2], ...rackCols];
-
-    return { ...B, ...common, L, telescope, charon, cmpMoon, drone, droneY: drone.position.y, signalFrom, beam, pulse, orrery, rack, npcs, curl, lane,
-      blink: dronePad.userData.lights, stations, colliders, shadowCasters: [rocket, common.station, igloo] };
-  }
-  // ---------- Eis-Curling: Bahn vom Kreis aus Richtung Herzmitte ----------
-  const CURL_LEN = 22, CURL_DECEL = 0.8; // Ziel 22 m entfernt; auf Stickstoff-Eis bremst fast nichts
+  // ---------- Eis-Curling im Eis-Krater auf dem Mars: Bahn vom Startkreis über das Eis ----------
+  // Weniger Schwerkraft: Der Stein drückt nicht so fest aufs Eis und bremst weniger (Bremsweg ∝ 1/g – auf der Erde nur gut ein Drittel so weit)
+  const CURL_LEN = 22, CURL_DECEL = 0.8; // Ziel 22 m entfernt
   function curlLane(L) {
-    const [sx, sz] = L.eis, [hx, hz] = L.heart, d = Math.hypot(hx - sx, hz - sz), dx = (hx - sx) / d, dz = (hz - sz) / d;
+    const [sx, sz] = L.curling, [dx, dz] = MARS_CURL_DIR;
     return { sx, sz, dx, dz, tx: sx + dx * CURL_LEN, tz: sz + dz * CURL_LEN };
+  }
+  function marsIceTex() {
+    return canvasTex(512, 512, (c) => {
+      const g = c.createRadialGradient(256, 256, 0, 256, 256, 256);
+      g.addColorStop(0, "rgba(232,244,252,1)"); g.addColorStop(0.8, "rgba(214,232,244,1)"); g.addColorStop(0.9, "rgba(196,150,120,0.9)"); g.addColorStop(1, "rgba(180,110,70,0)");
+      c.fillStyle = g; c.fillRect(0, 0, 512, 512);
+      c.strokeStyle = "rgba(150,185,210,0.55)"; c.lineWidth = 1.5;
+      for (let i = 0; i < 26; i++) { // feine Risse im Eis
+        let x = 256 + (hash2(i, 1) - 0.5) * 380, y = 256 + (hash2(i, 2) - 0.5) * 380; c.beginPath(); c.moveTo(x, y);
+        for (let k = 0; k < 5; k++) { x += (hash2(i, k + 3) - 0.5) * 70; y += (hash2(i, k + 9) - 0.5) * 70; c.lineTo(x, y); }
+        c.stroke();
+      }
+      for (let i = 0; i < 160; i++) { c.fillStyle = "rgba(190,120,80," + (0.08 + 0.12 * hash2(i, 20)) + ")"; const a = hash2(i, 21) * 6.28, r = 150 + hash2(i, 22) * 95; c.beginPath(); c.arc(256 + Math.cos(a) * r, 256 + Math.sin(a) * r, 3 + hash2(i, 23) * 9, 0, 7); c.fill(); } // Staub zum Rand hin
+    });
   }
   function makeCurling() {
     // Zielscheibe: blau – weiß – rot (Radien 3,8 / 2,4 / 1,2 m)
@@ -5756,7 +5478,7 @@ window.Surface = (function () {
   }
   function startCurling() {
     const ln = world.lane;
-    enterExhibit("eis", { update: updateCurling, phase: "aim", aim: (Math.random() - 0.5) * 0.4, t: 0, left: 3, best: 0, v: 0, power: 0 });
+    enterExhibit("curling", { update: updateCurling, phase: "aim", aim: (Math.random() - 0.5) * 0.4, t: 0, left: 3, best: 0, v: 0, power: 0 });
     const sp = view.special; sp.x = ln.sx + ln.dx * 1.4; sp.z = ln.sz + ln.dz * 1.4;
     world.curl.stone.visible = world.curl.arrow.visible = true; world.astronaut.visible = false;
     curlAim();
@@ -5785,7 +5507,7 @@ window.Surface = (function () {
     if (sp.phase === "power") { sp.t += dt; sp.power = 0.5 - 0.5 * Math.cos(sp.t * 2.1); }
     const ca = Math.cos(sp.aim), sa = Math.sin(sp.aim), dx = ln.dx * ca - ln.dz * sa, dz = ln.dz * ca + ln.dx * sa;
     if (sp.phase === "slide") {
-      sp.x += dx * sp.v * dt; sp.z += dz * sp.v * dt; sp.v = Math.max(0, sp.v - CURL_DECEL * dt);
+      sp.x += dx * sp.v * dt; sp.z += dz * sp.v * dt; sp.v = Math.max(0, sp.v - CURL_DECEL * (onMarsIce(sp.x, sp.z) ? 1 : 7) * dt); // neben dem Eis bremst der Staub sofort
       st.rotation.y += dt * sp.v * 0.6; // dreht sich beim Rutschen
       if (sp.v <= 0) { // liegen geblieben: wie nah am Ziel?
         sp.phase = "result";
@@ -5795,6 +5517,8 @@ window.Surface = (function () {
         if (pts) { Sound.correct(); UI.confetti(pts * 40); } else Sound.wrong();
         let text = pts === 3 ? T.r3 : pts === 2 ? T.r2 : pts === 1 ? T.r1 : along < CURL_LEN ? T.short : T.long;
         if (first) text += " " + T.fact;
+        const slid = Math.max(0, along - 1.4), fmt = (v) => v.toFixed(1).replace(".", ","); // gleicher Schwung auf der Erde: Bremsweg × g(Mars) / g(Erde)
+        if (slid > 1) UI.toast(fmtVars(T.earth, { mars: fmt(slid), erde: fmt(slid * cfg.gravity / 9.81) }), "gold");
         const btns = [];
         if (sp.left > 0) btns.push([fmtVars(T.again, { n: sp.left }), curlAim, !sp.best]);
         if (sp.best) btns.push([T.done, () => curlEnd(true), true]);
@@ -5815,69 +5539,6 @@ window.Surface = (function () {
     view.look.lerp(tmp2.set(sp.x + dx * 8, st.position.y, sp.z + dz * 8), 1 - Math.exp(-dt * 4));
     c.lookAt(view.look);
   }
-  function startCharon() {
-    const T = cfg.charon, w = world;
-    startTour("charon", T, [
-      { pos: w.charon.position, fov: 9, text: T.found },
-      { pos: tmp2.copy(w.charon.position).lerp(w.cmpMoon.position, 0.45).clone(), fov: 10, text: T.compare, btn: T.compareBtn, enter: () => { w.cmpMoon.visible = true; } },
-      { pos: w.sunGlow.position, fov: 16, text: T.sun, btn: T.sunBtn, slow: true }
-    ], { end: () => { w.cmpMoon.visible = false; } });
-  }
-  // --- Kameradrohne: aufsteigen und das Herz von oben sehen ---
-  function startDrone() {
-    enterExhibit("herz", { update: updateDrone, t: 0, top: false });
-    world.drone.userData.flames.visible = true;
-    scopeSay(cfg.drone.rising);
-  }
-  function updateDrone(dt) {
-    const sp = view.special, c = world.camera, d = world.drone, [hx, hz] = world.L.heart; sp.t += dt;
-    const k = smooth(0.3, 6, sp.t);
-    d.position.y = world.droneY + k * 150;
-    d.userData.flames.scale.y = 0.8 + Math.random() * 0.5;
-    const dx = hx - d.position.x, dz = hz - d.position.z, h = Math.hypot(dx, dz);
-    // erst von hinten zuschauen, oben dann durch die Kamera der Drohne blicken (die Drohne selbst wäre sonst im Bild)
-    const back = 5 * (1 - k);
-    c.position.lerp(tmp.set(d.position.x - (dx / h) * back, d.position.y + 2.5 - 3.5 * k, d.position.z - (dz / h) * back), 1 - Math.exp(-dt * 4));
-    d.visible = k < 0.7;
-    // erst der Drohne nachschauen, oben dann hinunter auf das Herz
-    tmp2.set(d.position.x + (dx / h) * 12, d.position.y, d.position.z + (dz / h) * 12).lerp(tmp.set(hx, 0, hz + 8), k);
-    view.look.lerp(tmp2, 1 - Math.exp(-dt * 4));
-    c.lookAt(view.look);
-    if (k >= 1 && !sp.top) { sp.top = true; Sound.correct(); scopeSay(cfg.drone.top, [[cfg.drone.done, endDrone, true]]); }
-  }
-  function endDrone() {
-    world.drone.position.y = world.droneY; world.drone.userData.flames.visible = false; world.drone.visible = true;
-    leaveExhibit();
-  }
-  // --- Funkspruch zur Erde: Das Licht ist 5½ Stunden unterwegs (hier im Zeitraffer) ---
-  const SIGNAL_TIME = 7, SIGNAL_HOURS = 5.5;
-  function startSignal() { enterExhibit("funk", { update: updateSignal }); runSignal(); }
-  function runSignal() {
-    const sp = view.special; sp.t = 0; sp.end = false; sp.last = ""; sp.go = false;
-    world.beam.visible = world.pulse.visible = false;
-    askGuess(cfg.signal.guess, cfg.signal.ready, () => { sp.go = true; sp.t = -0.4; });
-  }
-  function updateSignal(dt) {
-    const c = world.camera, sp = view.special, T = cfg.signal, M = world.signalFrom, h = Math.hypot(SUN_DIR.x, SUN_DIR.z);
-    c.position.lerp(tmp.set(M.x - (SUN_DIR.x / h) * 7, M.y + 1, M.z - (SUN_DIR.z / h) * 7), 1 - Math.exp(-dt * 3));
-    view.look.lerp(tmp2.copy(M).addScaledVector(SUN_DIR, 16), 1 - Math.exp(-dt * 4));
-    c.lookAt(view.look);
-    if (sp.end || !sp.go) return;
-    sp.t += dt;
-    if (sp.t < 0) return;
-    const f = Math.min(1, sp.t / SIGNAL_TIME), far = 880 * f;
-    world.beam.visible = world.pulse.visible = true;
-    world.pulse.position.copy(M).addScaledVector(SUN_DIR, far);
-    world.pulse.scale.setScalar(0.7 + far * 0.03);
-    if (f >= 1) {
-      sp.end = true; world.pulse.visible = false; Sound.correct();
-      scopeSay(guessed(T.end), [[T.again, runSignal], [T.done, endSignal, true]]);
-      return;
-    }
-    const min = Math.floor((f * SIGNAL_HOURS * 60) / 10) * 10, text = `${T.run} ⏱️ ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
-    if (text !== sp.last) { sp.last = text; $("scopeText").textContent = text; }
-  }
-  function endSignal() { world.beam.visible = world.pulse.visible = false; leaveExhibit(); }
 
   // Anzeigetafel auf einem Mast (z. B. großes Thermometer), von beiden Seiten lesbar: userData.show(text)
   function makeBoard() {
@@ -7970,7 +7631,8 @@ window.Surface = (function () {
         world.veils.rotation.y += dt * 0.004;
         world.phobos.rotation.y += dt * 0.05; world.deimos.rotation.y += dt * 0.03;
       },
-      actions: { rover: startRover, vulkan: startHeli, monde: startMoons, eis: startEis, rost: startRost, abend: startAbend }
+      grip: () => (onMarsIce(ast.pos.x, ast.pos.z) ? 0.35 : 1), // auf dem Eis im Krater rutscht man
+      actions: { rover: startRover, vulkan: startHeli, monde: startMoons, eis: startEis, rost: startRost, abend: startAbend, curling: startCurling }
     },
     merkur: {
       build: buildMerkur,
@@ -7983,22 +7645,6 @@ window.Surface = (function () {
       // Wettrennen: Die Erde läuft eine Runde (365 Tage), Merkur in derselben Zeit gut vier
       orrery: { earthLaps: 1, planetLaps: 365 / 88, vars: (f) => ({ erde: Math.floor(f * 365), planet: Math.floor((f * 365) / 88) }) },
       actions: { sonne: startSunScope, krater: startMeteor, jahr: startOrrery, temperatur: startShadowRun }
-    },
-    pluto: {
-      build: buildPluto,
-      reset() {
-        world.telescope.visible = true;
-        world.cmpMoon.visible = world.beam.visible = world.pulse.visible = world.drone.userData.flames.visible = false;
-        world.drone.position.y = world.droneY; world.drone.visible = true;
-        setOrrery(world.orrery, 0, 0);
-      },
-      update(dt, busy, elapsed) {
-        updateLife(dt, elapsed, busy);
-      },
-      grip: () => (inHeart(ast.pos.x, ast.pos.z) ? 0.16 : 1),
-      // Wettrennen: Die Erde läuft 12 Runden, Pluto in derselben Zeit nur 12/248 einer Runde
-      orrery: { earthLaps: 12, planetLaps: 12 / 248, vars: (f) => ({ erde: Math.floor(f * 12) }) },
-      actions: { charon: startCharon, herz: startDrone, funk: startSignal, jahr: startOrrery, eis: startCurling }
     },
     venus: {
       build: buildVenus,

@@ -18,7 +18,7 @@ const VOICES = {
   radio: { name: "de-DE-ConradNeural", rate: "+0%" },                // Bodenstation, Funk-Fragen
   narr: { name: "de-DE-FlorianMultilingualNeural", rate: "-6%" },    // Erzähler im Intro
   katja: { name: "de-DE-KatjaNeural", rate: "+0%" },                 // Kommandantin Lea, Pilotin Sara
-  amala: { name: "de-DE-AmalaNeural", rate: "+2%" },                 // Forscherin Mara, Forscherin Yuki, Astronautin Jana
+  amala: { name: "de-DE-AmalaNeural", rate: "+2%" },                 // Forscherin Mara, Astronautin Jana
   killian: { name: "de-DE-KillianNeural", rate: "+2%" },             // Ingenieur Tom, Techniker Bennett
   florian: { name: "de-DE-FlorianMultilingualNeural", rate: "+0%" }  // Forscher Kofi
 };

@@ -1,7 +1,7 @@
 /* =========================================================
    Abschluss-Kino: nach der letzten Mission (gut eine halbe Minute)
    1. „Mission erfüllt!“ – die eigene Rakete fliegt durchs All
-   2. Rückflug an allen Planeten vorbei, von Pluto bis zur Erde – jeder bekommt einen goldenen Haken
+   2. Rückflug an allen Planeten vorbei, vom Neptun bis zur Erde – jeder bekommt einen goldenen Haken
    3. Ankunft zu Hause: Nora gratuliert
    4. Feuerwerk um die Erde, Titel „Weltraum-Profi!“ – danach die Urkunde
    Nutzt dieselbe Kino-Bühne wie das Intro (#intro, Musik über Sound.cinematic, Vorlesen über Voice).
@@ -14,7 +14,7 @@ window.Outro = (function () {
   const T_TOUR = 5, T_HOME = 23, T_PARTY = 31.5, T_END = 38;
   const OUTRO_CAPTIONS = [
     [0.8, 4.4, "Mission erfüllt!", "big"],
-    [5.6, 9.6, "Du bist bis zum kleinen Pluto geflogen …"],
+    [5.6, 9.6, "Du bist durch das ganze Sonnensystem geflogen …"],
     [10.0, 14.0, "… hast mit deinen Sonden die Riesenplaneten erforscht …"],
     [14.4, 18.4, "… bist auf dem Mond und auf dem Mars gelandet …"],
     [18.8, 22.6, "… und weißt jetzt so viel über unser Sonnensystem!"]
@@ -26,9 +26,9 @@ window.Outro = (function () {
   // Reihe der Himmelskörper (wie im Intro): id, Position x, Größe
   const ROW = [
     ["merkur", 32, 1], ["venus", 44, 1], ["erde", 58, 1], ["mars", 71, 1], ["jupiter", 96, 0.85],
-    ["saturn", 128, 0.8], ["uranus", 154, 0.9], ["neptun", 172, 0.9], ["pluto", 186, 1.2]
+    ["saturn", 128, 0.8], ["uranus", 154, 0.9], ["neptun", 172, 0.9]
   ];
-  const EARTH_X = 58, START_X = 206;
+  const EARTH_X = 58, START_X = 192;
 
   const clamp01 = (x) => Math.max(0, Math.min(1, x));
   const seg = (t, a, b) => clamp01((t - a) / (b - a));
@@ -105,7 +105,7 @@ window.Outro = (function () {
     return { scene, camera, light, sun, planets, moon, rocket, bursts };
   }
 
-  // Wo die Reise gerade ist (x-Position entlang der Reihe): von hinter Pluto bis zur Erde
+  // Wo die Reise gerade ist (x-Position entlang der Reihe): von hinter Neptun bis zur Erde
   const tourX = (t) => { const k = seg(t, T_TOUR - 1, T_HOME + 0.5); return START_X + (EARTH_X - START_X) * k * k * (3 - 2 * k); }; // gleichmäßiger Vorbeiflug
   const P = new V(), L = new V();
   function update3d(S, t, dt) {
@@ -158,7 +158,7 @@ window.Outro = (function () {
     m.pad(ch(43, 50, 55, 59, 62), T_TOUR, 6, 0.04, 1300);               // G-Dur: auf dem Heimweg
     m.pad(ch(40, 47, 52, 55, 59), T_TOUR + 5.5, 6, 0.04, 1200);         // e-Moll: ein bisschen Abschied
     m.pad(ch(45, 52, 57, 61, 64), T_TOUR + 11, 7.5, 0.045, 1500);       // A-Dur: Spannung vor der Ankunft
-    ROW.slice().reverse().forEach((r, i) => m.bell(midi([86, 84, 83, 81, 79, 78, 76, 74, 74][i]), T_TOUR + 0.8 + i * 1.95, 0.06));
+    ROW.slice().reverse().forEach((r, i) => m.bell(midi([86, 84, 83, 81, 79, 78, 76, 74][i]), T_TOUR + 0.8 + i * 2.2, 0.06));
     m.pad(ch(38, 45, 50, 54, 57, 62), T_HOME, 8.5, 0.05, 1800);          // D-Dur: zu Hause
     m.riser(T_PARTY - 2, 2, 0.08);
     m.boom(T_PARTY, 0.4);

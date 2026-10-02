@@ -136,7 +136,6 @@ kbd {
 .p-saturn  { --c: #e3c98f; }
 .p-uranus  { --c: #8fd8e3; }
 .p-neptun  { --c: #3d62e0; }
-.p-pluto   { --c: #d8c3a5; }
 .mini, .ball { display: inline-block; }
 .mini { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff9, var(--c) 50%, #0008); }
 .ring-deco::after {

@@ -14,6 +14,13 @@
   function freshState(name, color) {
     return { name: name || "Astronaut", color: color || "#ef4444", visited: {}, quiz: {}, mission: 0, dust: 0, dustStars: 0, orderStars: 0, hint: false };
   }
+  // Seit Version 32 gibt es Pluto nicht mehr (kein Planet): alte Spielstände anpassen
+  function ohnePluto(s) {
+    if (s.noPluto) return;
+    s.noPluto = true;
+    if (s.mission >= 11) s.mission--; // vorher 11 = Planeten ordnen, 12 = alles geschafft
+    for (const k of ["visited", "quiz", "found", "surfaceQuiz"]) if (s[k]) delete s[k].pluto;
+  }
   // Mehrere Kinder können sich ein Tablet teilen: jedes hat ein eigenes Profil.
   const profileKey = (name) => name.trim().toLowerCase();
   function loadStore() {
@@ -269,7 +276,7 @@
 
   // ---------- Landen / Umlaufbahn / Starten ----------
   // Auf festem Boden wird gelandet; bei Sonne, Gas- und Eisriesen geht das nicht → Umlaufbahn.
-  const CAN_LAND = ["Gesteinsplanet", "Mond der Erde", "Zwergplanet"];
+  const CAN_LAND = ["Gesteinsplanet", "Mond der Erde"];
   const NOSE = new V(0, 0, -1);
   const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
   const easeOut = (x) => 1 - Math.pow(1 - x, 3);
@@ -881,6 +888,7 @@
     UI.showStart(profiles, (name, color) => {
       const existing = loadStore().profiles[profileKey(name)];
       Game.state = existing || freshState(name, color);
+      ohnePluto(Game.state);
       Game.save();
       Voice.setName(Game.state.name);
       W.setShipColor(Game.state.color);

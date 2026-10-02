@@ -81,13 +81,6 @@ Lizenzen: **gemeinfrei** (Public Domain, v. a. NASA) · **CC0** · **CC BY 2.0 /
 | `img/neptun.jpg` | Aus dem All | NASA / Voyager 2 · Farben: Ardenau4 · CC0 | [Commons](https://commons.wikimedia.org/wiki/File:Neptune_Voyager2_color_calibrated,_brightened.png) |
 | `img/neptun-1.jpg` | Mond Triton | NASA / JPL / USGS · gemeinfrei | [Commons](https://commons.wikimedia.org/wiki/File:Triton_moon_mosaic_Voyager_2_%28large%29.jpg) |
 
-## Pluto
-
-| Datei | Motiv | Urheber · Lizenz | Original |
-|---|---|---|---|
-| `img/pluto.jpg` | Aus dem All | NASA / JHU APL / SwRI · gemeinfrei | [Commons](https://commons.wikimedia.org/wiki/File:Pluto_in_True_Color_-_High-Res.jpg) |
-| `img/pluto-1.jpg` | Ganz nah dran | NASA / JHU APL / SwRI · gemeinfrei | [Commons](https://commons.wikimedia.org/wiki/File:Pluto's_Majestic_Mountains,_Frozen_Plains_and_Foggy_Hazes.jpg) |
-
 ## 3D-Modell
 
 | Datei | Werk | Urheber · Lizenz | Original |

@@ -51,7 +51,7 @@ window.Voice = (function () {
 
   // ---------- Aufnahmen: wer spricht mit welcher Stimme (siehe tools/stimmen.js) ----------
   const NPC_VOICE = { "Kommandantin Lea": "katja", "Ingenieur Tom": "killian", "Forscherin Mara": "amala", "Techniker Bennett": "killian",
-    "Forscher Kofi": "florian", "Forscherin Yuki": "amala", "Pilotin Sara": "katja", "Astronautin Jana": "amala" };
+    "Forscher Kofi": "florian", "Pilotin Sara": "katja", "Astronautin Jana": "amala" };
   function voiceOf(role, who) {
     if (role === "radio") return "radio";
     if (role === "narrator") return "narr";
