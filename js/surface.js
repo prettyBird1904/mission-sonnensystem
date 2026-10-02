@@ -1054,6 +1054,41 @@ window.Surface = (function () {
 
   const CAMPS = { mars: buildMarsCamp, mond: buildMoonCamp, merkur: buildMercCamp, venus: buildVenusCamp, pluto: buildPlutoCamp, erde: buildEarthCamp };
   const CAMP_COLLIDERS = { mars: marsCampColliders, mond: moonCampColliders, merkur: mercCampColliders, venus: venusCampColliders, pluto: plutoCampColliders, erde: earthCampColliders };
+  // Überdachung der „Wusstest du?“-Wand, passend zum Ort (lokal: Wand bei z = 0, vorn = −Z): zwei Stützen und ein Dach über dem Schild.
+  // Mond und Pluto: Tonnendach wie ein kleiner Hangar · Mars: zwei Sonnensegel · Merkur: weißer Hitzeschild · Venus: schweres Panzerdach
+  const canopyColliders = ([sx, sz]) => [[sx - 8.7, sz - 1.7, 0.3], [sx + 8.7, sz - 1.7, 0.3], [sx - 8.7, sz + 1.5, 0.3], [sx + 8.7, sz + 1.5, 0.3]];
+  function wallCanopy(g, M, style) {
+    const X = 8.7, Y = 7.0, Z0 = -1.7, Z1 = 1.5, D = Z1 - Z0, zc = (Z0 + Z1) / 2;
+    const post = style === "venus" ? venusMetal(M, 1, 3) : M.steel, foot = M.metal;
+    const P = (m, x, y, z, sh = true) => { m.position.set(x, y, z); m.castShadow = sh; m.receiveShadow = true; g.add(m); return m; };
+    for (const x of [-X, X]) for (const z of [Z0, Z1]) {
+      P(new THREE.Mesh(new THREE.CylinderGeometry(style === "venus" ? 0.2 : 0.11, style === "venus" ? 0.24 : 0.13, Y, 10), post), x, Y / 2, z);
+      P(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.2, 12), foot), x, 0.1, z);
+    }
+    for (const z of [Z0, Z1]) P(new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.5, 0.22, 0.22), M.metal), 0, Y, z); // Längsträger
+    for (const x of [-X, X]) P(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, D + 0.3), M.metal), x, Y, zc);
+    if (style === "mond" || style === "pluto") { // Tonnendach
+      const R = D / 2 + 0.35, shell = P(new THREE.Mesh(new THREE.CylinderGeometry(R, R, 2 * X + 1.2, 28, 1, true, 0, Math.PI), M.hull(6, 1)), 0, Y + 0.05, zc);
+      shell.rotation.z = Math.PI / 2; shell.material = shell.material.clone(); shell.material.side = THREE.DoubleSide;
+      for (const x of [-X - 0.6, -X / 3, X / 3, X + 0.6]) { const rib = P(new THREE.Mesh(new THREE.TorusGeometry(R + 0.02, 0.09, 8, 28, Math.PI), M.orange), x, Y + 0.05, zc, false); rib.rotation.y = Math.PI / 2; }
+      if (style === "pluto") { const strip = P(new THREE.Mesh(new THREE.BoxGeometry(2 * X, 0.08, 0.1), new THREE.MeshBasicMaterial({ color: srgb(0xc4b5fd), toneMapped: false })), 0, Y - 0.15, Z0 - 0.05, false); g.userData.blink.push(strip); }
+    } else if (style === "mars") { // zwei gespannte Sonnensegel
+      const sail = M.std({ color: srgb(0xf97316), roughness: 0.8, side: THREE.DoubleSide });
+      for (const sx of [-1, 1]) {
+        const geo = new THREE.BufferGeometry(), x0 = sx * X, xm = sx * 0.1, y0 = Y + 0.15;
+        geo.setAttribute("position", new THREE.Float32BufferAttribute([x0, y0, Z0, xm, y0 + 1.1, zc, x0, y0, Z1, xm, y0 + 1.1, zc, x0, y0, Z0, x0, y0, Z1], 3));
+        geo.setIndex([0, 1, 2]); geo.computeVertexNormals();
+        P(new THREE.Mesh(geo, sail), 0, 0, 0);
+      }
+      P(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 8), M.teal), 0, Y + 0.6, zc); // Mittelmast
+      for (const z of [Z0, Z1]) P(new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.5, 0.06, 0.06), M.teal), 0, Y + 0.17, z, false);
+    } else { // flaches Dach: weißer Hitzeschild (Merkur) oder schweres Panzerdach (Venus)
+      const roof = style === "venus" ? venusMetal(M, 6, 1) : M.std({ color: srgb(0xf8fafc), roughness: 0.3, metalness: 0.3 });
+      P(new THREE.Mesh(new THREE.BoxGeometry(2 * X + 1.4, 0.3, D + 1.2), roof), 0, Y + 0.3, zc).rotation.x = 0.06;
+      P(new THREE.Mesh(new THREE.BoxGeometry(2 * X + 1.5, 0.22, 0.12), M.orange), 0, Y + 0.25, Z0 - 0.62, false);
+    }
+    for (const x of [-X, X]) { const l = blinkLamp(g, 0xfde68a, x, Y - 0.35, Z0 - 0.15); l.scale.setScalar(0.8); } // Lampen an den Stützen
+  }
   function makeStation(discoveries, name, style = "") {
     const g = new THREE.Group();
     const hull = new THREE.MeshStandardMaterial({ color: 0xe8eaee, roughness: 0.6, metalness: 0.1 });
@@ -1082,6 +1117,7 @@ window.Surface = (function () {
       for (const [w, h, x, y] of [[16, 0.25, 0, 3.75], [16, 0.25, 0, 0.1], [0.25, 3.9, -7.9, 1.9], [0.25, 3.9, 7.9, 1.9]]) add(new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.42), M.orange), x, y, 0);
     } else add(new THREE.Mesh(new THREE.BoxGeometry(15.6, 3.7, 0.3), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 })), 0, 1.85, 0).receiveShadow = true;
     for (const px of [-4.6, 4.6]) add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 8), dark), px, 4.2, 0);
+    if (CAMPS[style] && style !== "erde") wallCanopy(g, colonyMats(style), style); // Dach über der Wand – so gehört sie zur Station (Erde: Pergola, siehe buildEarthCamp)
     const sv = document.createElement("canvas"); sv.width = 1024; sv.height = 200;
     const sx = sv.getContext("2d");
     sx.fillStyle = "#7c3aed"; sx.fillRect(0, 0, 1024, 200);
@@ -1220,20 +1256,21 @@ window.Surface = (function () {
     scene.add(ground);
 
     // Steine
-    const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: P.rock, roughness: 1, flatShading: true }), P.rocks != null ? P.rocks : FAST ? 140 : 280);
-    const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V(), p = new V(), e = new THREE.Euler();
+    // Steine: natürlich geformt (verbeulte, unten flache Knollen in 4 Formen), halb im Boden, in jeder Größe – vom Kiesel bis zum Brocken
+    const N = P.rocks != null ? P.rocks : FAST ? 140 : 280, rockMat = new THREE.MeshStandardMaterial({ color: P.rock, roughness: 0.95, vertexColors: true });
+    const rockSets = [0, 1, 2, 3].map((k) => { const m = new THREE.InstancedMesh(naturalRockGeo(40 + k * 7, 2), rockMat, Math.max(1, Math.ceil(N / 4))); m.count = 0; return m; });
+    const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new V(), p = new V(), e = new THREE.Euler(), rc = new THREE.Color();
     let placed = 0, tries = 0;
     const keepFree = [[0, 0, 12], ...P.keepFree];
-    while (placed < rocks.count && tries++ < 5000) {
+    while (placed < N && tries++ < 5000) {
       const x = (hash2(tries, 1.3) - 0.5) * 300, z = (hash2(tries, 7.7) - 0.5) * 300;
       if (keepFree.some(([fx, fz, r]) => Math.hypot(x - fx, z - fz) < r)) continue;
-      const s = 0.15 + Math.pow(hash2(tries, 3.1), 3) * 1.3;
-      p.set(x, height(x, z) + s * 0.3, z); e.set(hash2(tries, 4) * 6, hash2(tries, 5) * 6, 0); q.setFromEuler(e);
-      sc.set(s, s * (0.5 + hash2(tries, 9) * 0.5), s); mtx.compose(p, q, sc);
-      rocks.setMatrixAt(placed++, mtx);
+      const s = 0.12 + Math.pow(hash2(tries, 3.1), 3) * 1.4, sy = s * (0.55 + hash2(tries, 9) * 0.4);
+      p.set(x, height(x, z) + sy * 0.12, z); e.set((hash2(tries, 4) - 0.5) * 0.3, hash2(tries, 5) * 6.3, (hash2(tries, 6) - 0.5) * 0.3); q.setFromEuler(e);
+      sc.set(s * (0.85 + hash2(tries, 8) * 0.4), sy, s); mtx.compose(p, q, sc);
+      const m = rockSets[placed % 4], v = 0.8 + hash2(tries, 11) * 0.35; m.setMatrixAt(m.count, mtx); m.setColorAt(m.count, rc.setRGB(v, v, v)); m.count++; placed++;
     }
-    rocks.count = placed; rocks.castShadow = true; rocks.receiveShadow = true;
-    scene.add(rocks);
+    for (const m of rockSets) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
 
     // Licht: Sonne plus Umgebungslicht (ohne Luft fast keins – dann sind Schatten tiefschwarz)
     const ambient = new THREE.AmbientLight(P.ambient[0], P.ambient[1]), hemi = new THREE.HemisphereLight(P.hemi[0], P.hemi[1], P.hemi[2]);
@@ -1671,7 +1708,7 @@ window.Surface = (function () {
       [...L.spiegel, 0.5], [...L.wegweiser, 0.3], [...L.antenne, 1.2], [L.antenne[0] + 2, L.antenne[1] - 1, 1.1], [...L.mondstein, 0.4],
       [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], [cargo.position.x, cargo.position.z, 3.6],
       [buggy.position.x, buggy.position.z, 1.8], ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2]), ...npcs.map((n) => n.col),
-      ...moonCampColliders(L.station)];
+      ...moonCampColliders(L.station), ...canopyColliders(L.station)];
 
     const craneArm = cargo.userData.crane;
     return { ...B, L, station, laserFrom, beam, pulse, earth, earthDir, cmpMoon, cmpRight, scale, lander, boulder, telescope, table, hammer, feather,
@@ -2415,7 +2452,7 @@ window.Surface = (function () {
     const want = tmp.set(ast.pos.x - Math.sin(view.yaw) * dist, ast.pos.y + view.height, ast.pos.z - Math.cos(view.yaw) * dist);
     want.y = Math.max(want.y, world.height(want.x, want.z) + 0.8);
     const rr = Math.hypot(want.x, want.z); // nicht in die Rakete hineinschauen (sie steht bei 0, 0)
-    if (rr < 2.6 && want.y < world.rocketY + 11) { const k = 2.6 / (rr || 0.01); want.x *= k; want.z *= k; }
+    if (rr < 3.4 && want.y < world.rocketY + 11) { const k = 3.4 / (rr || 0.01); want.x *= k; want.z *= k; } // Rumpf und Flossen
     c.position.lerp(want, 1 - Math.exp(-dt * 5));
     // nicht hinter Wände und in Gebäude: von Kopfhöhe zur Kamera schauen und vor dem ersten festen Teil bleiben
     camHead.set(ast.pos.x, ast.pos.y + 1.5, ast.pos.z);
@@ -4232,7 +4269,7 @@ window.Surface = (function () {
       [L.eis[0] + 2.7, L.eis[1] + 1.7, 1.3], [L.eis[0] + 1.5, L.eis[1] - 0.5, 0.6], [L.eis[0] + 4.3, L.eis[1] - 0.3, 0.2], [...MARS_MAST(L.abend), 0.3],
       ...[[-1.8, -2.4], [1.8, -2.4], [-1.8, 2.4], [1.8, 2.4]].map(([x, z]) => [...parkP(x, z), 0.2]),
       [...L.rost, 1], [...L.abend, 0.5], [...L.roverZiel, 0.7], [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25],
-      ...marsCampColliders(L.station), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
+      ...marsCampColliders(L.station), ...canopyColliders(L.station), patrolCol, ...npcs.map((n) => n.col), [...L.pad, 4.5]];
     for (const [x, z, n] of clusters) if (n >= 5) colliders.push([x, z, 1.2]); // die großen Felsgruppen kann man nicht durchlaufen
 
     return { ...B, L, station, scale, telescope, phobos, deimos, volcano, volcanoLabel, everest, zugspitze, heli, heliY: heli.position.y, rover, samples, drill,
@@ -4562,7 +4599,7 @@ window.Surface = (function () {
     const scale = B.on(makeScale(), ...L.waage);
     scale.rotation.y = Math.atan2(WEIGH_DIR.x, WEIGH_DIR.z);
     const station = B.on(makeStation(cfg.discoveries, name, style), ...L.station);
-    const colliders = [...ROCKET_COLLIDERS, [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], ...(CAMP_COLLIDERS[style] || stationColliders)(L.station)];
+    const colliders = [...ROCKET_COLLIDERS, [scale.position.x - WEIGH_DIR.x * 0.95, scale.position.z - WEIGH_DIR.z * 0.95, 0.25], ...(CAMP_COLLIDERS[style] || stationColliders)(L.station), ...(style && style !== "erde" ? canopyColliders(L.station) : [])];
     return { scale, station, colliders };
   }
 
