@@ -297,7 +297,9 @@ window.Surface = (function () {
       const m = new THREE.InstancedMesh(o.geometry, o.material, list.length), local = o.matrixWorld;
       list.forEach(([x, y, z, k, ry], i) => {
         mx.compose(p.set(x, y, z), q.setFromAxisAngle(up, ry || 0), s.set(k, k, k)).multiply(local); m.setMatrixAt(i, mx);
-        if (vary) { const v = 0.8 + hash2(x * 0.37, z * 0.53) * 0.32, w = (hash2(z * 0.71, x * 0.19) - 0.5) * 0.16; m.setColorAt(i, c.setRGB(v * (1 + w), v, v * (1 - w * 1.5))); } // jeder Baum etwas anders grün
+        // immer eine Instanzfarbe setzen (sonst teilen sich Instanzen mit und ohne Farbe dasselbe Shader-Programm → schwarz); bei vary jeder Baum etwas anders grün
+        if (vary) { const v = 0.8 + hash2(x * 0.37, z * 0.53) * 0.32, w = (hash2(z * 0.71, x * 0.19) - 0.5) * 0.16; m.setColorAt(i, c.setRGB(v * (1 + w), v, v * (1 - w * 1.5))); }
+        else m.setColorAt(i, c.setRGB(1, 1, 1));
       });
       m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false; scene.add(m);
     });
@@ -6287,6 +6289,31 @@ window.Surface = (function () {
     return cols;
   }
   const on2 = (B, obj, x, z, lift = 0) => B.on(obj, x, z, lift);
+  // Häuser in verschiedenen Farben: Die Modelle des City Kits holen alle Farben aus einer Farbtafel (64-px-Felder).
+  // Für jede Farbvariante wird die Tafel kopiert und darin die Wandfarbe (weißes Feld) und die Dachfarbe (grüne Felder) ersetzt.
+  const HOUSE_SCHEMES = [[0xf5dc9a, 0xc0492f], [0xf2c14e, 0x5d6b7c], [0xa9cfe8, 0xc8673e], [0xf2b49a, 0x8a5233], [0xf7f5ef, 0x52606f], [0xbfdca5, 0xb3402c], [0xf6c6d6, 0x6b7c8f], [0xe9c99a, 0x9a3a28]]; // [Wand, Dach]
+  const houseMats = {};
+  function houseMaterial(src, k) {
+    const key = src.uuid + '|' + k; if (houseMats[key]) return houseMats[key];
+    const img = src.map && src.map.image; if (!img) return src;
+    const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+    const c = cv.getContext('2d'); c.drawImage(img, 0, 0);
+    const u = img.width / 512, [wall, roof] = HOUSE_SCHEMES[k % HOUSE_SCHEMES.length];
+    const tint = (x0, y0, w, h, col, gain) => { // Feld neu einfärben, Helligkeitsverlauf bleibt erhalten
+      const d = c.getImageData(x0 * u, y0 * u, w * u, h * u), cr = (col >> 16) & 255, cg = (col >> 8) & 255, cb = col & 255;
+      for (let i = 0; i < d.data.length; i += 4) { const l = Math.min(1.15, (0.3 * d.data[i] + 0.59 * d.data[i + 1] + 0.11 * d.data[i + 2]) / 255 * gain); d.data[i] = Math.min(255, cr * l); d.data[i + 1] = Math.min(255, cg * l); d.data[i + 2] = Math.min(255, cb * l); }
+      c.putImageData(d, x0 * u, y0 * u);
+    };
+    tint(192, 256, 64, 128, wall, 1);         // Hauswand (weiß)
+    tint(0, 128, 64, 128, roof, 1.45);        // Dach (grün)
+    const m = src.clone(), t = src.map.clone(); t.image = cv; t.needsUpdate = true; m.map = t;
+    return (houseMats[key] = m);
+  }
+  function houseVariant(name, k) {
+    const key = name + '|' + (k % HOUSE_SCHEMES.length); if (KIT[key] || !KIT[name]) return KIT[key] ? key : name;
+    const g = KIT[name].clone(); g.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map((m) => houseMaterial(m, k)) : houseMaterial(o.material, k); });
+    KIT[key] = g; return key;
+  }
   // Dorfstraße: Fahrbahn mit Mittelstreifen auf einem Gehweg aus Pflaster, Straßenlaternen, links und rechts Häuser mit Vorgarten
   // (Häuser, Zäune, Laternen aus den City Kits von Kenney, CC0). Gibt die Hindernis-Kreise zurück.
   function earthTown(B, road, lite) {
@@ -6309,6 +6336,16 @@ window.Surface = (function () {
     const walk = makePath(B, road, 10); walk.material = new THREE.MeshStandardMaterial({ map: paving, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -3 });
     const street = makePath(B, road, 6.4); street.material = new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -6 });
     street.position.y = 0.02; walk.receiveShadow = street.receiveShadow = true;
+    { // Wendeplatz am Anfang der Straße (beim Besucherzentrum) – die Straße hört nicht einfach im Gras auf
+      const [x0, z0] = road[0], y = H(x0, z0);
+      const ring = new THREE.Mesh(new THREE.CircleGeometry(7.2, 40), new THREE.MeshStandardMaterial({ map: paving, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -3 }));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(x0, y + 0.06, z0); ring.receiveShadow = true; B.scene.add(ring);
+      const tar = new THREE.Mesh(new THREE.CircleGeometry(6, 40), new THREE.MeshStandardMaterial({ color: 0x575c63, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -6 }));
+      tar.rotation.x = -Math.PI / 2; tar.position.set(x0, y + 0.08, z0); B.scene.add(tar);
+      const isle = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.1, 0.25, 32), new THREE.MeshStandardMaterial({ color: 0x5aa83a, roughness: 1 }));
+      isle.position.set(x0, y + 0.12, z0); B.scene.add(isle); cols.push([x0, z0, 2.2]);
+      if (KIT.n_tree_oak) kitInstanced(B.scene, "n_tree_oak", [[x0, y + 0.2, z0, 3.4, 0.5]], true, true);
+    }
     if (!KIT["t_building-type-a"]) return cols;
     // Punkte entlang der Straße (alle 1 m) mit Richtung
     const P = [];
@@ -6324,14 +6361,14 @@ window.Surface = (function () {
       if (Math.hypot(x + nx * 13, z + nz * 13) > 140) continue;
       const hx = x + nx * 13, hz = z + nz * 13, face = Math.atan2(-nx, -nz); // Haustür (+Z) zur Straße
       const name = houses[hi++ % houses.length];
-      add(name, hx, hz, 7.5, face, -0.1);
+      add(houseVariant(name, hi * 5 + i), hx, hz, 7.5, face, -0.1); // jedes Haus in anderen Farben
       cols.push([hx, hz, 5]);
       // Vorgarten: niedriger Zaun an der Straße, Weg zur Tür, Blumenkasten, ein Baum
       const fx = x + nx * 6.2, fz = z + nz * 6.2;
       if (KIT.n_fence_simple) for (const k of [-4.4, -2.2, 2.2, 4.4]) add("n_fence_simple", fx + dx * k, fz + dz * k, 2.2, face); // Holzzaun, in der Mitte offen für den Weg
       add("t_path-stones-short", x + nx * 7.6, z + nz * 7.6, 7, face);
       add("t_planter", hx + dx * 5.5 - nx * 2, hz + dz * 5.5 - nz * 2, 6, face);
-      add(hi % 2 ? "t_tree-large" : "t_tree-small", hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, 8, face);
+      add(KIT.n_tree_oak ? (hi % 2 ? "n_tree_oak" : "n_tree_detailed") : "t_tree-large", hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, KIT.n_tree_oak ? 3.6 : 8, face);
       cols.push([hx - dx * 6.5 + nx * 2, hz - dz * 6.5 + nz * 2, 0.4]);
     }
     for (let i = 6; i < P.length - 4; i += 17) { // Straßenlaternen abwechselnd links und rechts, Arm über die Straße
@@ -6371,6 +6408,23 @@ window.Surface = (function () {
   function buildEarthCamp(g, add) {
     const M = colonyMats("erde");
     earthVisitorCenter(g, M, 0, 12, 26, 9, 5.2);
+    { // Die „Wusstest du?“-Wand steht unter einer Holz-Pergola, die vom Besucherzentrum nach vorn reicht – so gehört sie sichtbar zum Haus
+      const beam = wood(M, 3, 0.3), post = wood(M, 0.3, 2), Z0 = -1.3, Z1 = 7.5, Y = 7.3, X = 8.7;
+      for (const x of [-X, X]) { put(g, new THREE.Mesh(new THREE.BoxGeometry(0.34, Y, 0.34), post), x, Y / 2, Z0); put(g, new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.5), M.std({ color: srgb(0x8d8a83), roughness: 0.9 })), x, 0.12, Z0); }
+      put(g, new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.8, 0.4, 0.34), beam), 0, Y, Z0);           // Querbalken vorn
+      put(g, new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.8, 0.4, 0.34), beam), 0, Y, Z1 - 0.2);     // am Haus
+      for (let i = 0; i <= 10; i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.3, Z1 - Z0 + 0.9), beam), -X + i * (2 * X / 10), Y + 0.33, (Z0 + Z1) / 2 - 0.2); // Sparren
+      for (let i = 0; i < 9; i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.4, 0.08, 0.12), beam), 0, Y + 0.53, Z0 + 0.3 + i * ((Z1 - Z0 - 0.6) / 8)); // Latten
+      // Kletterpflanzen an den Pfosten und Kübel mit Blumen daneben
+      const leaf = M.std({ color: srgb(0x3f8f35), roughness: 0.9 });
+      for (const x of [-X, X]) for (let k = 0; k < 7; k++) put(g, new THREE.Mesh(new THREE.IcosahedronGeometry(0.32 + hash2(k, x) * 0.12, 0), leaf), x + Math.sin(k * 2.1) * 0.25, 0.8 + k * 0.95, Z0 + Math.cos(k * 2.1) * 0.25, false);
+      // Steinsockel unter dem Besucherzentrum (es steht am Hang – so schwebt keine Kante über dem Boden)
+      put(g, new THREE.Mesh(new THREE.BoxGeometry(26.6, 2.6, 9.6), M.std({ color: srgb(0x9a958c), roughness: 0.95 })), 0, -1.1, 12).receiveShadow = true;
+      // Rückseite und Seiten mit Fenstern (vom Dorf aus sichtbar)
+      const glass = M.std({ color: srgb(0x9fc9e8), roughness: 0.05, metalness: 0.6, envMapIntensity: 1.4 });
+      for (let i = 0; i < 6; i++) { const x = -10.8 + i * 4.3; put(g, new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.6), glass), x, 3, 16.53, false); put(g, new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.15, 0.2), M.hull(1, 1)), x, 2.1, 16.6); }
+      for (const s of [-1, 1]) for (const z of [9.5, 14.5]) put(g, new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.6), glass), s * 13.03, 3, z, false).rotation.y = s * Math.PI / 2;
+    }
     for (const [x, c] of [[-15, 0x2563eb], [-17, 0x16a34a], [-19, 0xf59e0b]]) { const f = earthFlag(M, c); f.position.set(x, 0, 4); g.add(f); (g.userData.flags = g.userData.flags || []).push(f.userData.cloth); }
     for (const [x, z] of [[-9.5, 3], [9.5, 3]]) colonyLamp(g, M, x, z);
     for (const [x, z, r] of [[-12, 2, 0.3], [12, 1.5, -0.3]]) { const b = earthBench(M); b.position.set(x, 0, z); b.rotation.y = Math.PI + r; g.add(b); }
@@ -6379,7 +6433,8 @@ window.Surface = (function () {
     for (let i = 0; i < 40; i++) put(g, new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), petal[i % 5]), (i < 20 ? -12 : 7) + (i % 20) * 0.28, 0.2, 6.6 + (i % 3) * 0.25, false);
   }
   function earthCampColliders([sx, sz]) {
-    const c = [[sx - 15, sz + 4, 0.2], [sx - 17, sz + 4, 0.2], [sx - 19, sz + 4, 0.2], [sx - 9.5, sz + 3, 0.3], [sx + 9.5, sz + 3, 0.3], [sx - 12, sz + 2, 0.9], [sx + 12, sz + 1.5, 0.9]];
+    const c = [[sx - 15, sz + 4, 0.2], [sx - 17, sz + 4, 0.2], [sx - 19, sz + 4, 0.2], [sx - 9.5, sz + 3, 0.3], [sx + 9.5, sz + 3, 0.3], [sx - 12, sz + 2, 0.9], [sx + 12, sz + 1.5, 0.9],
+      [sx - 8.7, sz - 1.3, 0.35], [sx + 8.7, sz - 1.3, 0.35]]; // Pfosten der Pergola
     for (let x = -12; x <= 12.1; x += 3) c.push([sx + x, sz + 10, 2.4], [sx + x, sz + 14, 2.4]);
     for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
     return c;
