@@ -44,7 +44,18 @@ const VOICES = {
   bennettEL: { el: "FTNCalFNG5bRnkkaP5Ug", ms: "bennettJan" },  // Otto – Techniker Bennett (Mars)
   kofiEL: { el: "qvgnHZ5ufqbaFzs9RP51", ms: "kofi" },           // Christian (warm) – Forscher Kofi (Merkur)
   saraEL: { el: "WHaUUVTDq47Yqc9aDbkH", ms: "saraIngrid" },     // Enniah – Pilotin Sara (Venus)
-  janaEL: { el: "uvysWDLbKpA4XvpD3GI6", ms: "jana" }            // Leonie – Astronautin Jana (Erde)
+  janaEL: { el: "uvysWDLbKpA4XvpD3GI6", ms: "jana" },           // Leonie – Astronautin Jana (Erde)
+  // Gesprächs-Figuren (crew) – Bibliotheksstimmen müssen nicht im Konto sein (keine Stimmplätze nötig)
+  yukiEL: { el: "z0gdR3nhVl1Ig2kiEigL", ms: "amala" },          // Luisa – Geologin Yuki (Mond)
+  felixEL: { el: "IWm8DnJ4NGjFI7QAM5lM", ms: "killian" },       // Stephan – Arzt Felix (Mond)
+  leoEL: { el: "gGjaVIGkCSfKUIBYtNT2", ms: "killian" },         // Marc – Botaniker Leo (Mars)
+  amiraEL: { el: "zKHQdbB8oaQ7roNTiDTK", ms: "amala" },         // Laura – Pilotin Amira (Mars)
+  idaEL: { el: "K75lPKuh15SyVhQC1LrE", ms: "amala" },           // Carola – Ingenieurin Ida (Merkur)
+  matsEL: { el: "vl67BWhZHh0QyG35TvXt", ms: "killian" },        // Robby – Funker Mats (Merkur)
+  linaEL: { el: "lzvBSKYbNWDD0a6BaJSK", ms: "amala" },          // Petra – Robotikerin Lina (Venus)
+  eliasEL: { el: "r8MyP4qUsq5WFFSkPdfV", ms: "killian" },       // Johannes – Chemiker Elias (Venus)
+  hannaEL: { el: "rKiu7lQ4c5P3az3745s3", ms: "amala" },         // Carla Blum – Biologin Hanna (Erde)
+  paulEL: { el: "Fghah4fztZORbiKfIGAs", ms: "killian" }         // Thomas Schendel – Meteorologe Paul (Erde)
 };
 const EL_MODEL = "eleven_v4_turbo", EL_FORMAT = "mp3_44100_64";
 const EL_KEY = (() => { try { return fs.readFileSync(path.join(require("os").homedir(), ".elevenlabs-key"), "utf8").trim(); } catch (e) { return ""; } })();
@@ -97,6 +108,9 @@ for (const [id, S] of Object.entries(D.surfaces)) {
     for (const k of Object.keys(G.arrive)) add(f(G.arrive[k]), "nora", id);
     for (const k of G.order) add(f(typeof G.next === "object" ? G.next[k] : G.next, { ziel: S.stations[k].label }), "nora", id); // Überleitung zur nächsten Station
     for (const t of Object.values(G.react || {})) add(f(t), "nora", id);                                                      // Reaktion auf das gerade Entdeckte
+  }
+  for (const t of S.talks || []) for (const [who, text] of t) { // Gespräche der Crew (siehe updateTalks in surface.js)
+    const c = S.crew.find((x) => x.short === who); add(f(text), c.f ? "npcF" : "npcM", id, c.name);
   }
   for (const c of S.npcs || []) {
     const role = female(c.name) ? "npcF" : "npcM";
@@ -179,7 +193,7 @@ for (const e of lines.values()) e.tag = e.tags.size > 1 ? "common" : [...e.tags]
 // (getestet: [excited] [whispers] [sighs] [curious] [surprised] [happy] [sympathetic] werden befolgt, nicht vorgelesen)
 function emotion(said, voice) {
   if (VOICES[voice].calm) return said; // der Erzähler bleibt ruhig
-  const npc = /^(lea|tom|mara|bennett|kofi|sara|jana)EL$/.test(voice);
+  const npc = /^(lea|tom|mara|bennett|kofi|sara|jana|yuki|felix|leo|amira|ida|mats|lina|elias|hanna|paul)EL$/.test(voice);
   return (said.match(/[^.!?]+[.!?]*\s*/g) || [said]).map((s, i) => {
     const t = s.trim();
     let tag = null;
@@ -196,6 +210,7 @@ function emotion(said, voice) {
     else if (/^(Bist du bereit|Und jetzt wird's|Jetzt wird's|Und zum Schluss|Zum Schluss lassen|Jetzt darfst du|Jetzt geht's)\b/.test(t)) tag = "playfully";
     else if (/^(Ab zur Rakete|Einsteigen bitte|Komm, die Rakete|Willkommen zu Hause|Zu Hause war's)/.test(t)) tag = "warmly";
     else if (i === 0 && /^(Hallo|Hi)\b/.test(t) && (npc || /hier ist die Bodenstation/.test(said))) tag = npc ? "happy" : "warmly"; // Begrüßungen
+    else if (npc && /^(Igitt|Ach|Na gut|Kleiner Scherz|Das stimmt gar nicht|Oh, hallo|Echt\?)/.test(t)) tag = /^(Igitt)/.test(t) ? "sighs" : /^(Ach|Na gut)/.test(t) ? "sighs" : "playfully"; // Gesprächs-Gefühle
     return tag ? `[${tag}] ${s}` : s;
   }).join("").trim();
 }

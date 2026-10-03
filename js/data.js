@@ -290,7 +290,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "40",
+  version: "41",
 
   // Ergebnis der Funk-Fragen ({r} von {n} richtig)
   quizEnd: { all: "Alle {n} Fragen richtig – ich bin beeindruckt! Bodenstation Ende – guten Flug!", some: "{r} von {n} richtig – gut gemacht! Bodenstation Ende – guten Flug!", none: "Diesmal hat's nicht geklappt – macht nichts, entdeckt hast du trotzdem alles! Bodenstation Ende – guten Flug!" },
@@ -319,6 +319,27 @@ window.SPACE_DATA = {
       // Thermometer am Raumanzug: in der Sonne / im Schatten
       temp: { sun: 120, shade: -150, sunText: "☀️ Sonne – glühend heiß!", shadeText: "❄️ Schatten – eiskalt!" },
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
+      // Figuren, die sich miteinander unterhalten (das Kind hört zu) – freiwillig, zählen nicht zur Mission
+      crew: [
+        {name: "Geologin Yuki", short: "Yuki", f: true, color: "#a855f7", spot: [-15,29]},
+        {name: "Arzt Felix", short: "Felix", color: "#0ea5e9", spot: [-12.6,30.6]}
+      ],
+      talks: [
+        [
+          ["Yuki", "Felix, schau mal! Dieser Stein ist über vier Milliarden Jahre alt."],
+          ["Felix", "Älter als jeder Dinosaurier? Unglaublich!"],
+          ["Yuki", "Viel älter! Auf dem Mond gibt es weder Wind noch Regen – darum bleibt hier alles so, wie es ist."],
+          ["Felix", "Oh, hallo {name}! Yuki sammelt schon den ganzen Tag Steine."],
+          ["Yuki", "Und jeder erzählt uns etwas darüber, wie der Mond entstanden ist!"]
+        ],
+        [
+          ["Felix", "Yuki, hast du heute schon trainiert?"],
+          ["Yuki", "Ach, muss das sein? Hier ist doch alles so leicht."],
+          ["Felix", "Genau deshalb! Wer wenig tragen muss, bekommt schwache Muskeln und Knochen."],
+          ["Yuki", "Na gut, zwei Stunden aufs Laufband. Willst du mitmachen, {name}?"],
+          ["Felix", "Kleiner Scherz – du hast ja noch eine Mission!"]
+        ]
+      ],
       guide: {
         order: ["fallversuch", "apollo", "mondstein"],
         hello: "Alles bestens, Bodenstation! Da sind wir, {name}! Warte, ich klettere auch runter.",
@@ -434,6 +455,27 @@ window.SPACE_DATA = {
           facts: ["Unseren Strom machen Solarzellen. Nach einem Staubsturm muss ich sie putzen!"] }
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
+      // Figuren, die sich miteinander unterhalten (das Kind hört zu) – freiwillig, zählen nicht zur Mission
+      crew: [
+        {name: "Botaniker Leo", short: "Leo", color: "#16a34a", spot: [-7,43.5]},
+        {name: "Pilotin Amira", short: "Amira", f: true, color: "#e11d48", spot: [-4.6,42.2]}
+      ],
+      talks: [
+        [
+          ["Leo", "Amira, die ersten Radieschen sind reif!"],
+          ["Amira", "Echt? Auf dem Mars? Wie hast du das geschafft?"],
+          ["Leo", "Mit besonderen Pflanzenlampen, Wasser aus dem Eis und Kohlendioxid aus der Marsluft – das lieben Pflanzen!"],
+          ["Amira", "Hallo {name}! Leo redet den ganzen Tag mit seinen Pflanzen."],
+          ["Leo", "Das stimmt gar nicht! Na gut … ein bisschen."]
+        ],
+        [
+          ["Amira", "Leo, morgen fliege ich den Hubschrauber zum großen Krater."],
+          ["Leo", "Bei so dünner Luft? Wie soll das gehen?"],
+          ["Amira", "Mit riesigen Rotorblättern, die sich ganz schnell drehen. Der echte Mars-Hubschrauber Ingenuity hat es vorgemacht!"],
+          ["Leo", "Bringst du mir von dort ein paar Steine mit?"],
+          ["Amira", "Klar! Und du mir ein Radieschen."]
+        ]
+      ],
       guide: {
         order: ["abend", "rover", "curling"],
         hello: "Alles in Ordnung, Bodenstation! Da sind wir, {name}! Warte, ich komme auch runter.",
@@ -552,6 +594,27 @@ window.SPACE_DATA = {
       gravity: 3.7, jump: 0.3,
       temp: { sun: 430, shade: -180, sunText: "☀️ Sonne – heißer als ein Backofen!", shadeText: "❄️ Schatten – eiskalt!" },
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
+      // Figuren, die sich miteinander unterhalten (das Kind hört zu) – freiwillig, zählen nicht zur Mission
+      crew: [
+        {name: "Ingenieurin Ida", short: "Ida", f: true, color: "#f59e0b", spot: [9.5,49.5]},
+        {name: "Funker Mats", short: "Mats", color: "#6366f1", spot: [11.6,47.8]}
+      ],
+      talks: [
+        [
+          ["Ida", "Mats, unser Sonnenschild hält 430 Grad aus!"],
+          ["Mats", "Puh, gut so. Ohne ihn würden wir hier gebraten."],
+          ["Ida", "Dafür ist es im Schatten so kalt, dass dort sogar Eis liegt."],
+          ["Mats", "Hallo {name}! Heiß und eiskalt gleichzeitig – verrückt, oder?"],
+          ["Ida", "Darum steht unsere Station unten im Krater, schön im Schatten."]
+        ],
+        [
+          ["Mats", "Ida, weißt du, wie lange hier ein Tag dauert?"],
+          ["Ida", "Vom Sonnenaufgang bis zum nächsten? Bestimmt ganz schön lange."],
+          ["Mats", "176 Erdentage! Die Sonne kriecht hier ganz langsam über den Himmel."],
+          ["Ida", "Da hat man ja ewig Zeit bis zum Feierabend!"],
+          ["Mats", "Ich funke der Erde trotzdem jeden Tag, dass bei uns alles in Ordnung ist."]
+        ]
+      ],
       guide: {
         order: ["temperatur", "sonne", "krater"],
         hello: "Alles heil, Bodenstation – aber heiß! Da sind wir, {name}! Schnell aus der Sonne, ich komme!",
@@ -634,8 +697,8 @@ window.SPACE_DATA = {
         guess: { "q": "Der Merkur hat keine Luft. Was passiert mit dem Brocken?", "a": ["Er verglüht wie eine Sternschnuppe", "Er schlägt ein und macht einen Krater"], "c": 1 },
         ready: "Auf der Erde verglühen solche Brocken meist in der Luft – als Sternschnuppen.",
         go: "☄️ Brocken fallen lassen",
-        running: "Achtung, er kommt …",
-        end: "Eingeschlagen – ohne zu verglühen! So sind die Krater auf dem Merkur entstanden.",
+        running: "Da kommt er – schau nach oben! Wir zeigen es dir in Zeitlupe.",
+        end: "Eingeschlagen – ohne zu verglühen! Und schau: ein echter Krater mit Wall. So sind die Krater auf dem Merkur entstanden.",
         again: "☄️ Nochmal", done: "Fertig ✓"
       },
       radio: {
@@ -665,6 +728,27 @@ window.SPACE_DATA = {
           facts: ["Wir wohnen im Luftschiff, 50 Kilometer hoch in den Wolken. Dort ist es angenehm warm."] }
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
+      // Figuren, die sich miteinander unterhalten (das Kind hört zu) – freiwillig, zählen nicht zur Mission
+      crew: [
+        {name: "Robotikerin Lina", short: "Lina", f: true, color: "#14b8a6", spot: [21,17.2]},
+        {name: "Chemiker Elias", short: "Elias", color: "#ca8a04", spot: [23.2,18.6]}
+      ],
+      talks: [
+        [
+          ["Lina", "Elias, schau, mein Wind-Rover dreht schon wieder seine Runde!"],
+          ["Elias", "Ganz ohne Computer? Wie findet der denn seinen Weg?"],
+          ["Lina", "Mit Zahnrädern und Hebeln, wie eine alte Uhr. Elektronik würde bei dieser Hitze sofort kaputtgehen."],
+          ["Elias", "Hallo {name}! Lina baut die einzigen Roboter, die hier unten durchhalten."],
+          ["Lina", "Und sein Windrad gibt ihm Kraft. Der Wind ist hier langsam, aber so stark wie Wasser."]
+        ],
+        [
+          ["Elias", "Lina, ich habe die Wolken untersucht. Die sind aus Schwefelsäure!"],
+          ["Lina", "Igitt! Da möchte ich nicht im Regen stehen."],
+          ["Elias", "Keine Sorge, der Regen verdampft, bevor er unten ankommt – dafür ist es viel zu heiß."],
+          ["Lina", "Weißt du, was auch verrückt ist, {name}? Die Venus dreht sich rückwärts!"],
+          ["Elias", "Darum geht hier die Sonne im Westen auf – wenn man sie durch die Wolken sehen könnte."]
+        ]
+      ],
       guide: {
         order: ["venera", "hitze", "druck"],
         hello: "Wir hören dich, Bodenstation – die Sicht ist schlecht! Da sind wir, {name}! Bleib stehen, ich komme!",
@@ -773,6 +857,27 @@ window.SPACE_DATA = {
           facts: ["Das Training für einen Flug ins All dauert mehrere Jahre!"] }
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
+      // Figuren, die sich miteinander unterhalten (das Kind hört zu) – freiwillig, zählen nicht zur Mission
+      crew: [
+        {name: "Biologin Hanna", short: "Hanna", f: true, color: "#22c55e", spot: [-12,26]},
+        {name: "Meteorologe Paul", short: "Paul", color: "#3b82f6", spot: [-9.8,27.4]}
+      ],
+      talks: [
+        [
+          ["Hanna", "Paul, im See habe ich heute drei Libellenlarven gefunden!"],
+          ["Paul", "Kein Wunder – gestern hat es ordentlich geregnet."],
+          ["Hanna", "Weißt du was, {name}? Das Wasser im See war vielleicht schon einmal in einer Wolke."],
+          ["Paul", "Genau! Es verdunstet, regnet herunter und fließt zurück – immer im Kreis."],
+          ["Hanna", "Vielleicht hat sogar ein Dinosaurier schon davon getrunken!"]
+        ],
+        [
+          ["Paul", "Hanna, heute Nacht gab es Sternschnuppen!"],
+          ["Hanna", "Das sind doch kleine Brocken aus dem All, oder?"],
+          ["Paul", "Richtig. Unsere Luft bremst sie so stark, dass sie verglühen. Auf dem Merkur schlagen sie einfach ein."],
+          ["Hanna", "Dann ist die Luft wie ein Schutzschild für alles, was hier lebt."],
+          ["Paul", "Darum passen wir gut auf unsere Erde auf, {name}!"]
+        ]
+      ],
       guide: {
         order: ["wald", "tag", "luft"],
         hello: "Gut gelandet, Bodenstation – wie schön, wieder hier zu sein! Da sind wir, {name}! Warte, ich komme.",

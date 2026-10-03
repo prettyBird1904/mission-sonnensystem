@@ -54,7 +54,10 @@ window.Voice = (function () {
   // ---------- Aufnahmen: wer spricht mit welcher Stimme (siehe tools/stimmen.js) ----------
   // Neuer Schlüssel = neue Dateinamen (Tablets speichern Aufnahmen nach Namen) – darum bei jedem Stimmenwechsel ändern
   const NPC_VOICE = { "Kommandantin Lea": "leaEL", "Ingenieur Tom": "tomEL", "Forscherin Mara": "maraEL", "Techniker Bennett": "bennettEL",
-    "Forscher Kofi": "kofiEL", "Pilotin Sara": "saraEL", "Astronautin Jana": "janaEL" };
+    "Forscher Kofi": "kofiEL", "Pilotin Sara": "saraEL", "Astronautin Jana": "janaEL",
+    // Gesprächs-Figuren (crew)
+    "Geologin Yuki": "yukiEL", "Arzt Felix": "felixEL", "Botaniker Leo": "leoEL", "Pilotin Amira": "amiraEL", "Ingenieurin Ida": "idaEL",
+    "Funker Mats": "matsEL", "Robotikerin Lina": "linaEL", "Chemiker Elias": "eliasEL", "Biologin Hanna": "hannaEL", "Meteorologe Paul": "paulEL" };
   function voiceOf(role, who) {
     if (role === "radio") return "radioEL";
     if (role === "narrator") return "erzaehlerEL";
@@ -259,6 +262,7 @@ window.Voice = (function () {
 
   return {
     say, stop, speaking, busy, stopModal, prefetch, unlock, toggle, list, setVoice, speakable,
+    currentId: () => (cur ? cur.id : 0), // wessen Satz gerade läuft (Gespräche: Sprechblase umschalten)
     setName(n) { childName = n || ""; },
     get enabled() { return enabled; }, get supported() { return OK; }, get recorded() { return HAS_CLIPS; },
     get voiceName() { return devNora ? devNora.name : ""; },

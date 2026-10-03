@@ -4,6 +4,8 @@
    ========================================================= */
 window.Surface = (function () {
   const D = window.SPACE_DATA;
+  // Gesprächs-Figuren (crew) laufen als Bewohner mit: sie stehen an ihrem Platz und reden miteinander (siehe updateTalks)
+  for (const S of Object.values(D.surfaces)) if (S.crew && !S.crewIn) { S.npcs = [...(S.npcs || []), ...S.crew.map((c) => ({ ...c, crew: true, path: [c.spot] }))]; S.crewIn = true; }
   const V = THREE.Vector3;
   const $ = (id) => document.getElementById(id);
   const S = { active: false, scene: null, camera: null };
@@ -561,6 +563,9 @@ window.Surface = (function () {
     putzen(rig, t) { const w = Math.sin(t * 4.2); setArm(rig, "armR", -(1.4 + 0.3 * w), 0.7); setBone(rig, "foreR", 0, 0, -0.35); setArm(rig, "armL", 0.08, 1.3); setBone(rig, "spine", -0.35, 0.1 * w, 0); },
     tablet(rig, t) { setArm(rig, "armL", 1.4, 0.65); setArm(rig, "armR", -1.4, 0.65); setBone(rig, "foreL", 0, 0, 1.2); setBone(rig, "foreR", 0, 0, -(1.2 + 0.1 * Math.max(0, Math.sin(t * 5)))); setBone(rig, "spine", -0.08, 0, 0); },
     werkeln(rig, t) { const w = Math.sin(t * 6); setArm(rig, "armR", -1.4, 0.6 + 0.3 * w); setBone(rig, "foreR", 0, 0, -0.7); setArm(rig, "armL", 1.4, 0.8); setBone(rig, "foreL", 0, 0, 0.5); setBone(rig, "spine", -0.4, 0, 0); },
+    reden(rig, t) { // im Gespräch: eine Hand gestikuliert locker, die andere hängt entspannt
+      setArm(rig, "armR", -0.75, 1.0 + 0.12 * Math.sin(t * 2.3)); setBone(rig, "foreR", 0, 0, -0.55 - 0.18 * Math.sin(t * 3.1 + 1)); setArm(rig, "armL", 0.12, 1.28); setBone(rig, "spine", -0.04, 0.05 * Math.sin(t * 1.7), 0);
+    },
     sport(rig, t) { // Kniebeugen, die Arme gehen dabei nach vorn hoch
       const k = 0.5 - 0.5 * Math.cos(t * 3.4);
       setBone(rig, "legL", 1.15 * k, 0, 0); setBone(rig, "legR", 1.15 * k, 0, 0); setBone(rig, "kneeL", -1.9 * k, 0, 0); setBone(rig, "kneeR", -1.9 * k, 0, 0);
@@ -1485,7 +1490,7 @@ window.Surface = (function () {
     for (let i = 0; i < 120; i++) { const s = new THREE.Sprite(dustMat.clone()); s.visible = false; s.userData = { life: 0, v: new V() }; scene.add(s); dust.push(s); }
 
     return { scene, camera, height, on, sun, sunBase: P.sun[1], sunGlow, ambient, hemi, stars, rocket, rocketY: rocket.position.y, hatch, hatchY: hatch.position.y,
-      fpGeo, fpMat, astronaut, myPrints, printIdx: 0, dust, dustIdx: 0 };
+      fpGeo, fpMat, astronaut, myPrints, printIdx: 0, dust, dustIdx: 0, ground, tint: P.tint, groundSize: SIZE };
   }
 
   // Markierungen (Lichtsäulen) für die Stationen eines Ortes; offsets verschiebt einzelne Säulen neben ihr Objekt
@@ -2177,7 +2182,7 @@ window.Surface = (function () {
     world.camera.position.set(sx - Math.sin(view.yaw) * 7, ast.pos.y + 3.2, sz - Math.cos(view.yaw) * 7);
     temp = { shown: cfg.temp.sun, inShadow: false, shadowTime: 0, sunSeen: true, check: 0 };
     quizDone = (G.state.surfaceQuiz && G.state.surfaceQuiz[id] != null) || false;
-    experiment = null; boarding = null; jumpPressed = actionPressed = false;
+    experiment = null; boarding = null; jumpPressed = actionPressed = false; talk = null; talkCd = 4; talkHeard = {};
     world.scene.add(world.astronaut); // holt den Astronauten aus dem zuletzt besuchten Ort hierher
     world.astronaut.visible = true; world.astronaut.scale.setScalar(1);
     world.hatch.userData.setDoor(1);
@@ -3363,7 +3368,43 @@ window.Surface = (function () {
     n.voice = Voice.say(fmtVars(text), /^(Forscherin|Kommandantin|Pilotin|Astronautin|Technikerin|Ingenieurin)\b/.test(c.name) ? "npcF" : "npcM", { who: c.name });
     Sound.click();
   }
+  // ---------- Gespräche der Crew: zwei Figuren unterhalten sich – das Kind hört zu (freiwillig, zählt nicht zur Mission) ----------
+  // Beginnt, wenn das Kind näher als 7,5 m kommt und gerade niemand spricht; die Sätze laufen ohne Lücke hintereinander (Warteschlange),
+  // so kann niemand dazwischenreden. Geht das Kind weit weg, hören sie nach dem laufenden Satz auf (dann beim nächsten Mal von vorn).
+  let talk = null, talkCd = 0, talkHeard = {}, talkNear = 0, talkEnd = 0;
+  function updateTalks(dt, busy) {
+    const T = cfg.talks; if (!T || !T.length || !world.npcs) return;
+    const crew = world.npcs.filter((n) => n.c.crew); if (crew.length < 2) return;
+    const mx = (crew[0].obj.position.x + crew[1].obj.position.x) / 2, mz = (crew[0].obj.position.z + crew[1].obj.position.z) / 2;
+    const dist = Math.hypot(ast.pos.x - mx, ast.pos.z - mz), by = (who) => crew.find((n) => n.c.short === who) || crew[0];
+    if (talk) {
+      talkEnd = performance.now();
+      const cur = Voice.currentId(), i = talk.ids.indexOf(cur);
+      if (i >= 0 && i !== talk.shown) { // nächster Satz: Sprechblase über dem, der redet
+        talk.shown = i; const [who, text] = talk.lines[i], n = by(who);
+        for (const m of crew) if (m !== n) m.talk = 0;
+        n.el.innerHTML = `<b>${n.c.name}:</b> ${fmtVars(text)}`; n.voice = cur; n.talk = 9; n.cool = 30;
+      }
+      if (dist > 12 && !talk.leaving) { talk.leaving = true; talk.ids.forEach((id) => { if (id !== cur) Voice.stop(id); }); }
+      if (!talk.ids.some((id) => Voice.speaking(id))) { // vorbei (oder abgebrochen)
+        if (talk.shown === talk.lines.length - 1) talkHeard[talk.idx] = true;
+        for (const m of crew) m.talk = 0;
+        talk = null; talkCd = 18;
+      }
+      return;
+    }
+    talkCd -= dt;
+    talkNear = dist < 7.5 && ast.speed < 1.2 ? talkNear + dt : 0; // nur, wenn das Kind stehen bleibt oder langsam geht – nicht beim Vorbeirennen
+    if (talkCd > 0 || talkNear < 1 || busy) return;
+    const idx = T.findIndex((_, k) => !talkHeard[k]); if (idx < 0) return;
+    if (Voice.busy() || (guide && (guide.pending || (guide.on && !guide.met))) || UI.modalOpen() || view.special || experiment || boarding || performance.now() - quizScene < 20000) return;
+    const lines = T[idx];
+    const ids = lines.map(([who, text], k) => { const n = by(who); return Voice.say(fmtVars(text), n.c.f ? "npcF" : "npcM", { who: n.c.name, queue: k > 0 }); });
+    if (!ids[0]) return; // Vorlesen aus
+    talk = { idx, ids, lines, shown: -1 };
+  }
   function updateNpcs(dt, elapsed, busy) {
+    updateTalks(dt, busy);
     const c = world.camera, w = innerWidth, h = innerHeight;
     for (const n of world.npcs) {
       const p = n.obj.position, dx = ast.pos.x - p.x, dz = ast.pos.z - p.z, dist = Math.hypot(dx, dz);
@@ -3375,7 +3416,12 @@ window.Surface = (function () {
       n.cool -= dt; n.waveT -= dt;
       if (n.guide || (n.isNora && boarding)) moving = !!n.moving;
       else if (n.isNora) { if (dist < 6) n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5)); }
-      else if (dist < 5.5 && !busy && performance.now() - quizScene > 20000 && !Voice.busy() && !(guide && guide.pending)) { // stehen bleiben, zum Kind drehen und etwas sagen (wenn gerade niemand spricht)
+      else if (n.c.crew) { // Gesprächs-Figur: dreht sich zum Partner; spricht gerade niemand und das Kind steht ganz nah, schaut sie kurz zum Kind
+        const o = world.npcs.find((m) => m.c.crew && m !== n), op = o ? o.obj.position : ast.pos;
+        const toKid = !talk && dist < 3.2, tx = toKid ? ast.pos.x : op.x, tz = toKid ? ast.pos.z : op.z;
+        n.heading = angleLerp(n.heading, Math.atan2(tx - p.x, tz - p.z), 1 - Math.exp(-dt * 4));
+      }
+      else if (!n.c.crew && dist < 5.5 && !busy && performance.now() - quizScene > 20000 && !Voice.busy() && !(guide && guide.pending)) { // stehen bleiben, zum Kind drehen und etwas sagen (wenn gerade niemand spricht)
         n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5));
         if (n.cool <= 0 && !UI.modalOpen()) npcSay(n);
       } else if (n.wait > 0) n.wait -= dt;
@@ -3402,7 +3448,8 @@ window.Surface = (function () {
       const fast = moving && (n.speedNow || 0) > 1.6; // Nora, wenn sie vorausläuft
       n.phase += dt * (fast ? 1.4 + n.speedNow * 2.3 : moving ? 5.3 : climbing ? 6 : 1.5); // Bewohner gehen gemütlich (1,1 m/s)
       poseRig(n.rig, { mode: climbing ? "climb" : fast ? "run" : moving ? "walk" : "stand", speed: fast ? Math.min(1, n.speedNow / 3.8) : moving ? 0.7 : 0, phase: n.phase, t: elapsed + n.c.path.length,
-        air: false, airP: 0, contact: 0, wave: n.waveT > 0, work: !acting && !moving && n.c.work && dist > 5.5, act: acting ? n.act : null });
+        air: false, airP: 0, contact: 0, wave: n.waveT > 0, act: n.c.crew ? (n.voice && Voice.currentId() === n.voice ? "reden" : null) : acting ? n.act : null, // wer gerade redet, gestikuliert
+        work: !n.c.crew && !acting && !moving && n.c.work && dist > 5.5 });
       n.col[0] = p.x; n.col[1] = p.z;
       // Sprechblase über dem Kopf – immer ganz im Bild (Noras Blase bleibt am Bildrand, auch wenn sie hinter der Kamera ist)
       if (n.talk > 0 && !view.special && n.obj.visible && !modal) {
@@ -3656,7 +3703,7 @@ window.Surface = (function () {
     if (!talking) guide.waitCd -= dt; // Pausen zählen erst, wenn sie ausgeredet hat
     if (guide.pending && guide.pending.length && !Voice.busy() && !view.special && !experiment && !UI.modalOpen()) { // wartende Sätze der Reihe nach, wenn niemand mehr spricht (zu alte entfallen)
       const pm = guide.pending.shift(); if (!guide.pending.length) guide.pending = null;
-      if (performance.now() - pm.at < 20000) guideShow(pm.msg);
+      if (performance.now() - Math.max(pm.at, talkEnd) < 20000) guideShow(pm.msg); // zu alte Sätze entfallen – die Zeit, in der die Crew redet, zählt nicht mit
     }
     if (boarding) return; // steigt gerade ein (updateBoardingNora)
     if (n.outR != null) { // erst aus der Luke heraus auf die Plattform …
@@ -5575,15 +5622,17 @@ window.Surface = (function () {
     scene.add(sunBig, sunSmall);
 
     // Einschlag-Versuch: Brocken aus dem All und der Krater, den er hinterlässt
-    const meteor = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({ color: 0x4a4540, roughness: 1, flatShading: true }));
-    meteor.visible = false; scene.add(meteor);
-    const cv = document.createElement("canvas"); cv.width = cv.height = 128;
-    const cx = cv.getContext("2d"), gr = cx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gr.addColorStop(0, "rgba(20,18,16,0.85)"); gr.addColorStop(0.55, "rgba(40,36,32,0.7)"); gr.addColorStop(0.75, "rgba(190,180,165,0.75)"); gr.addColorStop(1, "rgba(190,180,165,0)");
-    cx.fillStyle = gr; cx.fillRect(0, 0, 128, 128);
-    const decal = new THREE.Mesh(new THREE.CircleGeometry(3.4, 32), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
-    decal.rotation.x = -Math.PI / 2; decal.visible = false;
-    on(decal, ...L.kraterZiel, 0.05);
+    // Einschlag: ein echter Felsbrocken (kein Feuer – ohne Luft verglüht nichts), ein Krater, der sich in den Boden gräbt, Auswurf und Blitz
+    const meteor = new THREE.Mesh(naturalRockGeo(77, 3), new THREE.MeshStandardMaterial({ color: 0x6f675e, roughness: 1, vertexColors: true }));
+    meteor.scale.set(1.35, 1.1, 1.2); meteor.castShadow = true; meteor.visible = false; scene.add(meteor);
+    const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,250,235,0.95)", "rgba(255,240,210,0.25)"), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    glint.raycast = () => {}; meteor.add(glint); // sonnenbeschienener Brocken: aus der Ferne ein heller Punkt am schwarzen Himmel
+    const crater = makeImpactCrater(B, L.kraterZiel, 3.3, 7.2);
+    const ejecta = makeEjecta(scene, 30, new THREE.MeshStandardMaterial({ color: 0x8a8177, roughness: 1, vertexColors: true }));
+    const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,245,1)", "rgba(255,220,160,0.6)"), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }));
+    flash.raycast = () => {}; flash.visible = false; scene.add(flash);
+    const flashLight = new THREE.PointLight(0xfff0d0, 0, 30, 1.6); scene.add(flashLight);
+    const decal = crater; // (früher ein flacher Fleck)
     const [kx, kz] = L.krater, [tx2, tz2] = L.kraterZiel; // Messpult und Messfeld: Seismometer rund um die Einschlagstelle, rot-weiße Stangen
     on(makeConsole(), kx, kz).rotation.y = Math.atan2(kx - tx2, kz - tz2);
     const seismos = [];
@@ -5620,7 +5669,8 @@ window.Surface = (function () {
       ...seismos.map((s) => [s.position.x, s.position.z, 0.5]), ...wall, ...npcs.map((n) => n.col), ...run.pillars.map(([x, z]) => [x, z, 1.7]), ...run.cols,
       ...clusters.filter((c) => c[2] >= 5).map(([x, z]) => [x, z, 1.2])];
 
-    return { ...B, ...common, L, telescope, sunBig, sunSmall, sunAt, meteor, decal, orrery, rack, stations, colliders, npcs, blink: common.station.userData.blink,
+    return { ...B, ...common, L, telescope, sunBig, sunSmall, sunAt, meteor, decal, crater, ejecta, flash, flashLight, orrery, rack, stations, colliders, npcs, blink: common.station.userData.blink,
+      height: (x, z) => B.height(x, z) + crater.offset(x, z), // im Krater läuft man wirklich tiefer
       shadowCasters: [boulder, rocket, common.station, tower, shelter, ...pillars], run, finish };
   }
   function startSunScope() {
@@ -5635,28 +5685,154 @@ window.Surface = (function () {
     enterExhibit("krater", { update: updateMeteor, t: 0, run: false });
     askGuess(cfg.impact.guess, cfg.impact.ready, runMeteor);
   }
+  // Zeitlupe: der Brocken fliegt 4,5 s lang schräg heran (die Kamera schaut ihm entgegen), schlägt ein und gräbt einen Krater
+  const tmp3 = new V(), tmp4 = new V();
+  const METEOR_T = 4.5, METEOR_DIR = new V(-0.62, 0.62, 0.48).normalize(), METEOR_DIST = 95;
   function runMeteor() {
-    const sp = view.special; sp.t = 0; sp.run = true; sp.hit = false;
-    world.meteor.visible = true; world.decal.visible = false;
+    const sp = view.special; sp.t = 0; sp.run = true; sp.hit = false; sp.shake = 0;
+    world.crater.reset(); world.ejecta.reset();
+    world.meteor.visible = true;
     scopeSay(cfg.impact.running);
   }
   function updateMeteor(dt) {
-    const c = world.camera, sp = view.special, [kx, kz] = world.L.krater, [gx, gz] = world.L.kraterZiel, gy = world.height(gx, gz);
-    c.position.lerp(tmp.set(kx + 5, world.height(kx, kz) + 3.2, kz - 7), 1 - Math.exp(-dt * 3));
-    view.look.lerp(tmp2.set(gx, gy + 2.5, gz), 1 - Math.exp(-dt * 4));
+    const w = world, c = w.camera, sp = view.special, [kx, kz] = w.L.krater, [gx, gz] = w.L.kraterZiel, gy = w.height(gx, gz), by = B0(gx, gz);
+    if (sp.run) sp.t += dt;
+    const f = Math.min(1, sp.t / METEOR_T), after = sp.hit ? sp.t - METEOR_T : 0;
+    // Kamera: am Messpult, schaut dem Brocken entgegen – nach dem Einschlag näher an den Krater heran
+    const near = Math.min(1, after / 1.8), ease = near * near * (3 - 2 * near);
+    const camFar = tmp.set(kx + 5, w.height(kx, kz) + 3.2, kz - 7), dx = gx - camFar.x, dz = gz - camFar.z, dd = Math.hypot(dx, dz);
+    const camNear = tmp3.set(gx - (dx / dd) * 9.5, by + 4.6, gz - (dz / dd) * 9.5);
+    c.position.lerp(camFar.lerp(camNear, ease), 1 - Math.exp(-dt * 3));
+    if (sp.shake > 0) { sp.shake -= dt; const s = sp.shake * 0.35; c.position.x += (Math.random() - 0.5) * s; c.position.y += (Math.random() - 0.5) * s; }
+    const m = w.meteor;
+    if (sp.run && !sp.hit) {
+      m.position.set(gx, by, gz).addScaledVector(METEOR_DIR, METEOR_DIST * (1 - f)); // gleichmäßig schnell (in echt über 10 km pro Sekunde)
+      m.rotation.x += dt * 1.3; m.rotation.z += dt * 0.7;
+      const glint = m.children[0], dist = c.position.distanceTo(m.position); glint.scale.setScalar(Math.min(9, dist * 0.06)); glint.material.opacity = Math.min(1, dist / 40);
+      view.look.lerp(tmp2.copy(m.position).lerp(tmp4.set(gx, by + 1, gz), 0.72 + f * 0.25), 1 - Math.exp(-dt * 5)); // leicht nach oben – der Horizont bleibt im Bild
+    } else view.look.lerp(tmp2.set(gx, by - 0.6 * ease, gz), 1 - Math.exp(-dt * 4));
     c.lookAt(view.look);
-    if (!sp.run) return;
-    sp.t += dt;
-    const f = sp.t / 1.4;
-    if (f < 1) { world.meteor.position.set(gx - 45 * (1 - f), gy + 80 * (1 - f), gz + 30 * (1 - f)); world.meteor.rotation.x += dt * 6; }
-    else if (!sp.hit) {
-      sp.hit = true; world.meteor.visible = false; world.decal.visible = true;
-      Sound.land(); grains(tmp.set(gx, gy + 0.2, gz), 60, 3.2, 0, 0, 5);
+    if (sp.run && !sp.hit && f >= 1) { // Einschlag!
+      sp.hit = true; m.visible = false; sp.shake = 0.7;
+      w.crater.start(); w.ejecta.launch(gx, by, gz, 3.3, cfg.gravity);
+      Sound.land(); Sound.land();
+      grains(tmp.set(gx, by + 0.3, gz), 70, 4.2, 0, 0, 5);
     }
-    if (sp.t > 3.4) {
+    // Blitz, Krater wächst, Brocken fliegen
+    const fl = sp.hit ? Math.max(0, 1 - after / 0.45) : 0;
+    w.flash.visible = fl > 0; if (fl > 0) { w.flash.position.set(gx, by + 1.2, gz); w.flash.scale.setScalar(4 + (1 - fl) * 14); w.flash.material.opacity = fl; }
+    w.flashLight.position.set(gx, by + 2, gz); w.flashLight.intensity = fl * 9;
+    w.crater.update(dt); w.ejecta.update(dt, w.height);
+    if (sp.run && sp.hit && after > 3.2) {
       sp.run = false; Sound.correct();
       scopeSay(guessed(cfg.impact.end), [[cfg.impact.again, runMeteor], [cfg.impact.done, leaveExhibit, true]]);
     }
+  }
+  const B0 = (x, z) => world.height(x, z) - (world.crater ? world.crater.offset(x, z) : 0); // Höhe ohne Krater (Zielpunkt des Brockens)
+
+  // ---------- Einschlagkrater: feines Bodenstück (Schüssel, Wall, helle Auswurf-Strahlen), das Gelände darunter sinkt mit ----------
+  // R = Radius bis zum Wall, Rp = Radius des Bodenstücks (dort läuft die Auswurfdecke aus)
+  function makeImpactCrater(B, [cx, cz], R, Rp) {
+    const D = R * 0.42, H = R * 0.14, smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+    const wob = (a) => 1 + 0.07 * Math.sin(a * 3 + 1.3) + 0.04 * Math.sin(a * 7 + 0.4); // nicht ganz kreisrund
+    const prof = (r, a) => {
+      const rr = r / (R * wob(a));
+      if (rr < 1) return -D + (D + H) * rr * rr;                 // Schüssel bis hoch zum Wall
+      return H * Math.pow(1 / rr, 3) * (1 - smooth((r - (Rp - 1.6)) / 1.6)); // Auswurfdecke wird nach außen dünner
+    };
+    // Bodenstück als Polarnetz (innen dichter)
+    const RS = 34, AS = 72, Gs = B.groundSize, verts = [], uvs = [], idx = [], base = [];
+    verts.push(0, 0, 0); base.push([0, 0]);
+    for (let i = 1; i <= RS; i++) for (let j = 0; j < AS; j++) {
+      const r = Rp * Math.pow(i / RS, 1.25), a = (j / AS) * Math.PI * 2;
+      verts.push(Math.cos(a) * r, 0, Math.sin(a) * r); base.push([r, a]);
+    }
+    for (let j = 0; j < AS; j++) idx.push(0, 1 + ((j + 1) % AS), 1 + j);
+    for (let i = 1; i < RS; i++) for (let j = 0; j < AS; j++) {
+      const a = 1 + (i - 1) * AS + j, b = 1 + (i - 1) * AS + ((j + 1) % AS), c = a + AS, d = b + AS;
+      idx.push(a, b, c, b, d, c);
+    }
+    const geo = new THREE.BufferGeometry(), n = verts.length / 3, col = new Float32Array(n * 4); // Farbe + Deckkraft (außen weich ausgeblendet)
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3)); geo.setIndex(idx);
+    for (let k = 0; k < n; k++) { const x = cx + verts[k * 3], z = cz + verts[k * 3 + 2]; uvs.push((x + Gs / 2) / Gs, (Gs / 2 - z) / Gs); } // wie das Gelände
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    // Farbe: wie der Boden, Kraterboden dunkler, Wall hell, frischer Auswurf mit hellen Strahlen (wie junge Krater auf dem Merkur)
+    const rays = (a) => Math.max(0, Math.sin(a * 9 + 0.7) * Math.sin(a * 4 + 2.1)) ** 2 + 0.6 * Math.max(0, Math.sin(a * 17 + 1.9)) ** 6;
+    const gcol = B.ground.geometry.attributes.color, gpos0 = B.ground.geometry.attributes.position, side = Math.round(Math.sqrt(gpos0.count)), step = Gs / (side - 1);
+    const x0 = gpos0.getX(0), z0 = gpos0.getZ(0), dzRow = Math.sign(gpos0.getZ(side) - z0) || 1;
+    const groundTint = (x, z) => { // Geländefarbe bilinear (das Gelände ist ein Gitter mit side × side Punkten)
+      const fx = (x - x0) / step, fz = ((z - z0) * dzRow) / step, i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, out = [0, 0, 0];
+      for (const [di, dj, w] of [[0, 0, (1 - u) * (1 - v)], [1, 0, u * (1 - v)], [0, 1, (1 - u) * v], [1, 1, u * v]]) {
+        const k2 = (j + dj) * side + (i + di); for (let c = 0; c < 3; c++) out[c] += gcol.array[k2 * 3 + c] * w;
+      }
+      return out;
+    };
+    const tintAt = (k, fresh) => {
+      const [r, a] = base[k], x = cx + verts[k * 3], z = cz + verts[k * 3 + 2], t = groundTint(x, z), rr = r / (R * wob(a));
+      let m = 1;
+      if (fresh) {
+        if (rr < 0.8) m = 0.74 + 0.1 * rr; else if (rr < 1.15) m = 0.82 + 0.45 * smooth((rr - 0.8) / 0.25) - 0.1 * smooth((rr - 1) / 0.15);
+        else m = 1 + (0.22 + 0.75 * rays(a)) * Math.exp(-(rr - 1.1) * 0.8) * (1 - smooth((r - (Rp - 1.6)) / 1.6));
+      }
+      return [t[0] * m, t[1] * m, t[2] * m];
+    };
+    const paint = (fresh) => { for (let k = 0; k < n; k++) { col.set(tintAt(k, fresh), k * 4); col[k * 4 + 3] = 1 - smooth((base[k][0] - (Rp - 1.9)) / 1.9); } geo.attributes.color.needsUpdate = true; };
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 4));
+    const gm = B.ground.material, mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: gm.map, color: gm.color, vertexColors: true, transparent: true, roughness: 1, metalness: 0 }));
+    mesh.position.set(cx, 0, cz); mesh.receiveShadow = true; mesh.visible = false; mesh.raycast = () => {};
+    B.scene.add(mesh);
+    // Geländepunkte unter dem Bodenstück (für das Absenken)
+    const gp = B.ground.geometry.attributes.position, under = [];
+    for (let i = 0; i < gp.count; i++) { const x = gp.getX(i), z = gp.getZ(i), r = Math.hypot(x - cx, z - cz); if (r < Rp) under.push([i, gp.getY(i), r, Math.atan2(z - cz, x - cx)]); }
+    let k = 0, target = 0, growing = false;
+    const shape = (kk) => {
+      const p = geo.attributes.position;
+      for (let v = 0; v < n; v++) { const [r, a] = base[v]; p.setY(v, B.height(cx + verts[v * 3], cz + verts[v * 3 + 2]) + prof(r, a) * kk + 0.03); }
+      p.needsUpdate = true; geo.computeVertexNormals();
+    };
+    const sinkGround = (kk) => { // Gelände liegt immer etwas UNTER dem Bodenstück (das grobe Gitter würde sonst durch die Schüssel stechen)
+      for (const [i, y0, r, a] of under) gp.setY(i, y0 + kk * (Math.min(0, prof(r, a)) - 0.45 * (1 - smooth((r - R * 1.15) / (Rp - R * 1.15)))));
+      gp.needsUpdate = true; B.ground.geometry.computeVertexNormals();
+    };
+    return {
+      mesh,
+      offset: (x, z) => { if (!k) return 0; const r = Math.hypot(x - cx, z - cz); return r < Rp ? prof(r, Math.atan2(z - cz, x - cx)) * k : 0; },
+      start() { k = 0.02; target = 1; growing = true; paint(true); shape(k); mesh.visible = true; sinkGround(1); },
+      update(dt) { if (!growing) return; k = Math.min(target, k + dt / 0.75 * (1.2 - k)); shape(k); if (k >= target - 0.002) { k = target; shape(k); growing = false; } },
+      reset() { if (!k && !growing) return; k = 0; growing = false; mesh.visible = false; sinkGround(0); }
+    };
+  }
+  // Auswurf: Gesteinsbrocken fliegen in sauberen Bögen (keine Luft bremst) und bleiben rund um den Krater liegen
+  function makeEjecta(scene, n, mat) {
+    const inst = new THREE.InstancedMesh(naturalRockGeo(91, 1), mat, n); inst.count = 0; inst.castShadow = inst.receiveShadow = true; inst.frustumCulled = false;
+    scene.add(inst);
+    const parts = [], mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new V(), white = new THREE.Color(1, 1, 1);
+    let g = 3.7;
+    const write = () => { parts.forEach((p, i) => { q.setFromEuler(e.set(p.rx, p.ry, p.rz)); mx.compose(p.pos, q, sc.set(p.s, p.s * 0.7, p.s * 0.9)); inst.setMatrixAt(i, mx); }); inst.instanceMatrix.needsUpdate = true; };
+    return {
+      launch(x, y, z, R, grav) {
+        g = grav || 3.7; parts.length = 0;
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * Math.PI * 2, r0 = Math.random() * R * 0.4, sp = 2.5 + Math.random() * 6.5;
+          parts.push({ pos: new V(x + Math.cos(a) * r0, y + 0.2, z + Math.sin(a) * r0), v: new V(Math.cos(a) * sp, 3 + Math.random() * 6.5, Math.sin(a) * sp),
+            s: 0.07 + Math.pow(Math.random(), 2.2) * 0.32, rx: Math.random() * 6, ry: Math.random() * 6, rz: Math.random() * 6, spin: (Math.random() - 0.5) * 9, landed: false });
+          inst.setColorAt(i, white.setScalar(0.75 + Math.random() * 0.35));
+        }
+        inst.count = n; inst.instanceColor.needsUpdate = true; write();
+      },
+      update(dt, height) {
+        let moving = false;
+        for (const p of parts) {
+          if (p.landed) continue;
+          moving = true;
+          p.v.y -= g * dt; p.pos.addScaledVector(p.v, dt); p.rx += p.spin * dt; p.rz += p.spin * 0.6 * dt;
+          const gy = height(p.pos.x, p.pos.z) + p.s * 0.25;
+          if (p.pos.y <= gy && p.v.y < 0) { p.pos.y = gy; p.landed = true; }
+        }
+        if (moving) write();
+      },
+      reset() { parts.length = 0; inst.count = 0; }
+    };
   }
 
   // Parabolantenne (Schüssel mit Rand, Halterung und Empfänger), z. B. für Sonden und Funkmasten
