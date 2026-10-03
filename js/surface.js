@@ -4700,24 +4700,72 @@ window.Surface = (function () {
     m.renderOrder = -1;
     return m;
   }
-  // Streifen-Muster für Gesteinsschichten (von unten nach oben)
+  // Gesteinsschichten (von unten nach oben): Bänder unterschiedlicher Dicke mit welligen Grenzen, feiner Körnung
+  // und dunklen Ablaufspuren („Wüstenlack“), die von den Kanten herunterziehen; waagerecht nahtlos
   function bandTexture(colors, seed) {
-    const cv = document.createElement("canvas"); cv.width = 4; cv.height = 256;
-    const x = cv.getContext("2d");
-    for (let y = 0, i = 0; y < 256; i++) { const h = 8 + hash2(i, seed) * 26; x.fillStyle = colors[i % colors.length]; x.fillRect(0, y, 4, h + 1); y += h; }
-    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+    const W = 512, H = 512, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const x = cv.getContext("2d"), bands = [];
+    // Rauschen, das nur waagerecht nahtlos ist (senkrecht wiederholt es sich nicht)
+    const vn = (X, Y, p) => { const xi = Math.floor(X), yi = Math.floor(Y), xf = X - xi, yf = Y - yi, w = (n) => ((n % p) + p) % p, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), a = hash2(w(xi), yi), b = hash2(w(xi + 1), yi), c = hash2(w(xi), yi + 1), d = hash2(w(xi + 1), yi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; };
+    for (let y = 0, i = 0; y < H; i++) { const h = 8 + hash2(i, seed) * 30 + (hash2(i, seed + 3) > 0.85 ? 30 : 0); bands.push([y, colors[Math.floor(hash2(i, seed + 1) * colors.length)]]); y += h; }
+    const img = x.createImageData(W, H), rgb = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+    for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+      const yy = py + (vn(px / 64, seed + 0.5, 8) - 0.5) * 12 + (vn(px / 16, seed + 3.5, 32) - 0.5) * 3; // wellige Schichtgrenzen
+      let k = 0; while (k < bands.length - 1 && bands[k + 1][0] <= yy) k++;
+      const c0 = rgb(bands[k][1]), r0 = c0[0] * 0.55 + 150 * 0.45, g0 = c0[1] * 0.55 + 82 * 0.45, b0 = c0[2] * 0.55 + 58 * 0.45, n = 1 + (vn(px / 32, py / 2.5, 16) - 0.5) * 0.12 + (vn(px / 8, py / 1.5, 64) - 0.5) * 0.08 + (hash2(px, py) - 0.5) * 0.06, o = ((H - 1 - py) * W + px) * 4;
+      img.data[o] = r0 * n; img.data[o + 1] = g0 * n; img.data[o + 2] = b0 * n; img.data[o + 3] = 255;
+    }
+    x.putImageData(img, 0, 0);
+    for (let i = 0; i < 36; i++) { // Ablaufspuren
+      const sx = hash2(i, seed + 7) * W, sy = hash2(i, seed + 8) * H, len = 60 + hash2(i, seed + 9) * 220, w = 10 + hash2(i, seed + 10) * 24;
+      for (let dx = 0; dx < w; dx++) { // weicher Rand: Deckkraft quer zur Spur glockenförmig
+        const k = Math.sin((Math.PI * (dx + 0.5)) / w), ln = len * (0.7 + 0.3 * k), gr = x.createLinearGradient(0, sy, 0, sy + ln);
+        gr.addColorStop(0, "rgba(50,22,12," + (0.2 * k * k).toFixed(3) + ")"); gr.addColorStop(1, "rgba(50,22,12,0)"); x.fillStyle = gr; x.fillRect((sx + dx) % W, sy, 1, ln);
+      }
+    }
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 8;
     return t;
   }
-  // Tafelberg: zerklüftete Säule mit waagerechten Gesteinsschichten
+  // Tafelberg wie in der Wüste: unregelmäßiger Grundriss, unten eine Schutthalde aus Sand und Geröll, darüber eine steile Wand,
+  // deren Schichten unterschiedlich weit vorstehen (harte Schichten bilden Simse), senkrechte Erosionsrinnen, oben die Deckplatte.
+  // Mitte auf halber Höhe (wie vorher der Zylinder)
   function makeButte(r, h, tex, seed) {
-    const geo = new THREE.CylinderGeometry(r * 0.78, r, h, 11, 6), p = geo.attributes.position, v = new V();
-    for (let i = 0; i < p.count; i++) {
-      v.fromBufferAttribute(p, i);
-      const a = Math.atan2(v.z, v.x), k = 0.82 + 0.36 * hash2(Math.round(a * 3) + seed, Math.round(v.y / h * 5) + seed);
-      p.setXYZ(i, v.x * k, v.y, v.z * k);
+    const C = 96, ROWS = 44, TAL = 0.28, pos = [], uv = [], col = [], idx = [];
+    const outline = [], gully = [];
+    for (let j = 0; j < C; j++) {
+      const u = j / C;
+      outline.push(1 + (fbm2p(u * 4 + seed, seed * 0.37, 4) - 0.5) * 0.8 + (noise2p(u * 14, seed + 5, 14) - 0.5) * 0.16);
+      gully.push(Math.pow(Math.max(0, noise2p(u * 34 + 3, seed + 9, 34) - 0.45) / 0.55, 1.2)); // 0 = Wand, 1 = tiefe Rinne
     }
-    geo.computeVertexNormals();
-    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 1, flatShading: true }));
+    const layer = (t) => { const L = t * 11, i = Math.floor(L), fr = L - i, a = (hash2(i, seed) - 0.5) * 0.12, b = (hash2(i + 1, seed) - 0.5) * 0.12; return a + (b - a) * smooth(0.75, 1, fr); };
+    const prof = (t, j) => {
+      if (t <= TAL) { const k = 1 - t / TAL; return 1 + 0.75 * Math.pow(k, 2.6) + (hash2(j, Math.round(t * 99) + seed) - 0.5) * 0.05 * k; } // Schutthalde: oben steil, unten flach auslaufend
+      const c = (t - TAL) / (0.95 - TAL);
+      const bench = 0.13 * smooth(0.55, 0.6, t) * (0.6 + 0.4 * hash2(j >> 3, seed + 2)); // obere Wand tritt zurück: Stufe auf halber Höhe
+      if (t <= 0.95) return 1 - 0.06 * c - bench + layer(t) - gully[j] * 0.2 * smooth(0, 0.12, c);
+      return 0.94 - 0.13 * (0.6 + 0.4 * hash2(j >> 3, seed + 2)) + layer(0.95) + 0.04 * (1 - (t - 0.95) / 0.05) - gully[j] * 0.08; // Deckplatte steht etwas vor
+    };
+    const ts = []; for (let i = 0; i <= ROWS; i++) { const q = i / ROWS; ts.push(q < 0.35 ? (q / 0.35) * TAL : TAL + ((q - 0.35) / 0.65) * (1 - TAL)); }
+    const sand = new THREE.Color(0x9c4e2e);
+    ts.forEach((t, i) => {
+      for (let j = 0; j <= C; j++) {
+        const jj = j % C, a = (j / C) * Math.PI * 2, rr = r * prof(t, jj) * outline[jj];
+        pos.push(Math.cos(a) * rr, t * h - h / 2, Math.sin(a) * rr); uv.push((j / C) * 5, t);
+        const shade = t <= TAL ? 1 - 0.25 * smooth(0.5, 1, t / TAL) : 1 - gully[jj] * 0.4; col.push(shade, shade, shade);
+      }
+    });
+    const capY = h / 2 + 0.6, ring = ts.length - 1;
+    pos.push(0, capY, 0); uv.push(0.5, 1); col.push(1, 1, 1);
+    const center = pos.length / 3 - 1, row = C + 1, talRows = ts.findIndex((t) => t > TAL) - 1;
+    const gTal = [], gWall = [];
+    for (let i = 0; i < ring; i++) for (let j = 0; j < C; j++) { const a = i * row + j, b = a + row, tri = [a, b, a + 1, a + 1, b, b + 1]; (i < talRows ? gTal : gWall).push(...tri); }
+    for (let j = 0; j < C; j++) gWall.push(ring * row + j, center, ring * row + j + 1);
+    idx.push(...gTal, ...gWall);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx); geo.addGroup(0, gTal.length, 0); geo.addGroup(gTal.length, gWall.length, 1); geo.computeVertexNormals();
+    if (!makeButte.sand) { const t = regolithTexture(); t.repeat.set(8, 3); makeButte.sand = new THREE.MeshStandardMaterial({ map: t, color: sand, vertexColors: true, roughness: 1 }); }
+    const m = new THREE.Mesh(geo, [makeButte.sand, new THREE.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: 0.95 })]);
     m.castShadow = m.receiveShadow = true;
     return m;
   }
@@ -8370,8 +8418,8 @@ window.Surface = (function () {
       for (let i = 0; i <= 10; i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.3, Z1 - Z0 + 0.9), beam), -X + i * (2 * X / 10), Y + 0.33, (Z0 + Z1) / 2 - 0.2); // Sparren
       for (let i = 0; i < 9; i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.4, 0.08, 0.12), beam), 0, Y + 0.53, Z0 + 0.3 + i * ((Z1 - Z0 - 0.6) / 8)); // Latten
       // Kletterpflanzen an den Pfosten und Kübel mit Blumen daneben
-      const leaf = M.std({ color: srgb(0x3f8f35), roughness: 0.9 });
-      for (const x of [-X, X]) for (let k = 0; k < 7; k++) put(g, new THREE.Mesh(new THREE.IcosahedronGeometry(0.32 + hash2(k, x) * 0.12, 0), leaf), x + Math.sin(k * 2.1) * 0.25, 0.8 + k * 0.95, Z0 + Math.cos(k * 2.1) * 0.25, false);
+      const vine = pkBush(0.62, 0.8, 0.58, 1, 40);
+      for (const x of [-X, X]) for (let k = 0; k < 7; k++) { const v = vine.clone(); v.position.set(x + Math.sin(k * 2.1) * 0.2, 0.25 + k * 0.95, Z0 + Math.cos(k * 2.1) * 0.2); v.rotation.y = k * 1.7 + x; v.scale.setScalar(0.9 + hash2(k, x) * 0.35); g.add(v); }
       // Steinsockel unter dem Besucherzentrum (es steht am Hang – so schwebt keine Kante über dem Boden)
       put(g, new THREE.Mesh(new THREE.BoxGeometry(26.6, 2.6, 9.6), M.std({ color: srgb(0x9a958c), roughness: 0.95 })), 0, -1.1, 12).receiveShadow = true;
       // Rückseite und Seiten mit Fenstern (vom Dorf aus sichtbar)
@@ -8663,7 +8711,7 @@ window.Surface = (function () {
 
     // Sternschnuppen-Versuch
     on(earthMeteorCase(M), ...L.stern).rotation.y = Math.atan2(-L.stern[0], -L.stern[1]) + Math.PI; // Meteoriten-Vitrine
-    const meteor = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({ color: 0x4a4540, roughness: 1, flatShading: true }));
+    const meteor = new THREE.Mesh(sphereUV(naturalRockGeo(131, 3)).scale(0.7, 0.7, 0.7), new THREE.MeshStandardMaterial({ color: 0x4a4540, roughness: 0.9, vertexColors: true, ...rockTex(2, 1, 1.4) }));
     const fire = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,225,150,1)", "rgba(255,110,20,0.9)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
     meteor.add(fire); meteor.visible = false; scene.add(meteor);
     const weather = on(earthWeather(M), ...L.luft); // Wetterstation beim Luft-Versuch
@@ -9202,11 +9250,12 @@ window.Surface = (function () {
     const puffs = [];
     for (let i = 0; i < (W.fast ? 50 : 90); i++) { const s = new THREE.Sprite(puffMat); s.userData.z = -1e9; scene.add(s); puffs.push(s); }
     // Hindernisse: Eisbrocken (Saturn) oder Glutbälle (Sonne)
-    const rocks = [];
+    const rocks = [], iceGeos = C.rocks && !C.rocks.glow ? [0, 1, 2, 3].map((k) => sphereUV(naturalRockGeo(120 + k, 3))) : null;
+    const iceMat = iceGeos ? new THREE.MeshStandardMaterial({ color: C.rocks.color, roughness: 0.35, metalness: 0.05, vertexColors: true, ...rockTex(2, 1, 1.1) }) : null;
     if (C.rocks) for (let i = 0; i < C.rocks.count; i++) {
       const m = C.rocks.glow
         ? new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,250,200,1)", "rgba(255,110,20,0.9)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }))
-        : new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: C.rocks.color, roughness: 0.6, flatShading: true }));
+        : new THREE.Mesh(iceGeos[i % 4], iceMat);
       m.userData = { z: -1e9, r: 1 }; scene.add(m); rocks.push(m);
     }
     return { scene, camera, ambient, sun, far, planet, craft, gates, puffs, rocks, extra, stations: {} };
