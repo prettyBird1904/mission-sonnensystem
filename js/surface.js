@@ -1894,6 +1894,7 @@ window.Surface = (function () {
   let jumpPressed = false, actionPressed = false;
   let temp = { shown: 120, inShadow: false, shadowTime: 0, sunSeen: false, check: 0 };
   let radioTimer = 0, radioVoice = 0, farWarned = 0, experiment = null, quizDone = false, boarding = null;
+  let quizScene = 0; // Zeitpunkt: Nora hat die Bodenstation angekündigt – bis das Funk-Fenster aufgeht, schweigen die Bewohner (höchstens 20 s)
 
   function allQuestions() { return cfg.quiz.map((q) => ({ ...q, own: true })); }
   function fmtVars(t, vars) {
@@ -1901,13 +1902,23 @@ window.Surface = (function () {
     return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : "")).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung").replace(/\bNoch 1 Mess-Tore\b/g, "Noch 1 Mess-Tor");
   }
 
+  // fn erst ausführen, wenn gerade niemand spricht und Nora keinen Satz mehr in der Warteschlange hat (spätestens nach max ms)
+  function whenQuiet(fn, max = 9000) {
+    const t0 = performance.now();
+    const tick = () => {
+      if (!S.active) return;
+      const busy = Voice.busy() || !!(guide && guide.pending);
+      if (busy && performance.now() - t0 < max) setTimeout(tick, 150); else setTimeout(fn, 250);
+    };
+    setTimeout(tick, 200);
+  }
   function radio(text, vars, who) {
     const msg = fmtVars(text, vars);
     $("radioText").textContent = msg;
     $("radioHead").textContent = who || "📻 Bodenstation";
     const r = $("radio"); r.classList.remove("hidden"); r.classList.remove("ping"); void r.offsetWidth; r.classList.add("ping");
     radioTimer = 14;
-    radioVoice = Voice.say(msg, who && /Nora/.test(who) ? "nora" : "radio", { polite: true }); // lässt Bewohner ausreden
+    radioVoice = Voice.say(msg, who && /Nora/.test(who) ? "nora" : "radio", { polite: true, queue: Voice.busy() }); // lässt ausreden, wer gerade spricht
   }
 
   function foundMap() { return (G.state.found && G.state.found[bodyId]) || {}; }
@@ -1950,7 +1961,8 @@ window.Surface = (function () {
         <div class="row-gap"><button class="btn primary" id="discOk">Weiter erkunden ▶</button></div>
       </div>`);
     const extra = cardExtra && cardExtra.key === key; cardExtra = null;
-    Voice.say(`${d.title}. ${text}`, "card", { modal: true });
+    Voice.say(`${d.title}. ${text}`, "card", { modal: true, queue: Voice.busy() }); // spricht gerade jemand, liest Nora die Karte danach vor (nicht mittendrin abbrechen)
+    if (guide && !known) guide.pending = null; // was sie noch sagen wollte (z. B. „Stell dich in den Kreis“), passt jetzt nicht mehr
     // Echte Fotos zum Durchblättern (aus der früheren Steckbrief-Galerie)
     if (d.gallery && !extra) UI.renderGallery($("discGallery"), (D.photos[bodyId] || []).filter((p) => d.gallery.includes(p.file)), 0, false, true);
     $("discOk").onclick = () => {
@@ -1958,7 +1970,8 @@ window.Surface = (function () {
       if (known) return;
       const rest = cfg.discoveries.length - foundCount();
       if (rest === 0 && G.onPlanetDone) G.onPlanetDone(bodyId); // Mission erst jetzt geschafft: alles entdeckt
-      if (rest > 0) { if (!(guide && guide.on)) radio(cfg.radio.found, { rest }); } // mit Führung sagt Nora, wohin es weitergeht
+      if (guide) guide.justFound = key; // Nora reagiert gleich darauf („Verrückt, oder? …“)
+      if (rest > 0) { if (!(guide && guide.on)) radio(D.radioFound[rest] || D.radioFound[D.radioFound.length - 1], { rest }); } // mit Führung sagt Nora, wohin es weitergeht
       else if (!quizDone) quizSoon();
     };
   }
@@ -1975,23 +1988,40 @@ window.Surface = (function () {
         <div class="answers">${cfg.discoveries.map((d) => f[d.key]
           ? `<button class="answer" data-key="${d.key}">✓ ${d.icon} ${d.title}</button>`
           : `<button class="answer" disabled style="opacity:.6">○ ❓ ${d.hint || ((cfg.stations || {})[d.key] || {}).hint ? "Tipp: " + (d.hint || cfg.stations[d.key].hint) : "Noch nicht entdeckt"}</button>`).join("")}</div>
-        <div class="row-gap">${all ? `<button class="btn ghost" id="foundQuiz">📻 Funk-Fragen nochmal</button>` : ""}<button class="btn primary" id="foundOk">Weiter erkunden ▶</button></div>
+        <div class="row-gap">${all ? `<button class="btn ${quizDone ? "ghost" : "primary"}" id="foundQuiz">📻 Funk-Fragen ${quizDone ? "nochmal" : "beantworten"}</button>` : ""}<button class="btn primary" id="foundOk">Weiter erkunden ▶</button></div>
       </div>`);
     document.querySelectorAll("#modalContent .answer[data-key]").forEach((b) => b.onclick = () => discover(b.dataset.key, null, true));
     $("foundOk").onclick = () => UI.closeModal();
     if (all) $("foundQuiz").onclick = () => { UI.closeModal(); startQuiz(); };
   }
 
-  // Alles entdeckt: Funk-Fragen ansagen (Nora oder Bodenstation) und kurz danach stellen – erst wenn „Mission geschafft“ vorbei ist
+  // Alles entdeckt: Nora reagiert und kündigt die Bodenstation an – erst wenn sie ausgeredet hat, meldet sich die Bodenstation
   function quizSoon() {
-    if (guide && guide.on && guide.n.obj.visible) guideSay(cfg.guide.quiz); else radio(cfg.radio.allFound);
-    setTimeout(() => startQuiz(true), 3600);
+    if (guide && guide.on && guide.n.obj.visible) {
+      const r = guide.justFound && cfg.guide.react && cfg.guide.react[guide.justFound]; guide.justFound = null;
+      guideSay([r, cfg.guide.quiz]);
+      quizScene = performance.now();
+      whenQuiet(() => startQuiz(true), 12000);
+    } else { quizScene = performance.now(); setTimeout(() => startQuiz(true), 900); }
   }
   // auto = die Fragen kommen direkt nach der letzten Entdeckung → danach automatisch einsteigen und losfliegen
   function startQuiz(auto) {
     if (!S.active || UI.modalOpen() || view.special) { if (S.active) setTimeout(() => startQuiz(auto), 1500); return; } // erst, wenn kein Fenster offen ist und man nicht gerade an der Waage o. Ä. steht
     // Erst die Fragen zum Erkunden, dann die Fragen aus dem früheren Steckbrief-Quiz – alles per Funk
     const qs = allQuestions(); let i = 0, right = 0, rightOwn = 0;
+    // Die Bodenstation meldet sich zuerst – die Fragen kommen, wenn das Kind „Ja, ich bin bereit!“ antwortet
+    const intro = () => {
+      quizScene = performance.now();
+      const text = fmtVars((auto || !quizDone) && cfg.radio.quizIntro ? cfg.radio.quizIntro : D.quizAgain); // „Noch eine Runde?“ erst, wenn sie schon beantwortet sind
+      UI.openModal(`
+        <div class="discovery">
+          <div class="disc-kicker">📻 Funkspruch der Bodenstation</div>
+          <p class="intro">${text}</p>
+          <div class="row-gap"><button class="btn primary" id="sqReady">${D.quizReady}</button></div>
+        </div>`);
+      Voice.say(text, "radio", { modal: true, polite: true, queue: Voice.busy() });
+      $("sqReady").onclick = () => { Sound.click(); show(); };
+    };
     const show = () => {
       const q = qs[i];
       UI.openModal(`
@@ -2001,30 +2031,32 @@ window.Surface = (function () {
           <div class="answers">${q.a.map((t, k) => `<button class="answer" data-k="${k}">${t}</button>`).join("")}</div>
           <div id="sqAfter"></div>
         </div>`);
-      Voice.say(`${q.q} ${q.a.slice(0, -1).join("? ")}? Oder: ${q.a[q.a.length - 1]}?`, "radio", { modal: true });
+      const nth = i === qs.length - 1 && qs.length > 1 ? D.quizOrder[D.quizOrder.length - 1] : D.quizOrder[Math.min(i, D.quizOrder.length - 2)]; // „Erste Frage:“ … „Und die letzte Frage:“
+      Voice.say([nth, `${q.q} ${q.a.slice(0, -1).join("? ")}? Oder: ${q.a[q.a.length - 1]}?`], "radio", { modal: true });
       document.querySelectorAll("#modalContent .answer").forEach((b) => b.onclick = () => {
         const ok = +b.dataset.k === q.c; if (ok) { right++; if (q.own) rightOwn++; Sound.correct(); } else Sound.wrong();
         document.querySelectorAll("#modalContent .answer").forEach((x) => { x.disabled = true; if (+x.dataset.k === q.c) x.classList.add("right"); });
         if (!ok) b.classList.add("wrong");
-        Voice.say(`${ok ? "Richtig! " : "Nicht ganz. "}${q.why}`, "radio", { modal: true });
-        $("sqAfter").innerHTML = `<div class="why">${ok ? "✅ Richtig! " : "❌ Nicht ganz. "}${q.why}</div><div class="row-gap"><button class="btn primary" id="sqNext">${i < qs.length - 1 ? "Nächste Frage ▶" : "Ergebnis 🏆"}</button></div>`;
+        const pre = (ok ? D.quizRight : D.quizWrong)[i % D.quizRight.length]; // jede Frage eine andere Rückmeldung
+        Voice.say(`${pre} ${q.why}`, "radio", { modal: true });
+        $("sqAfter").innerHTML = `<div class="why">${ok ? "✅" : "❌"} ${pre} ${q.why}</div><div class="row-gap"><button class="btn primary" id="sqNext">${i < qs.length - 1 ? "Nächste Frage ▶" : "Ergebnis 🏆"}</button></div>`;
         $("sqNext").onclick = () => { i++; if (i < qs.length) show(); else finish(); };
       });
     };
     const finish = () => {
-      quizDone = true;
+      quizDone = true; quizScene = 0;
       const QE = D.quizEnd, endText = fmtVars(right === qs.length ? QE.all : right ? QE.some : QE.none, { r: right, n: qs.length });
       G.onSurfaceQuiz(bodyId, rightOwn);
       G.onQuizFinished(bodyId, right - rightOwn);
       UI.openModal(`<div class="discovery center">
         <div class="stars-row">${qs.map((_, k) => `<span class="${k < right ? "" : "off"}">⭐</span>`).join("")}</div>
-        <h2>${right} von ${qs.length} richtig</h2><p class="intro">${endText.replace(/^[^!.]*[!.]\s*/, "")}</p>
+        <h2>${right} von ${qs.length} richtig</h2><p class="intro">📻 „${endText}“</p>
         <div class="row-gap"><button class="btn primary" id="sqClose">${auto ? "🚀 Weiterfliegen" : "👍 Super"}</button></div></div>`);
       if (right === qs.length) { Sound.fanfare(); UI.confetti(); }
       Voice.say(endText, "radio", { modal: true });
-      $("sqClose").onclick = () => { UI.closeModal(); if (auto) flyHome(); else radio(cfg.radio.quizDone); };
+      $("sqClose").onclick = () => { UI.closeModal(); if (auto) { if (guide) { guide.key = "rakete"; guide.said.rakete = true; guide.autoBoard = true; } flyHome(); } else radio(cfg.radio.quizDone); }; // gleich einsteigen: kein „Komm, zur Rakete“ vorher
     };
-    show();
+    intro();
   }
 
   function flyHome() {
@@ -2166,8 +2198,9 @@ window.Surface = (function () {
     const rest = cfg.discoveries.length - foundCount();
     const first = foundCount() === 0;
     setupGuide();
-    if (rest === 0 && !quizDone) setTimeout(() => { if (S.active) quizSoon(); }, 2500);
-    else if (!guide || !guide.on) setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : first ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
+    quizScene = 0;
+    // Schon alles entdeckt: Funk-Fragen ploppen NICHT von selbst auf (nur direkt nach der letzten Entdeckung) – ein Funkspruch sagt, wo sie sind
+    if (!guide || !guide.on) setTimeout(() => { if (S.active) radio(rest === 0 ? (quizDone ? cfg.radio.quizDone : D.radioQuizOpen) : first ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
   };
 
   function exit() {
@@ -2850,7 +2883,8 @@ window.Surface = (function () {
     sp.guessDone = true;
     const ok = sp.guess === sp.guessQ.c;
     if (ok) UI.confetti(70);
-    return (ok ? "✅ Richtig vermutet! " : "🤔 Gut überlegt – aber schau mal: ") + text;
+    const gi = Object.keys(D.surfaces).indexOf(bodyId) % D.guessOk.length; // wie in tools/stimmen.js
+    return (ok ? `✅ ${D.guessOk[gi]} ` : `🤔 ${D.guessNo[gi]} `) + text;
   }
   function scopeSay(text, buttons, spoken) { // spoken = stattdessen vorlesen (ein Satz oder mehrere nacheinander)
     $("scopeText").textContent = text;
@@ -3130,6 +3164,7 @@ window.Surface = (function () {
     const n = guide && guide.n;
     if (n) { // alte Sprechblase weg, Nora steigt zuerst ein
       n.talk = 0;
+      if (n.obj.visible && cfg.guide && cfg.guide.board && (guide.autoBoard || !(guide.said && guide.said.rakete))) guideSay(cfg.guide.board, null, "now"); // nach dem Funkgespräch immer; sonst nur, wenn sie an der Rakete nicht schon „Steig ein“ gesagt hat
       if (n.obj.visible) boarding.nora = n.outR != null ? { phase: "enter", r: n.outR } // kam gerade erst heraus: gleich wieder hinein
         : { phase: n.climbY != null ? "climb" : "walk" };
       if (n.outR == null) n.standY = null;
@@ -3340,7 +3375,7 @@ window.Surface = (function () {
       n.cool -= dt; n.waveT -= dt;
       if (n.guide || (n.isNora && boarding)) moving = !!n.moving;
       else if (n.isNora) { if (dist < 6) n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5)); }
-      else if (dist < 5.5 && !busy) { // stehen bleiben, zum Kind drehen und etwas sagen
+      else if (dist < 5.5 && !busy && performance.now() - quizScene > 20000 && !Voice.busy() && !(guide && guide.pending)) { // stehen bleiben, zum Kind drehen und etwas sagen (wenn gerade niemand spricht)
         n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5));
         if (n.cool <= 0 && !UI.modalOpen()) npcSay(n);
       } else if (n.wait > 0) n.wait -= dt;
@@ -3417,8 +3452,9 @@ window.Surface = (function () {
     const GC = cfg.guide; if (!GC || !world.npcs) return;
     const n = world.npcs.find((x) => x.isNora); if (!n) return;
     navGrid();
-    const allDone = foundCount() >= cfg.discoveries.length && quizDone;
-    guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0 };
+    const allDone = foundCount() >= cfg.discoveries.length; // alles entdeckt: freies Herumlaufen, Funk-Fragen freiwillig über die Liste
+    guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0, helloDone: false };
+    if (!guide.on) guide.helloDone = true;
     n.guide = guide.on; n.obj.visible = true; n.talk = 0; n.climbY = n.outR = n.standY = null;
     const lx = HATCH.x * 2.05, lz = HATCH.z * 2.05; // Fuß der Leiter
     n.obj.position.set(HATCH.x * 2.6, world.height(HATCH.x * 2.6, HATCH.z * 2.6), HATCH.z * 2.6);
@@ -3432,7 +3468,12 @@ window.Surface = (function () {
       const cp = world.camera.position.set(sx - Math.sin(view.yaw) * 7, ast.pos.y + 3.2, sz - Math.cos(view.yaw) * 7), cr = Math.hypot(cp.x, cp.z);
       if (cr < 2.6) { cp.x *= 2.6 / (cr || 0.01); cp.z *= 2.6 / (cr || 0.01); }
       view.look.set(sx + Math.sin(view.yaw) * 3, ast.pos.y + 1.3, sz + Math.cos(view.yaw) * 3);
-      setTimeout(() => { if (S.active && guide && guide.on) guideSay(GC.hello); }, 600);
+      setTimeout(() => {
+        if (!S.active || !guide || !guide.on) return;
+        if (!cfg.radio.landed) { guideSay(GC.hello); guide.helloDone = true; return; }
+        radio(cfg.radio.landed); // „Bodenstation an Rakete: Seid ihr gut gelandet?“ – Nora antwortet, wenn der Funkspruch zu Ende ist
+        whenQuiet(() => { if (S.active && guide && guide.on) { guideSay(GC.hello); guide.helloDone = true; } }, 7000);
+      }, 600);
     }
     updateGuideBtn();
   }
@@ -3451,20 +3492,27 @@ window.Surface = (function () {
   // mode: "low" = nur sagen, wenn sie gerade still ist (z. B. „Hier lang!“) · "now" = sofort (Rückmeldung im Spiel, „Allein erkunden“)
   function guideSay(text, vars, mode) {
     if (!guide || !text) return;
-    const n = guide.n, msg = fmtVars(text, vars);
-    if (mode !== "now" && n.voice && Voice.speaking(n.voice)) {
-      if (mode !== "low") guide.pending = { msg, at: performance.now() };
+    const parts = (Array.isArray(text) ? text : [text]).filter(Boolean).map((t) => fmtVars(t, vars));
+    if (!parts.length) return;
+    const n = guide.n, msg = parts.length > 1 ? parts : parts[0];
+    // Spricht gerade jemand (oder warten schon Sätze), stellt sich der Satz hinten an – die Reihenfolge bleibt („low“ = nur, wenn gerade Ruhe ist)
+    if (mode !== "now" && (Voice.busy() || (n.voice && Voice.speaking(n.voice)) || (guide.pending && guide.pending.length))) {
+      if (mode !== "low") {
+        const q = guide.pending || (guide.pending = []), key = String(msg);
+        if (!q.some((p) => String(p.msg) === key)) q.push({ msg, at: performance.now() });
+        if (q.length > 3) q.shift();
+      }
       return;
     }
     guide.pending = null;
     guideShow(msg);
   }
-  function guideShow(msg) {
-    const n = guide.n;
+  function guideShow(msg) { // msg = Text oder Teile (je Teil eine Aufnahme)
+    const n = guide.n, shown = Array.isArray(msg) ? msg.join(" ") : msg;
     n.cool = 20;
     n.el.textContent = "";
-    const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, msg);
-    n.talk = Math.min(10, 3 + msg.split(" ").length * 0.38); // lange Sätze bleiben etwas länger stehen
+    const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, shown);
+    n.talk = Math.min(12, 3 + shown.split(" ").length * 0.38); // lange Sätze bleiben etwas länger stehen
     n.el.classList.remove("pop"); void n.el.offsetWidth; n.el.classList.add("pop");
     n.voice = Voice.say(msg, "nora", { polite: true }); // lässt Bewohner ausreden
     Sound.click();
@@ -3606,8 +3654,8 @@ window.Surface = (function () {
     if (!guide) return;
     const n = guide.n, GC = cfg.guide, p = n.obj.position, talking = !!(n.voice && Voice.speaking(n.voice));
     if (!talking) guide.waitCd -= dt; // Pausen zählen erst, wenn sie ausgeredet hat
-    if (guide.pending && !talking && !view.special && !experiment && !UI.modalOpen()) { // wartender Satz: jetzt sagen (wenn er nicht zu alt ist)
-      const pm = guide.pending; guide.pending = null;
+    if (guide.pending && guide.pending.length && !Voice.busy() && !view.special && !experiment && !UI.modalOpen()) { // wartende Sätze der Reihe nach, wenn niemand mehr spricht (zu alte entfallen)
+      const pm = guide.pending.shift(); if (!guide.pending.length) guide.pending = null;
       if (performance.now() - pm.at < 20000) guideShow(pm.msg);
     }
     if (boarding) return; // steigt gerade ein (updateBoardingNora)
@@ -3628,13 +3676,17 @@ window.Surface = (function () {
     if (!guide.on) return;
     n.moving = false;
     if (busy || view.special || experiment || boarding || UI.modalOpen()) return;
+    if (!quizDone && foundCount() >= cfg.discoveries.length) { n.heading = angleLerp(n.heading, Math.atan2(ast.pos.x - p.x, ast.pos.z - p.z), 1 - Math.exp(-dt * 5)); return; } // wartet mit dem Kind auf die Bodenstation
     const dAst = Math.hypot(ast.pos.x - p.x, ast.pos.z - p.z);
     const key = guideNextKey();
     if (guide.met && key !== guide.key) { // neues Ziel: Bescheid sagen und losgehen
       const first = guide.key === undefined;
       guide.key = key; guide.pts = guideRoute(key); guide.said[key] = false;
       if (key === "rakete") { if (quizDone) guideSay(GC.home); }
-      else if (key !== "sprung" && !first) guideSay(GC.next, { ziel: cfg.stations[key].label });
+      else if (key !== "sprung" && !first) {
+        const r = guide.justFound && GC.react && GC.react[guide.justFound]; guide.justFound = null;
+        guideSay([r, typeof GC.next === "object" ? GC.next[key] : GC.next], { ziel: cfg.stations[key].label });
+      }
     }
     const face = (x, z) => { n.heading = angleLerp(n.heading, Math.atan2(x - p.x, z - p.z), 1 - Math.exp(-dt * 5)); };
     // Empfang: Sie läuft direkt zum Kind, egal wo es gerade steht – und weicht Gebäuden und der Rakete aus
@@ -3651,6 +3703,7 @@ window.Surface = (function () {
         return;
       }
       face(ast.pos.x, ast.pos.z);
+      if (!guide.helloDone) return; // erst der Bodenstation antworten („Alles bestens!“), dann das Kind begrüßen
       guide.met = true; guide.pts = []; n.waveT = 2.4; guideSay(GC.welcome); guide.waitCd = 6;
       return;
     }
@@ -3678,8 +3731,7 @@ window.Surface = (function () {
     face(ast.pos.x, ast.pos.z);
     if (dAst < 7 && !guide.said[guide.key] && guide.waitCd <= 0) {
       guide.said[guide.key] = true; guide.waitCd = 4;
-      if (guide.key === "wand" && !quizDone) { radio(cfg.radio.allFound); setTimeout(startQuiz, 2500); return; }
-      guideSay(guide.key === "sprung" ? GC.jump : (GC.arrive && GC.arrive[guide.key]) || "");
+      if (!foundMap()[guide.key]) guideSay(guide.key === "sprung" ? GC.jump : (GC.arrive && GC.arrive[guide.key]) || ""); // schon entdeckt (Kind war schneller): nichts erklären
     }
     // Wer nach einer Weile noch nicht gesprungen ist, kennt die Taste vielleicht nicht: Tipp geben
     if (guide.key === "sprung" && guide.said.sprung) {
@@ -7663,8 +7715,8 @@ window.Surface = (function () {
     S.active = true;
     Sound.engine(0.35);
     const rest = cfg.discoveries.length - foundCount();
-    if (rest === 0 && !quizDone) setTimeout(() => { if (S.active) quizSoon(); }, 1500);
-    else setTimeout(() => { if (S.active) radio(rest === 0 ? cfg.radio.quizDone : foundCount() === 0 ? cfg.radio.start : cfg.radio.back, { rest }, cfg.flight && cfg.flight.who); }, 700);
+    quizScene = 0;
+    setTimeout(() => { if (S.active) radio(rest === 0 ? (quizDone ? cfg.radio.quizDone : D.radioQuizOpen) : foundCount() === 0 ? cfg.radio.start : cfg.radio.back, { rest }, cfg.flight && cfg.flight.who); }, 700); // auch hier: kein Aufploppen
   }
   function updateProbe(dt, elapsed) {
     const p = probe, w = world, C = PROBES[bodyId], c = w.camera;

@@ -221,34 +221,44 @@ window.SPACE_DATA = {
      brief = so erteilt Flugleiterin Nora die Mission per Funk ({steer} = Steuerung, passend zu Tastatur oder Tablet)
      hint  = ihr Tipp, wenn ein Kind nach einer Weile noch nicht weiterkommt (danach schaltet sie den gelben Pfeil ein) */
   missions: [
-    { target: "sonne",   text: "Fliege zu dem Stern, der uns Licht und Wärme schenkt!",
+    { target: "sonne",   done: "Dein Hitzeschild hat gehalten – die erste Mission ist geschafft!",
+      text: "Fliege zu dem Stern, der uns Licht und Wärme schenkt!",
       brief: "Fliege zu dem Stern, der uns Licht und Wärme schenkt! {steer}",
       hint: "Er ist riesig, gelb und leuchtet heller als alles andere – genau in der Mitte des Sonnensystems!" },
-    { target: "erde",    text: "Finde unseren Heimatplaneten – den blauen Planeten!",
+    { target: "erde",    done: "Zu Hause war's schön, oder? Mission geschafft!",
+      text: "Finde unseren Heimatplaneten – den blauen Planeten!",
       brief: "Finde unseren Heimatplaneten – den blauen Planeten! Dort bist du zu Hause.",
       hint: "Er ist der dritte Planet von der Sonne aus: blau und grün, mit einem kleinen grauen Begleiter." },
-    { target: "mond",    text: "Besuche den treuen Begleiter der Erde.",
+    { target: "mond",    done: "Was für ein Mondspaziergang! Mission geschafft.",
+      text: "Besuche den treuen Begleiter der Erde.",
       brief: "Besuche den treuen Begleiter der Erde. Dort waren schon echte Astronauten!",
       hint: "Er ist grau, voller Krater und kreist ganz nah um die Erde. Flieg zur Erde und schau dich dort um!" },
-    { target: "mars",    text: "Finde den Roten Planeten.",
+    { target: "mars",    done: "Mara und Bennett winken dir noch nach – Mission geschafft!",
+      text: "Finde den Roten Planeten.",
       brief: "Finde den Roten Planeten. Unsere Forscherin Mara wartet dort schon auf dich!",
       hint: "Er ist rot wie Rost und kommt direkt nach der Erde – ein Stück weiter weg von der Sonne." },
-    { target: "venus",   text: "Finde den heißesten Planeten im Sonnensystem.",
+    { target: "venus",   done: "Puh, raus aus der Hitze! Das hast du super gemacht.",
+      text: "Finde den heißesten Planeten im Sonnensystem.",
       brief: "Finde den heißesten Planeten im Sonnensystem. Pass auf – dort ist es heißer als in einem Backofen!",
       hint: "Sie hat dicke, gelbliche Wolken und liegt zwischen Merkur und Erde." },
-    { target: "merkur",  text: "Welcher Planet ist der Sonne am allernächsten? Fliege hin!",
+    { target: "merkur",  done: "Eis geliefert, Sonne bestaunt – auch der Merkur ist geschafft!",
+      text: "Welcher Planet ist der Sonne am allernächsten? Fliege hin!",
       brief: "Welcher Planet ist der Sonne am allernächsten? Fliege hin!",
       hint: "Er ist klein, grau und voller Krater – und kreist ganz dicht um die Sonne." },
-    { target: "jupiter", text: "Fliege zum größten Planeten – dem Riesen mit dem roten Fleck.",
+    { target: "jupiter", done: "Der Riese ist erforscht! Stark gemacht.",
+      text: "Fliege zum größten Planeten – dem Riesen mit dem roten Fleck.",
       brief: "Fliege zum größten Planeten – dem Riesen mit dem roten Fleck. Auf ihm kann man nicht landen, aber deine Sonde schafft das!",
       hint: "Nach dem Mars kommt ein Gürtel aus Felsbrocken – und dahinter der gestreifte Riese." },
-    { target: "saturn",  text: "Finde den Planeten mit den schönsten Ringen.",
+    { target: "saturn",  done: "Heil durch die Ringe – klasse gesteuert!",
+      text: "Finde den Planeten mit den schönsten Ringen.",
       brief: "Finde den Planeten mit den schönsten Ringen. Deine Sonde fliegt mitten hindurch!",
       hint: "Achte auf die großen Ringe! Er kommt direkt nach Jupiter." },
-    { target: "uranus",  text: "Finde den eisblauen Planeten, der auf der Seite liegt.",
+    { target: "uranus",  done: "Brr, der Eisriese ist geschafft! Gleich hast du alle Planeten.",
+      text: "Finde den eisblauen Planeten, der auf der Seite liegt.",
       brief: "Finde den eisblauen Planeten, der auf der Seite liegt. Jetzt wird es richtig kalt!",
       hint: "Er ist türkis und kommt nach Saturn. Flieg weiter nach außen!" },
-    { target: "neptun",  text: "Fliege zum stürmischen blauen Planeten ganz außen.",
+    { target: "neptun",  done: "Ganz außen angekommen – du hast alle Planeten besucht!",
+      text: "Fliege zum stürmischen blauen Planeten ganz außen.",
       brief: "Fliege zum stürmischen blauen Planeten ganz außen. Halt dich fest – dort weht der stärkste Wind!",
       hint: "Er ist tiefblau und der letzte Planet. Flieg ganz weit nach außen, noch hinter Uranus!" },
     { target: "#order",  text: "Bringe alle Planeten in die richtige Reihenfolge!",
@@ -280,10 +290,22 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "39",
+  version: "40",
 
   // Ergebnis der Funk-Fragen ({r} von {n} richtig)
-  quizEnd: { all: "{r} von {n} richtig! Die Bodenstation ist beeindruckt!", some: "{r} von {n} richtig! Gut gemacht!", none: "0 von {n} richtig. Macht nichts – beim nächsten Mal klappt's!" },
+  quizEnd: { all: "Alle {n} Fragen richtig – ich bin beeindruckt! Bodenstation Ende – guten Flug!", some: "{r} von {n} richtig – gut gemacht! Bodenstation Ende – guten Flug!", none: "Diesmal hat's nicht geklappt – macht nichts, entdeckt hast du trotzdem alles! Bodenstation Ende – guten Flug!" },
+  // Funkgespräch am Ende eines Ortes: erst eine Einleitung der Bodenstation (radio.quizIntro je Ort), das Kind antwortet mit dem Knopf
+  quizReady: "📻 Ja, ich bin bereit!",
+  // Ort schon fertig entdeckt, Funk-Fragen aber noch offen: kein Aufploppen – nur ein Hinweis, wo man sie findet
+  radioQuizOpen: "Hier hast du schon alles entdeckt, {name}! Die drei Funk-Fragen findest du oben rechts bei deinen Entdeckungen.",
+  quizAgain: "Hallo {name}, hier ist die Bodenstation! Noch eine Runde Funk-Fragen? Gern! Bist du bereit?",
+  quizOrder: ["Erste Frage:", "Zweite Frage:", "Und die letzte Frage:"], // wird vor jeder Frage gesprochen
+  quizRight: ["Genau!", "Stimmt!", "Richtig!"], quizWrong: ["Knapp daneben.", "Hm, leider nicht.", "Nicht ganz."], // je Frage eine andere Rückmeldung
+  // Zwischenstand der Bodenstation (ohne Führung), Index = noch offene Entdeckungen
+  radioFound: ["", "Nur noch eins – fast geschafft!", "Das erste hast du! Noch zwei."],
+  // Rückmeldung nach einer Vermutung (Versuche) – jeder Ort hat seine eigene (Reihenfolge wie in surfaces)
+  guessOk: ["Richtig vermutet!", "Gut getippt!", "Genau so ist es!", "Du hast es geahnt!", "Stimmt genau!"],
+  guessNo: ["Gut überlegt – aber schau mal:", "Überraschung!", "Gar nicht so einfach – schau mal:", "Hättest du's gedacht?", "Knapp daneben – schau mal:"],
   mnemonic: "Mein Vater erklärt mir jeden Sonntag unseren Nachthimmel.",
 
   /* Aussteigen & erkunden: pro Ort 3 Entdeckungen (eine davon ein großes Spiel), 3 Funk-Fragen, kurze Texte –
@@ -299,33 +321,43 @@ window.SPACE_DATA = {
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
         order: ["fallversuch", "apollo", "mondstein"],
-        hello: "Da sind wir, {name}! Warte, ich klettere auch runter.",
-        welcome: "Willkommen auf dem Mond! Hier wiegst du fast nichts – spring mal! Und dann komm mit.",
-        wait: "Hier lang, {name}! Ich warte auf dich.",
-        next: "Toll! Komm mit – als Nächstes: {ziel}.",
+        hello: "Alles bestens, Bodenstation! Da sind wir, {name}! Warte, ich klettere auch runter.",
+        welcome: "Willkommen auf dem Mond! Hier wiegst du fast nichts – spring ruhig mal! Und dann komm mit, ich zeig dir was.",
+        wait: "Hüpf zu mir rüber, {name} – ich warte!",
+        next: {
+          fallversuch: "Am Tisch dort drüben machen wir einen berühmten Versuch. Komm mit!",
+          apollo: "Gleich nebenan sind 1969 die ersten Menschen gelandet. Komm, das musst du sehen!",
+          mondstein: "Und jetzt wird's sportlich: Unten im Krater wartet die Weitsprung-Bahn!"
+        },
         arrive: {
-          fallversuch: "Was fällt schneller: Hammer oder Feder? Probier es aus!",
-          apollo: "Hier sind 1969 die ersten Menschen auf dem Mond gelandet! Stell dich in den Kreis am Seil.",
-          mondstein: "Hier ist die Mond-Weitsprung-Bahn! Mal sehen, wie weit du hier springst.",
+          fallversuch: "Hier liegen ein Hammer und eine Feder. Was fällt wohl schneller? Probier es aus!",
+          apollo: "Da wären wir! Stell dich in den Kreis am Seil – dann siehst du die Landestelle genau.",
+          mondstein: "Nimm Anlauf und spring kurz vor der weißen Linie ab – mal sehen, wie weit du kommst!",
           wand: "An der Wand der Mondbasis siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit!"
         },
-        quiz: "Geschafft, {name}! Jetzt noch {fragen} Funk-Fragen – dann fliegen wir weiter.",
-        home: "Super gemacht, {name}! Komm, wir gehen zur Rakete.",
+        quiz: "Das war die letzte Entdeckung! Psst – hörst du's knacken? Die Bodenstation meldet sich.",
+        home: "Ab zur Rakete, {name} – der Mond war toll!",
+        board: "Einsteigen bitte – ich klettere voraus!",
+        react: {
+          fallversuch: "Verrückt, oder? Ohne Luft fällt alles gleich schnell.",
+          apollo: "Stell dir vor: Diese Fußspuren sind über 50 Jahre alt!",
+          mondstein: "Ich glaube, das war ein Mond-Rekord!"
+        },
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
         again: "🧭 Nora, zeig mir den Weg"
       },
       // Bewohner der Mondbasis (Ideen von ESA und NASA für eine echte Basis am Südpol des Mondes)
       npcs: [
         { name: "Kommandantin Lea", color: "#3b82f6", path: [[30, 38], [40, 34], [36, 28], [26, 32]],
-          hello: "Hallo {name}! Ich bin Lea und leite die Mondbasis.",
-          hint: "Hier lohnt sich noch etwas: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
-          done: "Du hast alles entdeckt – toll!",
+          hello: "Hallo {name}! Ah, Nora hat dich mitgebracht. Ich bin Lea und leite die Mondbasis.",
+          hint: "Ein Tipp von mir: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
+          done: "Du hast alles entdeckt – da kann ich nur staunen!",
           facts: ["Unsere Kuppeln sind mit Mondstaub bedeckt. Er schützt uns vor Strahlung."] },
         { name: "Ingenieur Tom", color: "#f59e0b", path: [[60, 66], [68, 66]], work: true,
-          hello: "Hi {name}, ich bin Tom! Mein großer Drucker baut gerade eine neue Kuppel.",
+          hello: "Hi {name}, ich bin Tom! Pass auf, mein großer Drucker baut gerade eine neue Kuppel.",
           hint: "Mein Tipp für dich: „{ziel}“ – das musst du ausprobieren!",
-          done: "Alles entdeckt? Super!",
+          done: "Alles entdeckt? Respekt!",
           facts: ["Der Drucker baut die Kuppel Schicht für Schicht aus Mondstaub."] }
       ],
       discoveries: [
@@ -334,7 +366,7 @@ window.SPACE_DATA = {
         { key: "apollo", icon: "👣", title: "Die erste Mondlandung", gallery: ["mond-1.jpg", "mond-2.jpg", "mond-3.jpg"],
           text: "Im Juli 1969 landeten hier Neil Armstrong und Buzz Aldrin – die ersten Menschen auf dem Mond! Ihre Fußabdrücke sind noch heute da, denn auf dem Mond gibt es keinen Wind." },
         { key: "mondstein", icon: "🦘", title: "Der große Mondsprung", photo: "mond.jpg",
-          text: "Geschafft! Auf dem Mond springst du 6-mal so hoch und weit wie auf der Erde, denn er zieht nur ein Sechstel so stark. Den Krater hat ein Brocken aus dem All geschlagen." }
+          text: "Was für ein Sprung! Auf dem Mond springst du 6-mal so hoch und weit wie auf der Erde, denn er zieht nur ein Sechstel so stark. Den Krater hat übrigens ein Brocken aus dem All geschlagen." }
       ],
       stations: {
         // action = Knopf an der Station · again = Knopf, um schon Entdecktes nochmal anzusehen · reach = Reichweite in Metern
@@ -371,9 +403,9 @@ window.SPACE_DATA = {
       // {anzahl} = Zahl der Entdeckungen, {fragen} = Zahl der Funk-Fragen am Ende
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf dem Mond, {name}! Hier gibt es {anzahl} Dinge zu entdecken – der Pfeil oben führt dich hin.",
-        found: "Klasse! Noch {rest} übrig.",
+        landed: "Bodenstation an Rakete: Seid ihr gut auf dem Mond gelandet?",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Wir haben alles mitverfolgt: Hammer und Feder, die Landestelle und dein Riesensprung. Bevor ihr weiterfliegt, hab ich drei Fragen an dich. Bist du bereit?",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
@@ -391,23 +423,27 @@ window.SPACE_DATA = {
       // Mitbewohner des Forschungslagers: laufen ihre Wege ab und sprechen das Kind an, wenn es nahe kommt
       npcs: [
         { name: "Forscherin Mara", color: "#22c55e", path: [[-12, 50], [-12, 58], [-4, 46], [-16, 44]],
-          hello: "Hallo {name}! Ich bin Mara und erforsche den Mars. Schön, dass du da bist!",
-          hint: "Hier lohnt sich noch etwas: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
+          hello: "Hallo {name}! Schön, dass Nora dich mitgebracht hat. Ich bin Mara und erforsche den Mars.",
+          hint: "Das solltest du noch sehen: „{ziel}“! Folge einfach dem Pfeil oben.",
           done: "Wow, du hast alles entdeckt! Du bist ein echter Mars-Profi!",
           facts: ["In unserem Gewächshaus wächst Salat unter Lampen. Draußen würde er sofort erfrieren.", "Weißt du, warum der Mars rot ist? Im Staub steckt verrostetes Eisen. Probier es im Proben-Labor mit dem Magneten aus!"] },
         { name: "Techniker Bennett", color: "#3b82f6", path: [[14, 50], [19, 45], [12, 43]], work: true,
-          hello: "Hi {name}, ich bin Bennett! Ich kümmere mich um Strom, Luft und Wasser.",
+          hello: "Hi {name}! Ich bin Bennett – ich kümmere mich hier um Strom, Luft und Wasser.",
           hint: "Mein Tipp: „{ziel}“ – das macht richtig Spaß!",
-          done: "Alles entdeckt? Klasse!",
+          done: "Alles entdeckt? Da staunt sogar Mara!",
           facts: ["Unseren Strom machen Solarzellen. Nach einem Staubsturm muss ich sie putzen!"] }
       ],
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
         order: ["abend", "rover", "curling"],
-        hello: "Da sind wir, {name}! Warte, ich komme auch runter.",
+        hello: "Alles in Ordnung, Bodenstation! Da sind wir, {name}! Warte, ich komme auch runter.",
         welcome: "Willkommen auf dem Mars! Unten im Tal liegt der Außenposten von Mara und Bennett. Komm mit!",
         wait: "Hier lang, {name}! Ich warte auf dich.",
-        next: "Klasse! Komm mit – als Nächstes: {ziel}.",
+        next: {
+          abend: "Komm, wir schauen uns einen Sonnenuntergang auf dem Mars an!",
+          rover: "Jetzt darfst du selbst fahren: Der Rover wartet schon auf dich!",
+          curling: "Und zum Schluss wird's rutschig – auf zum Eis-Krater!"
+        },
         arrive: {
           abend: "Mit der Himmelskamera spulen wir bis zum Abend vor. Welche Farbe hat wohl der Sonnenuntergang?",
           rover: "Das ist der Rover-Leitstand! Fahr mit dem Rover los und sammle 3 Gesteinsproben.",
@@ -415,8 +451,14 @@ window.SPACE_DATA = {
           wand: "An dieser Wand siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit. Tschüss, Mars!"
         },
-        quiz: "Geschafft, {name}! Jetzt noch {fragen} Funk-Fragen – dann fliegen wir weiter.",
-        home: "Super gemacht, {name}! Komm, wir gehen zur Rakete.",
+        quiz: "Das war die letzte Entdeckung! Moment – die Bodenstation funkt uns an.",
+        home: "Komm, {name}, die Rakete wartet!",
+        board: "Dann los – ich klettere voraus!",
+        react: {
+          abend: "Blau statt rot – hättest du das gedacht?",
+          rover: "Spuren von Wasser auf dem Mars – echte Forscherarbeit!",
+          curling: "Wie weit der Stein gerutscht ist!"
+        },
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
         again: "🧭 Nora, zeig mir den Weg"
       },
@@ -493,9 +535,9 @@ window.SPACE_DATA = {
       },
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf dem Mars, {name}! Hier gibt es {anzahl} Dinge zu entdecken – der Pfeil oben führt dich hin.",
-        found: "Klasse! Noch {rest} übrig.",
+        landed: "Bodenstation an Rakete: Alles in Ordnung bei der Landung auf dem Mars?",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Blauer Sonnenuntergang, eine Rover-Fahrt und Curling auf echtem Eis – was für ein Tag auf dem Mars! Ich hab noch drei Fragen an dich. Bist du bereit?",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
@@ -512,32 +554,42 @@ window.SPACE_DATA = {
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
         order: ["temperatur", "sonne", "krater"],
-        hello: "Da sind wir, {name}! Schnell aus der Sonne – ich komme!",
+        hello: "Alles heil, Bodenstation – aber heiß! Da sind wir, {name}! Schnell aus der Sonne, ich komme!",
         welcome: "Willkommen auf dem Merkur! In der Sonne ist es hier heißer als in einem Backofen. Komm mit!",
         wait: "Hier lang, {name}! Ich warte auf dich.",
-        next: "Klasse! Weiter geht's – als Nächstes: {ziel}.",
+        next: {
+          temperatur: "Komm mit zum Eis-Lager – da wartet eine eilige Lieferung!",
+          sonne: "Jetzt geht's hoch hinaus: Oben auf dem Sonnenturm wartet ein Fernrohr!",
+          krater: "Zum Schluss lassen wir es krachen – komm zum Einschlag-Krater!"
+        },
         arrive: {
           temperatur: "Kofi braucht Eis für sein Labor. Bring es zum großen Felsen – aber pass auf, in der Sonne schmilzt es!",
-          sonne: "Oben auf dem Sonnenturm steht ein Fernrohr mit Filter. Schau, wie riesig die Sonne hier ist!",
+          sonne: "Kletter hoch zum Fernrohr – es hat einen Filter. Schau, wie riesig die Sonne von hier aus ist!",
           krater: "Lass einen Brocken aus dem All fallen und schau, was passiert!",
           wand: "An der Wand der Station siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit. Raus aus der Hitze!"
         },
-        quiz: "Geschafft, {name}! Jetzt noch {fragen} Funk-Fragen – dann fliegen wir weiter.",
-        home: "Super gemacht, {name}! Komm, wir gehen zur Rakete.",
+        quiz: "Das war's – alles entdeckt! Psst, die Bodenstation ist dran.",
+        home: "Komm, {name}, raus aus der Hitze – zur Rakete!",
+        board: "Schnell rein in die kühle Rakete – ich klettere voraus!",
+        react: {
+          temperatur: "Puh, gerade noch rechtzeitig, bevor alles geschmolzen ist!",
+          sonne: "So riesig sieht die Sonne nur von hier aus!",
+          krater: "Bumm! Kein Wunder, dass der Merkur voller Krater ist."
+        },
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
         again: "🧭 Nora, zeig mir den Weg"
       },
       npcs: [
         { name: "Forscher Kofi", color: "#b45309", path: [[-6, 58], [6, 56], [2, 52]],
-          hello: "Hallo {name}! Ich bin Kofi. Gut, dass du einen Raumanzug trägst!",
-          hint: "Hier lohnt sich noch etwas: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
+          hello: "Hallo {name}! Nora hat mir schon von dir erzählt. Ich bin Kofi – gut, dass du einen Raumanzug trägst!",
+          hint: "Unbedingt ansehen: „{ziel}“! Der Pfeil oben zeigt dir den Weg.",
           done: "Du hast alles entdeckt! Jetzt weißt du mehr über den Merkur als fast alle Menschen.",
           facts: ["Unsere Station steht unten im Krater. Der Kraterrand wirft seinen Schatten auf uns."] }
       ],
       discoveries: [
         { key: "temperatur", icon: "🧊", title: "Backofen und Eisschrank",
-          text: "Geschafft, das Eis ist da! In der Sonne wird es auf dem Merkur 430 °C heiß, im Schatten −180 °C. Darum gibt es dort sogar Eis: in Kratern, in die nie die Sonne scheint." },
+          text: "Das Eis ist angekommen! In der Sonne wird es auf dem Merkur 430 °C heiß, im Schatten −180 °C. Darum gibt es dort sogar Eis: in Kratern, in die nie die Sonne scheint." },
         { key: "sonne", icon: "☀️", title: "Die riesige Sonne",
           text: "Vom Merkur aus sieht die Sonne fast dreimal so breit aus wie bei uns! Kein Planet ist ihr näher. Schau aber niemals ohne Filter in die Sonne!" },
         { key: "krater", icon: "☄️", title: "Einschlag!", photo: "merkur-1.jpg",
@@ -588,9 +640,9 @@ window.SPACE_DATA = {
       },
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf dem Merkur, {name}! Hier gibt es {anzahl} Dinge zu entdecken – der Pfeil oben führt dich hin.",
-        found: "Klasse! Noch {rest} übrig.",
+        landed: "Bodenstation an Rakete: Seid ihr heil auf dem Merkur angekommen? Dort ist es glühend heiß!",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Eis geliefert, die riesige Sonne gesehen und einen Einschlag beobachtet – richtig gute Arbeit! Jetzt hab ich drei Fragen an dich. Bist du bereit?",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
@@ -607,7 +659,7 @@ window.SPACE_DATA = {
       // Sara wohnt im Luftschiff oben in den Wolken und ist mit herabgekommen
       npcs: [
         { name: "Pilotin Sara", color: "#f97316", path: [[-20, 64], [-8, 64], [-14, 60]],
-          hello: "Hallo {name}! Ich bin Sara und fliege das Luftschiff oben in den Wolken.",
+          hello: "Hallo {name}! Du bist mit Nora unterwegs? Toll! Ich bin Sara und fliege das Luftschiff oben in den Wolken.",
           hint: "Schau dir noch das an: „{ziel}“! Folge einfach den Leitlichtern.",
           done: "Du hast alles entdeckt! Jetzt kennst du den heißesten Planeten.",
           facts: ["Wir wohnen im Luftschiff, 50 Kilometer hoch in den Wolken. Dort ist es angenehm warm."] }
@@ -615,19 +667,29 @@ window.SPACE_DATA = {
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
         order: ["venera", "hitze", "druck"],
-        hello: "Da sind wir, {name}! Man sieht kaum etwas im Dunst – bleib stehen, ich komme!",
+        hello: "Wir hören dich, Bodenstation – die Sicht ist schlecht! Da sind wir, {name}! Bleib stehen, ich komme!",
         welcome: "Willkommen auf der Venus! Zum Glück tragen wir Spezialanzüge. Komm mit!",
         wait: "Hier lang, {name}! Folge den Lichtern zu mir.",
-        next: "Gut gemacht! Weiter an den Leitlichtern entlang – als Nächstes: {ziel}.",
+        next: {
+          venera: "Komm mit zum Radar-Peiler – wir gehen auf Schatzsuche!",
+          hitze: "Folge den Leitlichtern – am Klima-Messturm wartet ein spannender Versuch!",
+          druck: "Und jetzt wird's laut: Am Druck-Prüfstand knirscht es gleich!"
+        },
         arrive: {
           venera: "Irgendwo im Dunst steht eine alte Landesonde: Venera 13. Such sie mit dem Radar – bevor die Kühlung deines Anzugs leer ist!",
           hitze: "Das ist der Klima-Messturm. Was passiert wohl, wenn wir die Wolken wegschieben?",
-          druck: "Am Druck-Prüfstand siehst du, wie stark die Venusluft drückt. Gleich knirscht es!",
+          druck: "Hier siehst du, wie stark die Venusluft drückt. Schau genau auf die Dose!",
           wand: "Das ist der Außenposten. An der Wand siehst du alles, was du entdeckt hast.",
           rakete: "Steig ein – ich komme mit. Raus aus der Hitze!"
         },
-        quiz: "Geschafft, {name}! Jetzt noch {fragen} Funk-Fragen – dann fliegen wir weiter.",
-        home: "Super gemacht, {name}! Komm, wir gehen zur Rakete.",
+        quiz: "Das war die letzte Entdeckung! Hörst du? Die Bodenstation meldet sich.",
+        home: "Komm, {name}, zurück zur Rakete – den Leitlichtern nach!",
+        board: "Rein in die Rakete – ich klettere voraus. Raus aus der Hitze!",
+        react: {
+          venera: "Unglaublich – die Sonde liegt hier schon seit 1982!",
+          hitze: "Die Wolken sind wie eine dicke Decke – darum ist es hier so heiß.",
+          druck: "Arme Dose! Gut, dass wir Spezialanzüge tragen."
+        },
         alone: "Alles klar, erkunde allein! Folge einfach den Leitlichtern. Wenn du mich brauchst, komm zu mir.",
         again: "🧭 Nora, zeig mir den Weg"
       },
@@ -686,9 +748,9 @@ window.SPACE_DATA = {
       },
       radio: {
         start: "Hier ist die Bodenstation! Willkommen auf der Venus, {name}! Dein Spezialanzug schützt dich. Hier gibt es {anzahl} Dinge zu entdecken – folge dem Pfeil oben.",
-        found: "Klasse! Noch {rest} übrig.",
+        landed: "Bodenstation an Rakete: Hört ihr mich? Wie ist die Sicht auf der Venus?",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Du hast Venera 13 im Dunst gefunden, die Hitze gemessen und gesehen, wie die Dose zerquetscht wird. Ich hab noch drei Fragen an dich. Bist du bereit?",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
@@ -705,7 +767,7 @@ window.SPACE_DATA = {
       // Jana arbeitet im Besucherzentrum und trainiert selbst für einen Flug ins All – darum trägt sie einen Trainingsanzug
       npcs: [
         { name: "Astronautin Jana", color: "#2563eb", path: [[-6, 74], [8, 74], [2, 70]],
-          hello: "Hallo {name}! Ich bin Jana und trainiere hier für meinen ersten Flug ins All.",
+          hello: "Hallo {name}! Bist du mit Nora unterwegs? Ich bin Jana und trainiere hier für meinen ersten Flug ins All.",
           hint: "Schau dir noch das an: „{ziel}“! Folge dem Weg um den See.",
           done: "Du hast alles entdeckt! Siehst du jetzt, wie besonders unsere Erde ist?",
           facts: ["Das Training für einen Flug ins All dauert mehrere Jahre!"] }
@@ -713,19 +775,29 @@ window.SPACE_DATA = {
       // Nora steigt mit aus der Rakete und führt das Kind (Sprechblase über ihrem Kopf); die Bewohner bleiben vor Ort
       guide: {
         order: ["wald", "tag", "luft"],
-        hello: "Da sind wir, {name} – zu Hause! Warte, ich komme.",
+        hello: "Gut gelandet, Bodenstation – wie schön, wieder hier zu sein! Da sind wir, {name}! Warte, ich komme.",
         welcome: "Willkommen auf der Erde! Heute siehst du, wie besonders unser Planet ist. Komm mit!",
         wait: "Hier lang, {name}! Ich warte auf dich.",
-        next: "Prima! Weiter auf dem Rundweg – als Nächstes: {ziel}.",
+        next: {
+          wald: "Komm, am Waldrand und am See gibt es Tiere zu fotografieren!",
+          tag: "Weiter auf dem Rundweg: An der Sonnenuhr spulen wir einen ganzen Tag vor!",
+          luft: "Und jetzt ein Gedankenspiel: Was wäre, wenn die Erde keine Luft hätte?"
+        },
         arrive: {
-          wald: "Im Wald und am See leben viele Tiere und Pflanzen. Fotografiere 5 verschiedene Lebewesen!",
-          tag: "An der Sonnenuhr spulen wir einen ganzen Tag vor.",
-          luft: "Was wäre, wenn die Erde keine Luft hätte? Probier es aus!",
+          wald: "Hier leben viele Tiere und Pflanzen. Fotografiere 5 verschiedene Lebewesen!",
+          tag: "Da ist die Sonnenuhr! Pass auf, wohin der Schatten wandert.",
+          luft: "Hier probieren wir es aus – was passiert wohl mit dem Himmel?",
           wand: "Im Besucherzentrum siehst du an der Wand alles, was du entdeckt hast.",
           rakete: "Steig ein – ich komme mit. Auf zu neuen Welten!"
         },
-        quiz: "Geschafft, {name}! Jetzt noch {fragen} Funk-Fragen – dann fliegen wir weiter.",
-        home: "Super gemacht, {name}! Komm, wir gehen zur Rakete.",
+        quiz: "Das war die letzte Entdeckung! Moment – da funkt die Bodenstation.",
+        home: "Komm, {name}, die Rakete wartet auf uns!",
+        board: "Auf zu neuen Welten – ich klettere voraus!",
+        react: {
+          wald: "So viel Leben – das gibt es nur auf unserer Erde!",
+          tag: "Die Sonne wandert gar nicht – wir drehen uns!",
+          luft: "Ohne Luft wär's ganz schön ungemütlich hier, oder?"
+        },
         alone: "Alles klar, erkunde allein! Wenn du mich brauchst, komm einfach zu mir.",
         again: "🧭 Nora, zeig mir den Weg"
       },
@@ -792,9 +864,9 @@ window.SPACE_DATA = {
       },
       radio: {
         start: "Hier ist die Bodenstation! Willkommen zu Hause, {name}! Auch hier gibt es {anzahl} Dinge zu entdecken – der Pfeil oben führt dich hin.",
-        found: "Klasse! Noch {rest} übrig.",
+        landed: "Bodenstation an Rakete: Willkommen zu Hause! Seid ihr gut gelandet?",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Tiere fotografiert, einen ganzen Tag vorgespult und die Luft erforscht – jetzt kennst du unsere Erde richtig gut! Drei Fragen hab ich noch. Bist du bereit?",
         back: "Willkommen zurück, {name}! Noch {rest} Entdeckungen – folge dem Pfeil oben.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         tooFar: "Hallo {name}, bitte nicht zu weit weg von der Rakete!",
         quizDone: "Hier hast du schon alles entdeckt, {name}! Lauf zur Rakete, wenn du weiterfliegen willst."
       },
@@ -821,9 +893,8 @@ window.SPACE_DATA = {
       ],
       radio: {
         start: "{name}, auf dem Jupiter kann man nicht landen – er hat keinen festen Boden. Steuere deine Kapsel durch die {anzahl} leuchtenden Mess-Tore!",
-        found: "Klasse! Noch {rest} übrig.",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Deine Kapsel hat alle Messungen geschickt: der Riese, der Rote Fleck – und kein Boden in Sicht. Ich hab drei Fragen dazu. Bist du bereit?",
         back: "Deine Kapsel ist wieder beim Jupiter, {name}! Noch {rest} Mess-Tore.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -835,7 +906,7 @@ window.SPACE_DATA = {
 
     saturn: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Es misst, woraus die Ringe bestehen.", "Nächstes Tor: Es prüft, wie schwer der Saturn ist – rate mal!", "Letztes Tor über dem Nordpol – dort dreht sich ein seltsamer Sturm!"] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Achtung, Eisbrocken! Das erste Tor misst, woraus die Ringe bestehen.", "Nächstes Tor: Es prüft, wie schwer der Saturn ist – rate mal!", "Letztes Tor über dem Nordpol – dort dreht sich ein seltsamer Sturm!"] },
       course: { note: "🛰️ Sonde „Cassini“ – Flug durch die Ringe", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
       discoveries: [
         { key: "ringe", icon: "🧊", title: "Ringe aus Eis", photo: "saturn-1.jpg",
@@ -847,9 +918,8 @@ window.SPACE_DATA = {
       ],
       radio: {
         start: "{name}, deine Sonde fliegt mitten durch die Ringe des Saturn. Flieg durch die {anzahl} Mess-Tore und weich den Eisbrocken aus!",
-        found: "Klasse! Noch {rest} übrig.",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Deine Sonde ist heil durch die Ringe gekommen – Glückwunsch! Ich hab drei Fragen dazu. Bist du bereit?",
         back: "Deine Sonde ist wieder beim Saturn, {name}! Noch {rest} Mess-Tore.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -861,7 +931,7 @@ window.SPACE_DATA = {
 
     uranus: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Schau dir an, wie der Uranus liegt.", "Das nächste Tor misst, woraus der Uranus besteht.", "Letztes Tor! Brr – es misst die Temperatur."] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Siehst du's? Der Uranus liegt auf der Seite! Das erste Tor schaut genau hin.", "Das nächste Tor misst, woraus der Uranus besteht.", "Letztes Tor! Brr – es misst die Temperatur."] },
       course: { note: "🛰️ Uranus-Sonde – eiskalt hier draußen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "gekippt", icon: "🙃", title: "Auf der Seite", gallery: ["uranus.jpg", "uranus-1.jpg"],
@@ -873,9 +943,8 @@ window.SPACE_DATA = {
       ],
       radio: {
         start: "{name}, Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Steuere deine Sonde durch die {anzahl} Mess-Tore!",
-        found: "Klasse! Noch {rest} übrig.",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Brr, die Messwerte vom Uranus sind eisig! Ich hab drei Fragen dazu. Bist du bereit?",
         back: "Deine Sonde ist wieder beim Uranus, {name}! Noch {rest} Mess-Tore.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -887,7 +956,7 @@ window.SPACE_DATA = {
 
     neptun: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Spürst du den Wind? Erstes Tor voraus – lenk dagegen!", "Nächstes Tor: Wie weit sind wir von der Sonne weg?", "Letztes Tor! Es erzählt, wie der Neptun gefunden wurde – zuerst nur durch Rechnen!"] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Spürst du den Wind? Erstes Tor voraus – lenk dagegen!", "Nächstes Tor: Wie weit sind wir von der Sonne weg?", "Letztes Tor! Es erzählt, wie der Neptun gefunden wurde – zuerst nur durch Rechnen!"] },
       course: { note: "🛰️ „Voyager 2“ – der Wind schiebt dich, lenk dagegen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
       discoveries: [
         { key: "wind", icon: "💨", title: "Die stärksten Winde",
@@ -899,9 +968,8 @@ window.SPACE_DATA = {
       ],
       radio: {
         start: "{name}, du bist am äußersten Planeten. Steuere Voyager 2 durch die {anzahl} Mess-Tore – der Sturm drückt dich zur Seite!",
-        found: "Klasse! Noch {rest} übrig.",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Trotz Sturm hat Voyager 2 alle Tore geschafft – super gesteuert! Ich hab drei Fragen dazu. Bist du bereit?",
         back: "Deine Sonde ist wieder beim Neptun, {name}! Noch {rest} Mess-Tore.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -913,7 +981,7 @@ window.SPACE_DATA = {
 
     sonne: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Hitzeschild bereit? Erstes Tor voraus!", "Das nächste Tor stoppt die Zeit, die das Licht bis zur Erde braucht.", "Letztes Tor! Es schaut auf dunkle Flecken."] },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Hitzeschild bereit? Erstes Tor voraus!", "Das nächste Tor stoppt die Zeit, die das Licht bis zur Erde braucht.", "Letztes Tor! Es schaut auf dunkle Flecken."] },
       course: { note: "🛡️ „Parker Solar Probe“ – Anflug auf die Sonne", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
       discoveries: [
         { key: "stern", icon: "⭐", title: "Ein Stern", gallery: ["sonne-1.jpg", "sonne-2.jpg"],
@@ -925,9 +993,8 @@ window.SPACE_DATA = {
       ],
       radio: {
         start: "{name}, auf der Sonne kann niemand landen – sie ist glühendes Gas. Flieg mit deiner Hitzeschild-Sonde durch die {anzahl} Mess-Tore!",
-        found: "Klasse! Noch {rest} übrig.",
+        quizIntro: "Hallo {name}, hier ist die Bodenstation! Dein Hitzeschild hat gehalten – und alle Messungen sind da! Ich hab drei Fragen dazu. Bist du bereit?",
         back: "Deine Sonde ist wieder bei der Sonne, {name}! Noch {rest} Mess-Tore.",
-        allFound: "Super, {name}! Alles entdeckt. Hier kommen {fragen} Funk-Fragen.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [

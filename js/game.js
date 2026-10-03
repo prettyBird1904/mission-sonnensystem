@@ -152,7 +152,11 @@
     if (UI.modalOpen()) return;
     if (nora.pending.length && !UI.noraVisible()) { UI.nora(nora.pending.shift()); nora.quiet = 20; }
     if (nora.queue) { nora.queue.at -= dt; if (nora.queue.at <= 0) { const q = nora.queue; nora.queue = null; noraMission(q.prefix); } return; }
-    if (nora.justDone) { nora.justDone = false; nora.back = null; noraMission(Game.currentMission() ? NS.done : ""); return; }
+    if (nora.justDone) { // jede geschaffte Mission hat ihren eigenen Satz
+      nora.justDone = false; nora.back = null;
+      const was = D.missions[Game.state.mission - 1];
+      noraMission(Game.currentMission() ? (was && was.done) || NS.done : ""); return;
+    }
     const m = Game.currentMission();
     if (nora.back) { // zurück im All, aber woanders gewesen als bei der Mission
       const b = nora.back; nora.back = null;

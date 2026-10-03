@@ -69,7 +69,8 @@ function add(text, role, tag, who) {
   e.tags.add(tag); lines.set(h, e);
 }
 const both = (text, tag) => { add(text, "nora", tag); add(text, "radio", tag); }; // Nora oder – ohne Führung – die Bodenstation
-const guessed = (t) => [t, "✅ Richtig vermutet! " + t, "🤔 Gut überlegt – aber schau mal: " + t]; // siehe guessed() in surface.js
+const guessedAt = (id) => { const gi = Object.keys(D.surfaces).indexOf(id) % D.guessOk.length; // siehe guessed() in surface.js
+  return (t) => [t, `✅ ${D.guessOk[gi]} ` + t, `🤔 ${D.guessNo[gi]} ` + t]; };
 const asked = (g, ready) => [`${ready}\n\n🤔 ${g.q}`, ready];                                      // siehe askGuess() in surface.js
 const female = (n) => /^(Forscherin|Kommandantin|Pilotin|Astronautin|Technikerin|Ingenieurin)\b/.test(n);
 const ART = { sonne: "die Sonne", erde: "die Erde", mond: "der Mond", venus: "die Venus" };      // wie nameOf() in game.js
@@ -78,21 +79,24 @@ const nameOf = (id) => ART[id] || D.bodies.find((b) => b.id === id).name;
 for (const [id, S] of Object.entries(D.surfaces)) {
   const n = S.discoveries.length, f = (t, v = {}) => fill(t, { anzahl: n, fragen: S.quiz.length, ...v });
   const R = S.radio, nr = S.probe ? "nora" : "radio"; // Sonden: Start und Rückkehr meldet Nora
+  const guessed = guessedAt(id);
   add(f(R.start), nr, id); add(f(R.quizDone), nr, id);
   for (let r = 1; r <= n; r++) add(f(R.back, { rest: r }), nr, id);
-  for (let r = 1; r < n; r++) add(f(R.found, { rest: r }), "radio", id);
-  add(f(R.allFound), "radio", id); if (R.tooFar) add(f(R.tooFar), "radio", id);
+  for (let r = 1; r < n; r++) add(f(D.radioFound[r] || D.radioFound[D.radioFound.length - 1], { rest: r }), "radio", id); // Zwischenstand (siehe discover)
+  if (R.landed) add(f(R.landed), "radio", id); add(f(R.quizIntro), "radio", id); // Funkspruch bei der Landung, Einleitung der Funk-Fragen
+  if (R.tooFar) add(f(R.tooFar), "radio", id);
   for (const d of S.discoveries) add(`${d.title}. ${d.text}`, "card", id);
-  for (const q of S.quiz) { // Funk-Fragen (siehe startQuiz in surface.js)
+  S.quiz.forEach((q, i) => { // Funk-Fragen (siehe startQuiz in surface.js): je Frage eine andere Rückmeldung
     add(`${q.q} ${q.a.slice(0, -1).join("? ")}? Oder: ${q.a[q.a.length - 1]}?`, "radio", id);
-    add(`Richtig! ${q.why}`, "radio", id); add(`Nicht ganz. ${q.why}`, "radio", id);
-  }
+    add(`${D.quizRight[i % D.quizRight.length]} ${q.why}`, "radio", id); add(`${D.quizWrong[i % D.quizRight.length]} ${q.why}`, "radio", id);
+  });
   if (S.flight) for (const g of S.flight.gates) add(g, "nora", id);
   const G = S.guide;
   if (G) {
-    for (const k of ["hello", "welcome", "wait", "quiz", "home", "alone"]) add(f(G[k]), "nora", id);
+    for (const k of ["hello", "welcome", "wait", "quiz", "home", "alone", "board"]) add(f(G[k]), "nora", id);
     for (const k of Object.keys(G.arrive)) add(f(G.arrive[k]), "nora", id);
-    for (const k of G.order) add(f(G.next, { ziel: S.stations[k].label }), "nora", id);
+    for (const k of G.order) add(f(typeof G.next === "object" ? G.next[k] : G.next, { ziel: S.stations[k].label }), "nora", id); // Überleitung zur nächsten Station
+    for (const t of Object.values(G.react || {})) add(f(t), "nora", id);                                                      // Reaktion auf das gerade Entdeckte
   }
   for (const c of S.npcs || []) {
     const role = female(c.name) ? "npcF" : "npcM";
@@ -134,6 +138,9 @@ for (const [id, S] of Object.entries(D.surfaces)) {
 }
 // Ergebnis der Funk-Fragen (für alle gleich)
 for (let r = 0; r <= 3; r++) add(fill(r === 3 ? D.quizEnd.all : r ? D.quizEnd.some : D.quizEnd.none, { r, n: 3 }), "radio", "common"); // wie startQuiz() in surface.js
+for (const t of D.quizOrder) add(t, "radio", "common");   // „Erste Frage:“ … „Und die letzte Frage:“
+add(D.quizAgain, "radio", "common");                       // Funk-Fragen nochmal (aus „Meine Entdeckungen“)
+add(D.radioQuizOpen, "radio", "common"); add(D.radioQuizOpen, "nora", "common"); // fertiger Ort, Fragen noch offen (bei Sonden spricht Nora)
 // Probe in der Hilfe
 add("Hallo {name}! Ich bin Nora, deine Flugleiterin. Bist du bereit für das nächste Abenteuer?", "nora", "common");
 
@@ -141,6 +148,7 @@ add("Hallo {name}! Ich bin Nora, deine Flugleiterin. Bist du bereit für das nä
 const NS = D.noraSpace;
 for (const k of ["first", "back", "done", "allDone", "returned", "order", "arrow"]) add(NS[k], "nora", "space");
 D.missions.forEach((m, i) => {
+  if (m.done) add(m.done, "nora", "space"); // eigener Satz, wenn diese Mission geschafft ist
   const text = fill(NS.mission, { nr: i + 1, text: m.brief || m.text });
   for (const steer of [NS.steerKey, NS.steerTouch]) add(text.replace("{steer}", steer), "nora", "space");
   add(fill(NS.goal, { text: m.text }), "nora", "space");
@@ -171,16 +179,23 @@ for (const e of lines.values()) e.tag = e.tags.size > 1 ? "common" : [...e.tags]
 // (getestet: [excited] [whispers] [sighs] [curious] [surprised] [happy] [sympathetic] werden befolgt, nicht vorgelesen)
 function emotion(said, voice) {
   if (VOICES[voice].calm) return said; // der Erzähler bleibt ruhig
-  return (said.match(/[^.!?]+[.!?]*\s*/g) || [said]).map((s) => {
+  const npc = /^(lea|tom|mara|bennett|kofi|sara|jana)EL$/.test(voice);
+  return (said.match(/[^.!?]+[.!?]*\s*/g) || [said]).map((s, i) => {
     const t = s.trim();
     let tag = null;
     if (/^(Psst|Pst)\b/i.test(t)) tag = "whispers";
-    else if (/^(Wow|Juhu|Hurra|Super|Toll|Klasse|Prima|Spitze|Fantastisch|Geschafft|Volltreffer|Gefunden|Bravo|Perfekt|Wahnsinn|Hui|Richtig)\b/.test(t)) tag = "excited";
-    else if (/^(Oh nein|Oje|Hoppla|Puh|Schade|Mist)\b/.test(t)) tag = "sighs";
-    else if (/^Nicht ganz\b/.test(t)) tag = "sympathetic";
-    else if (/^(Weißt du|Was glaubst du|Was meinst du|Was denkst du|Rate mal|Schau mal|Sieh mal)\b/.test(t)) tag = "curious";
-    else if (/^(Ein Reh|Ein Fuchs|Huch)\b/.test(t)) tag = "surprised";
-    else if (/^(Hallo|Hi)\b/.test(t) && /^(lea|tom|mara|bennett|kofi|sara|jana)EL$/.test(voice)) tag = "happy"; // Bewohner begrüßen dich fröhlich
+    else if (/^(Wow|Juhu|Hurra|Volltreffer|Wahnsinn|Hui|Über die goldene Linie)\b/.test(t)) tag = "excited";
+    else if (/^(Unglaublich|Verrückt|Stell dir vor|Kaum zu glauben|So riesig|Was für ein|Wie weit)\b/.test(t)) tag = "amazed";
+    else if (/^(Ich glaube, das war|Alle \d+ Fragen richtig|Respekt|Stark|Du hast alles entdeckt|Alles entdeckt\?|Ganz außen angekommen|Heil durch)/.test(t)) tag = i % 2 ? "impressed" : "proud";
+    else if (/^(Genau|Stimmt|Richtig)[!,]/.test(t) || /^(Super|Toll|Klasse|Prima|Spitze|Bravo|Perfekt|Geschafft|Gefunden|Gut gemacht|Gut getippt|Du hast es geahnt|Stimmt genau|Das Eis ist angekommen)\b/.test(t)) tag = "happy"; // „Genau hier …“ ist keine Antwort
+    else if (/^(Puh|Gerade noch|Dein Hitzeschild hat gehalten)\b/.test(t)) tag = "relieved";
+    else if (/^(Oh nein|Oje|Hoppla|Schade|Mist)\b/.test(t)) tag = "sighs";
+    else if (/^(Nicht ganz|Knapp daneben|Hm, leider|Diesmal hat's nicht|Gar nicht so einfach|Hättest du's gedacht)\b/.test(t)) tag = "sympathetic";
+    else if (/^(Weißt du|Was glaubst du|Was meinst du|Was denkst du|Rate mal|Schau mal|Sieh mal|Was fällt wohl|Hörst du)\b/.test(t)) tag = "curious";
+    else if (/^(Ein Reh|Ein Fuchs|Huch|Bumm|Überraschung|Achtung, Eisbrocken|Siehst du's)\b/.test(t)) tag = "surprised";
+    else if (/^(Bist du bereit|Und jetzt wird's|Jetzt wird's|Und zum Schluss|Zum Schluss lassen|Jetzt darfst du|Jetzt geht's)\b/.test(t)) tag = "playfully";
+    else if (/^(Ab zur Rakete|Einsteigen bitte|Komm, die Rakete|Willkommen zu Hause|Zu Hause war's)/.test(t)) tag = "warmly";
+    else if (i === 0 && /^(Hallo|Hi)\b/.test(t) && (npc || /hier ist die Bodenstation/.test(said))) tag = npc ? "happy" : "warmly"; // Begrüßungen
     return tag ? `[${tag}] ${s}` : s;
   }).join("").trim();
 }
@@ -205,7 +220,9 @@ const xml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, 
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  const todo = [...lines].filter(([h]) => !fs.existsSync(path.join(OUT, h + ".mp3")));
+  const MAN_F = path.join(__dirname, "stimmen-el.json"); let man = {}; try { man = JSON.parse(fs.readFileSync(MAN_F, "utf8")); } catch (e) { /* noch keine */ }
+  const changed = ([h, e]) => EL_KEY && VOICES[e.voice].el && man[h] != null && man[h] !== emotion(e.said, e.voice); // anderes Gefühl als bei der Aufnahme
+  const todo = [...lines].filter((x) => !fs.existsSync(path.join(OUT, x[0] + ".mp3")) || changed(x));
   console.log(`${lines.size} Sätze, davon ${todo.length} neu aufzunehmen`);
   const elTodo = EL_KEY ? todo.filter(([, e]) => VOICES[e.voice].el) : [];
   const elChars = elTodo.reduce((n, [, e]) => n + emotion(e.said, e.voice).length, 0);
@@ -218,7 +235,7 @@ async function main() {
       while (!stop && next < elTodo.length) {
         const [h, e] = elTodo[next++];
         for (let attempt = 1; ; attempt++) {
-          try { const buf = await elRecord(e); if (buf.length < 1500) throw new Error("zu kurz"); fs.writeFileSync(path.join(OUT, h + ".mp3"), buf); break; }
+          try { const buf = await elRecord(e); if (buf.length < 1500) throw new Error("zu kurz"); fs.writeFileSync(path.join(OUT, h + ".mp3"), buf); man[h] = emotion(e.said, e.voice); break; }
           catch (err) {
             if (err.status === 401 || err.status === 402 || /quota|credits/i.test(err.message)) { console.log("  ElevenLabs gestoppt:", err.message); stop = true; break; }
             if (attempt >= 4) { console.log(`  ElevenLabs-FEHLER bei „${e.said.slice(0, 60)}“: ${err.message}`); break; }
@@ -229,6 +246,7 @@ async function main() {
       }
     }));
   }
+  if (elTodo.length) { for (const h of Object.keys(man)) if (!lines.has(h)) delete man[h]; fs.writeFileSync(MAN_F, JSON.stringify(man, null, 0).replace(/","/g, "\",\n\"")); }
   const rest = todo.filter(([h]) => !fs.existsSync(path.join(OUT, h + ".mp3")));
   if (rest.length) console.log(`Microsoft-Stimmen: ${rest.length} Sätze`);
   if (rest.length) {

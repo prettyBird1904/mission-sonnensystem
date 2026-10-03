@@ -166,7 +166,7 @@ window.Voice = (function () {
     if (HAS_CLIPS && !job.clips && TEST) (window.__voiceMiss = window.__voiceMiss || []).push(role + (opt.who ? " " + opt.who : "") + ": " + said);
     last = { text: said, at: now };
     if (opt.queue && cur) { queue.push(job); return job.id; }
-    if (talking && npc && cur.prio > prio) { queue = queue.filter((j) => !j.npcWait); job.npcWait = true; job.expire = now + 6000; queue.push(job); return job.id; } // Bewohner warten kurz, bis das Wichtigere vorbei ist
+    if (talking && npc && cur.prio >= prio) { queue = queue.filter((j) => !j.npcWait); job.npcWait = true; job.expire = now + 6000; queue.push(job); return job.id; } // Bewohner warten kurz, bis das Wichtigere vorbei ist
     if (talking && opt.polite && (cur.role === "npcF" || cur.role === "npcM")) { // Nora und Bodenstation lassen Bewohner ausreden – es wartet immer nur der neueste Satz
       queue = queue.filter((j) => !j.polite); job.polite = true; job.expire = now + 15000; queue.push(job); return job.id;
     }
@@ -233,7 +233,7 @@ window.Voice = (function () {
   // Sprechblasen bleiben stehen, solange ihr Text noch gesprochen wird
   const busy = () => !!(cur && performance.now() < cur.until); // spricht gerade jemand? (Hintergrundgeräusche werden dann leiser)
   const speaking = (id) => !!(id && ((cur && cur.id === id && performance.now() < cur.until) || queue.some((j) => j.id === id)));
-  function stopModal() { if (cur && cur.modal) halt(); }
+  function stopModal() { queue = queue.filter((j) => !j.modal); if (cur && cur.modal) halt(); } // Fenster zu: auch wartende Sätze dazu verwerfen
   // Aufnahmen eines Ortes schon im Hintergrund laden (dann gibt es keine Pause vor dem Sprechen)
   const fetched = new Set();
   function prefetch(tag) {
