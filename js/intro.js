@@ -325,7 +325,7 @@ window.Intro = (function () {
     const lift = Math.max(0, t - T_LIFT - 0.5), fire = t > T_LIFT;
     const fl = S.rocket.userData.flame;
     fl.visible = fire;
-    if (fire) fl.scale.set(2.2 + Math.random() * 0.5, 2.2 + Math.random() * 0.5, 3.4 + Math.random() * 1.2);
+    if (fire) { const w = 1.35 + Math.random() * 0.25; fl.scale.set(w, w, 3.4 + Math.random() * 1.2); } // lange, schmal zulaufende Flamme
     S.blaze.visible = fire;
     if (fire) { S.blaze.position.set(0, S.rocket.position.y - 6.5, 0); S.blaze.scale.setScalar(14 + Math.random() * 5); }
     S.rocket.position.y = S.rocketY + 0.5 * 7 * lift * lift;

@@ -8,7 +8,7 @@ window.World = (function () {
     renderer: null, scene: null, camera: null,
     bodies: {},        // id -> { data, group, mesh, pivot, spin }
     stardust: [],
-    ship: null, flame: null, trail: [],
+    ship: null, flame: null, trail: [], puffs: { dust: [], fire: [] },
     belt: null, sunGlow: [],
     timeScale: 1
   };
@@ -62,52 +62,186 @@ window.World = (function () {
     return ring;
   }
 
-  function buildShip(color) {
-    const g = new THREE.Group();
-    const main = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.35, metalness: 0.4 });
-    const accent = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness: 0.4, metalness: 0.3 });
-    const glass = new THREE.MeshStandardMaterial({ color: 0x7dd3fc, roughness: 0.1, metalness: 0.6, emissive: 0x0ea5e9, emissiveIntensity: 0.6 });
-
-    // Rumpf zeigt entlang -Z (Blickrichtung)
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 1.3, 24), main);
-    body.rotation.x = Math.PI / 2;
-    g.add(body);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.7, 24), accent);
-    nose.rotation.x = -Math.PI / 2; nose.position.z = -1.0;
-    g.add(nose);
-    const window1 = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), glass);
-    window1.position.set(0, 0.2, -0.35);
-    g.add(window1);
-    const ringBand = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.04, 8, 24), accent);
-    ringBand.position.z = 0.25;
-    g.add(ringBand);
-    // Flossen: nach hinten gepfeilt, mit abgerundeten Kanten; ihre Spitzen reichen bis hinter die Düse –
-    // darauf steht die Rakete nach der Landung (Umriss: x = Abstand von der Achse, y = Richtung Heck)
-    const fs = new THREE.Shape();
-    fs.moveTo(0.24, 0.02); fs.quadraticCurveTo(0.5, 0.3, 0.6, 0.7); fs.lineTo(0.62, 0.95); fs.lineTo(0.38, 0.95); fs.lineTo(0.24, 0.66); fs.closePath();
-    const finGeo = new THREE.ExtrudeGeometry(fs, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.014, bevelSize: 0.012, bevelSegments: 2, curveSegments: 10 });
-    finGeo.translate(0, 0, -0.0175);
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + Math.PI / 2, out = new THREE.Vector3(Math.cos(a), Math.sin(a), 0), back = new THREE.Vector3(0, 0, 1);
-      const fin = new THREE.Mesh(finGeo, accent);
-      fin.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(out, back, out.clone().cross(back)));
-      g.add(fin);
+  // ---------- Die eigene Rakete ----------
+  // Aufrecht gedacht gebaut (y nach oben): Füße der Flossen bei y = -0.95, Spitze bei 1.33. buildShip legt sie danach
+  // so hin, dass die Spitze entlang -Z zeigt (Flugrichtung). Steht die Rakete auf einem Planeten (rotation.x = π/2),
+  // entsprechen die Winkel hier (atan2(z, x)) genau den Richtungen am Boden: Flossen bei 90°, 210°, 330°, Luke bei 150°.
+  const NOSE0 = 0.5, NOSE_L = 0.83, TAIL0 = -0.66, TAIL1 = -0.42, HULL_Y1 = NOSE0 + NOSE_L;
+  const DOOR = { deg: 150, half: 20.5, y0: -0.135, y1: 0.275 }; // Luke (passt zu HATCH in surface.js)
+  function hullR(y) {
+    if (y <= TAIL1) { const t = Math.max(0, (y - TAIL0) / (TAIL1 - TAIL0)); return 0.215 + (hullR(TAIL1 + 1e-6) - 0.215) * Math.sin(t * Math.PI / 2); }
+    if (y <= NOSE0) return 0.325 - 0.04 * Math.pow((y + 0.12) / 0.62, 2); // leicht bauchig
+    const R = hullR(NOSE0), L = NOSE_L, rho = (R * R + L * L) / (2 * R), x = Math.max(0, NOSE0 + L - y); // Ogive: spitz wie bei echten Raketen
+    return Math.max(0, Math.sqrt(rho * rho - (L - x) * (L - x)) + R - rho);
+  }
+  const hullU = (deg) => (((90 - deg) / 360) % 1 + 1) % 1;     // Richtung → u der Rumpf-Textur
+  const hullV = (y) => (y - TAIL0) / (HULL_Y1 - TAIL0);        // Höhe → v (eine Textur für alle Rumpfteile)
+  // Rumpfstück als Drehkörper zwischen y0 und y1 (wahlweise nur ein Ausschnitt rundherum: deg0 … deg1)
+  function hullGeo(y0, y1, n, grow = 0, deg0, deg1) {
+    const pts = [];
+    for (let i = 0; i <= n; i++) { const y = y0 + (y1 - y0) * (i / n); pts.push(new THREE.Vector2(hullR(y) + grow, y)); }
+    const part = deg0 != null, phi0 = part ? THREE.MathUtils.degToRad(90 - deg1) : 0, phiL = part ? THREE.MathUtils.degToRad(deg1 - deg0) : Math.PI * 2;
+    const geo = new THREE.LatheGeometry(pts, part ? 12 : 48, phi0, phiL);
+    const pos = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      if (part) uv.setX(i, hullU(THREE.MathUtils.radToDeg(Math.atan2(pos.getZ(i), pos.getX(i)))));
+      uv.setY(i, hullV(pos.getY(i)));
     }
-    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.2, 20, 1, true),
-      new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3, side: THREE.DoubleSide }));
-    nozzle.rotation.x = Math.PI / 2; nozzle.position.z = 0.75;
-    g.add(nozzle);
+    geo.computeVertexNormals();
+    return geo;
+  }
+  function rrect(g, x, y, w, h, r) { // abgerundetes Rechteck (roundRect fehlt auf älteren iPads)
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  // Lack mit Blechfugen und Nieten, Schachbrett am Heck, Wappen, Flaggen, Schrift und Tür-Umriss.
+  // Alles hell/grau → die Teile in der gewählten Farbe bekommen dieselben Fugen.
+  let hullTex = null, doorAlpha = null;
+  const TEX = 1024, doorRect = () => {
+    const X = (deg) => TEX * hullU(deg), Y = (y) => TEX * (1 - hullV(y));
+    return { x: X(DOOR.deg + DOOR.half), y: Y(DOOR.y1), w: X(DOOR.deg - DOOR.half) - X(DOOR.deg + DOOR.half), h: Y(DOOR.y0) - Y(DOOR.y1), r: 22 };
+  };
+  function hullTexture() {
+    if (hullTex) return hullTex;
+    const c = document.createElement("canvas"); c.width = c.height = TEX;
+    const g = c.getContext("2d");
+    const X = (deg) => TEX * hullU(deg), Y = (y) => TEX * (1 - hullV(y));
+    g.fillStyle = "#fff"; g.fillRect(0, 0, TEX, TEX);
+    for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.025})`; g.fillRect(Math.random() * TEX, Math.random() * TEX, 2 + Math.random() * 6, 1 + Math.random() * 3); }
+    const sq = TEX / 16, h = Y(-0.56) - Y(-0.47); // Schachbrett am Heck
+    g.fillStyle = "rgba(20,24,40,0.30)";
+    for (let row = 0; row < 2; row++) for (let i = 0; i < 16; i++) if ((i + row) % 2) g.fillRect(i * sq, Y(-0.47) + row * h, sq, h);
+    for (const y of [-0.6, -0.2, 0.1, 0.72, 0.95]) { // waagerechte Fugen mit Nieten
+      g.fillStyle = "rgba(30,40,60,0.32)"; g.fillRect(0, Y(y) - 1.5, TEX, 3);
+      g.fillStyle = "rgba(30,40,60,0.26)";
+      for (let x = 6; x < TEX; x += 16) for (const s of [-7, 7]) { g.beginPath(); g.arc(x, Y(y) + s, 1.8, 0, Math.PI * 2); g.fill(); }
+    }
+    g.fillStyle = "rgba(30,40,60,0.22)"; // senkrechte Fugen (8 Platten)
+    for (let i = 0; i < 8; i++) g.fillRect((i + 0.5) * TEX / 8 - 1, Y(0.5), 2, Y(-0.42) - Y(0.5));
+    const d = doorRect(); // Luke (geschlossen)
+    g.fillStyle = "#fff"; g.fillRect(d.x - 8, d.y - 8, d.w + 16, d.h + 16);
+    g.lineWidth = 5; g.strokeStyle = "rgba(30,40,60,0.55)"; rrect(g, d.x, d.y, d.w, d.h, d.r); g.stroke();
+    g.lineWidth = 2; g.strokeStyle = "rgba(30,40,60,0.25)"; rrect(g, d.x + 9, d.y + 9, d.w - 18, d.h - 18, d.r - 8); g.stroke();
+    g.fillStyle = "rgba(30,40,60,0.6)"; g.fillRect(d.x + d.w - 22, d.y + d.h / 2 - 18, 8, 36); // Griff
+    // Wappen „Mission Sonnensystem“ unter dem großen Fenster (90° = im Flug oben)
+    const px = X(90), py = Y(0.13), pr = 46;
+    g.fillStyle = "#1e3a8a"; g.beginPath(); g.arc(px, py, pr, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 6; g.strokeStyle = "#facc15"; g.stroke();
+    g.fillStyle = "#fde047"; g.beginPath(); g.arc(px - 16, py + 6, 13, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = 2; g.beginPath(); g.ellipse(px - 16, py + 6, 34, 14, -0.3, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = "#60a5fa"; g.beginPath(); g.arc(px + 15, py - 4, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#fff"; for (const [sx, sy] of [[12, -26], [-26, -22], [26, 20], [-4, 30]]) { g.beginPath(); g.arc(px + sx, py + sy, 2.2, 0, Math.PI * 2); g.fill(); }
+    for (const a of [30, 270]) { // Flagge + Schrift senkrecht auf den beiden freien Seiten
+      const fx = X(a), fy = Y(0.4);
+      [["#111", 0], ["#dd0000", 1], ["#ffce00", 2]].forEach(([col, k]) => { g.fillStyle = col; g.fillRect(fx - 30, fy - 21 + k * 14, 60, 14); });
+      g.save(); g.translate(fx, Y(-0.37)); g.rotate(-Math.PI / 2);
+      g.fillStyle = "#1e293b"; g.font = "bold 38px Fredoka, Arial, sans-serif"; g.textBaseline = "middle";
+      g.fillText("SONNENSYSTEM", 0, 0); g.restore();
+    }
+    hullTex = new THREE.CanvasTexture(c);
+    hullTex.encoding = THREE.sRGBEncoding; hullTex.anisotropy = 4;
+    return hullTex;
+  }
+  // Nur die Tür (für die aufklappende Luke): weiß in der Tür, sonst schwarz
+  function doorAlphaTexture() {
+    if (doorAlpha) return doorAlpha;
+    const c = document.createElement("canvas"); c.width = c.height = 256; // reicht für eine Maske
+    const g = c.getContext("2d"), d = doorRect();
+    g.scale(256 / TEX, 256 / TEX);
+    g.fillStyle = "#000"; g.fillRect(0, 0, TEX, TEX);
+    g.fillStyle = "#fff"; rrect(g, d.x - 2, d.y - 2, d.w + 4, d.h + 4, d.r); g.fill();
+    doorAlpha = new THREE.CanvasTexture(c);
+    return doorAlpha;
+  }
 
-    // Flamme
+  // Flamme: hell an der Düse, wird nach hinten schmal und verblasst (Farbverlauf statt harter Kegel)
+  let flameTex = null;
+  function flameTexture() {
+    if (flameTex) return flameTex;
+    const c = document.createElement("canvas"); c.width = 8; c.height = 128;
+    const g = c.getContext("2d"), gr = g.createLinearGradient(0, 128, 0, 0); // unten (v = 0) = Düse
+    gr.addColorStop(0, "#fff7e0"); gr.addColorStop(0.18, "#ffd27a"); gr.addColorStop(0.5, "#ff8a2a"); gr.addColorStop(0.8, "#7a2a08"); gr.addColorStop(1, "#000");
+    g.fillStyle = gr; g.fillRect(0, 0, 8, 128);
+    flameTex = new THREE.CanvasTexture(c); flameTex.encoding = THREE.sRGBEncoding;
+    return flameTex;
+  }
+  function buildFlame() {
     const flame = new THREE.Group();
-    const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1, 16, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
-    f1.rotation.x = -Math.PI / 2; f1.position.z = 0.5;
-    const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.7, 12, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
-    f2.rotation.x = -Math.PI / 2; f2.position.z = 0.35;
-    flame.add(f1, f2);
-    flame.position.z = 0.85;
+    const cone = (r, len, op) => {
+      const geo = new THREE.CylinderGeometry(r * 0.15, r, len, 20, 6, true); // schmal am Ende
+      geo.rotateX(Math.PI / 2); geo.translate(0, 0, len / 2);   // Düse bei z = 0, Flamme nach +Z
+      const pos = geo.attributes.position, uv = geo.attributes.uv; // v: 0 an der Düse, 1 am Ende
+      for (let i = 0; i < pos.count; i++) uv.setY(i, pos.getZ(i) / len);
+      return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: flameTexture(), color: 0xffffff, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    };
+    const outer = cone(0.17, 1.0, 0.75), core = cone(0.085, 0.55, 0.95);
+    core.material.color.set(0xfff4d6);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glowTexture("rgba(255,240,200,1)", "rgba(255,150,50,0.45)"), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.8 }));
+    glow.scale.set(0.55, 0.55, 1); glow.position.z = 0.06;
+    flame.add(outer, core, glow);
+    for (const o of flame.children) {
+      o.raycast = () => {};  // wirft keinen Schatten-Strahl (Thermometer) und Sprites bräuchten dafür eine Kamera
+      o.renderOrder = 5;     // nach halbdurchsichtigen Himmelskugeln zeichnen (Intro), sonst liegt der Himmel wie ein Schleier darüber
+    }
+    return flame;
+  }
+
+  function buildShip(color) {
+    const g = new THREE.Group(), up = new THREE.Group();
+    up.rotation.x = -Math.PI / 2; // aufrecht gebaut → Spitze entlang -Z
+    g.add(up);
+    const tex = hullTexture();
+    const main = new THREE.MeshStandardMaterial({ color: 0xf8fafc, map: tex, roughness: 0.42, metalness: 0.08 });
+    const accent = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), map: tex, roughness: 0.4, metalness: 0.08 });
+    const trim = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.3, metalness: 0.65 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.7, side: THREE.DoubleSide });
+    const glass = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.08, metalness: 0.3, emissive: 0x0c4a6e, emissiveIntensity: 0.9 });
+
+    // Rumpf in Farbzonen: Heck (Farbe), Mitte (weiß), Spitze (Farbe), dazwischen schmale Zierbänder
+    up.add(new THREE.Mesh(hullGeo(TAIL0, TAIL1, 10), accent));
+    up.add(new THREE.Mesh(hullGeo(TAIL1, NOSE0, 24), main));
+    up.add(new THREE.Mesh(hullGeo(NOSE0, HULL_Y1 - 0.025, 30), accent));
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 8), trim); tip.position.y = HULL_Y1 - 0.03; up.add(tip);
+    for (const y of [TAIL1, NOSE0]) up.add(new THREE.Mesh(hullGeo(y - 0.012, y + 0.012, 2, 0.008), trim));
+    // Boden + Triebwerksglocke
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(0.216, 32), dark); floor.rotation.x = Math.PI / 2; floor.position.y = TAIL0; up.add(floor);
+    const bell = [[0.11, -0.64], [0.1, -0.67], [0.115, -0.72], [0.15, -0.77], [0.19, -0.805], [0.198, -0.81]].map(([r, y]) => new THREE.Vector2(r, y));
+    up.add(new THREE.Mesh(new THREE.LatheGeometry(bell, 28), dark));
+    const bellRim = new THREE.Mesh(new THREE.TorusGeometry(0.196, 0.008, 6, 28), trim); bellRim.rotation.x = Math.PI / 2; bellRim.position.y = -0.808; up.add(bellRim);
+    const hot = new THREE.Mesh(new THREE.CircleGeometry(0.1, 20), new THREE.MeshBasicMaterial({ color: 0xff8a3d, toneMapped: false }));
+    hot.rotation.x = Math.PI / 2; hot.position.y = -0.66; up.add(hot);
+
+    // Bullaugen mit Metallrahmen: groß oben (im Flug sichtbar), klein über der Luke
+    for (const [deg, y, r] of [[90, 0.33, 0.085], [150, 0.39, 0.055]]) {
+      const a = THREE.MathUtils.degToRad(deg), R = hullR(y), nx = Math.cos(a), nz = Math.sin(a);
+      const w = new THREE.Group(); w.position.set(nx * R, y, nz * R); w.lookAt(nx * 2, y, nz * 2);
+      w.add(new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.22, 8, 28), trim));
+      const pane = new THREE.Mesh(new THREE.SphereGeometry(r * 0.95, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.32), glass);
+      pane.rotation.x = Math.PI / 2; pane.position.z = -r * 0.95 * Math.cos(Math.PI * 0.32) + 0.004; w.add(pane);
+      const shine = new THREE.Mesh(new THREE.CircleGeometry(r * 0.22, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75 }));
+      shine.position.set(-r * 0.35, r * 0.35, 0.012); w.add(shine);
+      up.add(w);
+    }
+
+    // Flossen: gepfeilt, mit runden Kanten; an den Spitzen Landefüße – darauf steht die Rakete. Positionslichter rot/grün/weiß.
+    const fs = new THREE.Shape(), rootTop = -0.08, rootBot = -0.62;
+    fs.moveTo(hullR(rootTop) - 0.02, rootTop);
+    fs.bezierCurveTo(0.42, -0.2, 0.55, -0.42, 0.585, -0.7);
+    fs.lineTo(0.6, -0.9); fs.quadraticCurveTo(0.6, -0.935, 0.565, -0.935);
+    fs.lineTo(0.5, -0.935); fs.quadraticCurveTo(0.47, -0.935, 0.462, -0.9);
+    fs.bezierCurveTo(0.44, -0.74, 0.36, -0.66, hullR(rootBot) - 0.02, rootBot);
+    fs.closePath();
+    const finGeo = new THREE.ExtrudeGeometry(fs, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.018, bevelSize: 0.016, bevelSegments: 3, curveSegments: 14 });
+    finGeo.translate(0, 0, -0.02);
+    const footGeo = new THREE.CylinderGeometry(0.06, 0.07, 0.025, 16), lampGeo = new THREE.SphereGeometry(0.016, 10, 8);
+    [0xff3b3b, 0x22e06b, 0xffffff].forEach((lc, i) => {
+      const holder = new THREE.Group(); holder.rotation.y = -THREE.MathUtils.degToRad(90 + i * 120); up.add(holder); // +X zeigt nach außen
+      holder.add(new THREE.Mesh(finGeo, accent));
+      const foot = new THREE.Mesh(footGeo, dark); foot.position.set(0.532, -0.938, 0); holder.add(foot);
+      const lamp = new THREE.Mesh(lampGeo, new THREE.MeshBasicMaterial({ color: lc, toneMapped: false })); lamp.position.set(0.598, -0.69, 0); holder.add(lamp);
+    });
+
+    const flame = buildFlame();
+    flame.position.z = 0.8; // an der Glocke
     g.add(flame);
 
     // Scheinwerfer-Licht, damit das Schiff im Schatten sichtbar bleibt
@@ -190,6 +324,7 @@ window.World = (function () {
     W.ship = buildShip(shipColor);
     scene.add(W.ship);
     buildTrail();
+    buildPuffs();
 
     onProgress(1, "Bereit zum Start!");
     return W;
@@ -304,6 +439,44 @@ window.World = (function () {
     }
   }
 
+  // Staubwolken und Abgas beim Landen/Starten: Sie hängen am Himmelskörper (ziehen mit ihm weiter und drehen sich mit),
+  // statt frei im All stehen zu bleiben. Staub ist matt in der Farbe des Bodens, nur das Abgas leuchtet.
+  function buildPuffs() {
+    const dustTex = T.glowTexture("rgba(255,255,255,0.85)", "rgba(255,255,255,0.4)");
+    const fireTex = T.glowTexture("rgba(255,236,190,1)", "rgba(255,140,60,0.5)");
+    for (const [kind, tex, n] of [["dust", dustTex, FAST ? 40 : 90], ["fire", fireTex, FAST ? 30 : 60]]) {
+      for (let i = 0; i < n; i++) {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: kind === "fire" ? THREE.AdditiveBlending : THREE.NormalBlending }));
+        s.visible = false; s.userData = { life: 0, max: 1, size: 1, v: new THREE.Vector3(), kind };
+        W.puffs[kind].push(s);
+      }
+    }
+    W.puffIndex = { dust: 0, fire: 0 };
+  }
+  // pos/vel in den Koordinaten von parent (z. B. der Planetenkugel)
+  function emitPuff(kind, parent, pos, vel, size, life, color) {
+    const list = W.puffs[kind], s = list[W.puffIndex[kind]];
+    W.puffIndex[kind] = (W.puffIndex[kind] + 1) % list.length;
+    if (s.parent !== parent) parent.add(s);
+    s.position.copy(pos); s.userData.v.copy(vel);
+    s.userData.size = size; s.userData.max = s.userData.life = life;
+    if (color != null) s.material.color.set(color);
+    s.visible = true;
+  }
+  function updatePuffs(dt) {
+    for (const kind of ["dust", "fire"]) for (const s of W.puffs[kind]) {
+      if (!s.visible) continue;
+      const u = s.userData;
+      u.life -= dt;
+      if (u.life <= 0) { s.visible = false; continue; }
+      s.position.addScaledVector(u.v, dt);
+      u.v.multiplyScalar(Math.exp(-dt * (kind === "dust" ? 2.2 : 3)));
+      const k = u.life / u.max, grow = 1 - k;
+      s.material.opacity = (kind === "dust" ? 0.6 : 0.8) * k * Math.min(1, grow * 8);
+      s.scale.setScalar(u.size * (kind === "dust" ? 0.45 + grow * 1.4 : 0.6 + grow * 0.9));
+    }
+  }
+
   function buildTrail() {
     const mat = new THREE.SpriteMaterial({ map: T.glowTexture("rgba(255,220,160,1)", "rgba(255,140,60,0.5)"), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
     for (let i = 0; i < (FAST ? 30 : 90); i++) {
@@ -333,6 +506,7 @@ window.World = (function () {
       s.rotation.y += dt * 1.5;
       s.children[0].position.y = Math.sin(elapsed * 2 + s.userData.phase) * 0.25;
     }
+    updatePuffs(dt);
     for (const t of W.trail) {
       if (!t.visible) continue;
       t.userData.life -= dt;
@@ -362,7 +536,10 @@ window.World = (function () {
   W.setShipColor = setShipColor;
   // Zusätzliche Rakete (z. B. auf dem Mond), ohne die Flamme des Spieler-Schiffs zu überschreiben
   W.makeRocket = (color) => { const f = W.flame; const r = buildShip(color); r.userData.flame = W.flame; W.flame = f; return r; };
+  // Maße und Lack der Rakete – surface.js baut daraus die aufklappende Luke (gleiche Einheiten wie die Rakete, aufrecht)
+  W.rocketHull = { r: hullR, door: DOOR, geo: hullGeo, tex: hullTexture, doorAlpha: doorAlphaTexture };
   W.emitTrail = emitTrail;
+  W.emitPuff = emitPuff;
   W.randomDustPos = randomDustPos;
   return W;
 })();

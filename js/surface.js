@@ -642,24 +642,81 @@ window.Surface = (function () {
   // Rakete als Hindernis: ein Kreis, der auch die Flossen umfasst (die Rakete steht auf ihnen, siehe World.makeRocket) –
   // ein glatter Kreis, damit man beim Vorbeilaufen außen herum gleitet und nicht zwischen Rumpf und Flosse hängen bleibt
   const ROCKET_COLLIDERS = [[0, 0, 2.45]];
+  const ROCKET_SCALE = 4.6; // Größe der Rakete am Boden (World.makeRocket ist in Raumschiff-Einheiten gebaut)
+  // Blick in die beleuchtete Kabine: warmes Licht, Sitz, Schaltpult mit bunten Lämpchen (Ecken rund wie der Tür-Umriss)
+  function cabinTexture() {
+    const c = document.createElement("canvas"); c.width = 128; c.height = 256;
+    const g = c.getContext("2d"), path = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    path(0, 0, 128, 256, 25); g.clip();
+    const bg = g.createLinearGradient(0, 0, 0, 256);
+    bg.addColorStop(0, "#fff3c4"); bg.addColorStop(0.35, "#f6b44a"); bg.addColorStop(1, "#7a3510");
+    g.fillStyle = bg; g.fillRect(0, 0, 128, 256);
+    const lamp = g.createRadialGradient(64, 18, 2, 64, 18, 70); lamp.addColorStop(0, "rgba(255,255,240,1)"); lamp.addColorStop(1, "rgba(255,255,240,0)");
+    g.fillStyle = lamp; g.fillRect(0, 0, 128, 110);
+    g.fillStyle = "#3b2a22"; path(30, 120, 52, 120, 16); g.fill();  // Sitz
+    g.fillStyle = "#4a352a"; path(40, 100, 32, 26, 10); g.fill();   // Kopfstütze
+    g.fillStyle = "#2b3442"; path(92, 104, 30, 70, 6); g.fill();    // Schaltpult
+    [["#ef4444", 100, 116], ["#22c55e", 112, 116], ["#38bdf8", 100, 130], ["#facc15", 112, 130], ["#22c55e", 100, 144], ["#ef4444", 112, 144]]
+      .forEach(([col, x, y]) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, 3.5, 0, Math.PI * 2); g.fill(); });
+    for (let i = 0; i < 9; i++) { g.lineWidth = 18 - i * 2; g.strokeStyle = `rgba(40,16,4,${0.07 + i * 0.012})`; path(0, 0, 128, 256, 25); g.stroke(); } // Tiefe: Schatten am Rand
+    const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+    return tex;
+  }
+  // Einstieg: Luke mit aufklappender Tür, Rahmen, Plattform und Leiter mit Haltegriffen.
+  // userData.setDoor(k): k = 1 offen (Kabinenlicht an), 0 zu (dann sieht man nur noch den Umriss auf dem Rumpf)
   function makeHatch() {
-    const g = new THREE.Group();
-    const metal = new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.6, roughness: 0.4 });
-    // Offene Luke: aus der Kabine scheint warmes Licht
-    const door = new THREE.Mesh(new THREE.CylinderGeometry(1.47, 1.41, 1.9, 12, 1, true, -0.36, 0.72),
-      new THREE.MeshStandardMaterial({ color: 0x1f2937, emissive: 0xfcd34d, emissiveIntensity: 0.9, roughness: 0.6, side: THREE.DoubleSide }));
-    door.position.y = HATCH.y + 0.95; g.add(door);
-    const step = new THREE.Mesh(new THREE.BoxGeometry(1, 0.06, 0.5), metal);
-    step.position.set(0, HATCH.y - 0.03, 1.62); step.castShadow = true; g.add(step);
-    for (const x of [-0.3, 0.3]) {
-      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, HATCH.y, 6), metal);
-      rail.position.set(x, HATCH.y / 2, 1.8); rail.castShadow = true; g.add(rail);
+    const g = new THREE.Group(), H = W.rocketHull, Dr = H.door;
+    const metal = new THREE.MeshStandardMaterial({ color: 0xa3acb9, metalness: 0.55, roughness: 0.38 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.5, roughness: 0.5 });
+    // Teile am Rumpf: in den Maßen der Rakete gebaut (aufrecht, Winkel wie am Boden) – darum die Drehung der Luke zurücknehmen
+    const onHull = new THREE.Group(); onHull.rotation.y = -HATCH.a; onHull.position.y = 0.95 * ROCKET_SCALE; onHull.scale.setScalar(ROCKET_SCALE); g.add(onHull);
+    const d0 = Dr.deg - Dr.half, d1 = Dr.deg + Dr.half;
+    // Kabine (leuchtet von selbst) – UV auf die Tür gestreckt
+    const cabGeo = H.geo(Dr.y0, Dr.y1, 8, 0.003, d0, d1), uv = cabGeo.attributes.uv;
+    let u0 = 1, u1 = 0, v0 = 1, v1 = 0;
+    for (let i = 0; i < uv.count; i++) { u0 = Math.min(u0, uv.getX(i)); u1 = Math.max(u1, uv.getX(i)); v0 = Math.min(v0, uv.getY(i)); v1 = Math.max(v1, uv.getY(i)); }
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - u0) / (u1 - u0), (uv.getY(i) - v0) / (v1 - v0));
+    const cabin = new THREE.Mesh(cabGeo, new THREE.MeshBasicMaterial({ map: cabinTexture(), alphaTest: 0.5, toneMapped: false }));
+    onHull.add(cabin);
+    // Rahmen rund um die Öffnung
+    // (von außen gesehen: d0 = rechte Kante mit dem Griff, d1 = linke Kante mit dem Scharnier)
+    const cr = 7.7, cy = 0.043, pts = [];
+    const corner = (dc, yc, a0) => { for (let i = 0; i <= 6; i++) { const a = a0 + (i / 6) * Math.PI / 2; pts.push([dc + Math.cos(a) * cr, yc + Math.sin(a) * cy]); } };
+    corner(d1 - cr, Dr.y1 - cy, 0); corner(d0 + cr, Dr.y1 - cy, Math.PI / 2); corner(d0 + cr, Dr.y0 + cy, Math.PI); corner(d1 - cr, Dr.y0 + cy, Math.PI * 1.5);
+    const p3 = pts.map(([deg, y]) => { const a = THREE.MathUtils.degToRad(deg), r = H.r(y) + 0.006; return new V(Math.cos(a) * r, y, Math.sin(a) * r); });
+    const frame = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p3, true), 96, 0.011, 6, true), metal);
+    onHull.add(frame);
+    // Türblatt: dasselbe Rumpfstück mit dem Lack (Umriss, Griff) – dreht sich an der linken Kante (Scharnier) nach außen
+    const hingeA = THREE.MathUtils.degToRad(d1), hingeR = H.r((Dr.y0 + Dr.y1) / 2) + 0.004;
+    const hinge = new THREE.Group(); hinge.position.set(Math.cos(hingeA) * hingeR, 0, Math.sin(hingeA) * hingeR); onHull.add(hinge);
+    const leafMat = (side, color, map) => new THREE.MeshStandardMaterial({ color, map, alphaMap: H.doorAlpha(), alphaTest: 0.5, side, roughness: 0.42, metalness: 0.08 });
+    const outGeo = H.geo(Dr.y0, Dr.y1, 8, 0.012, d0, d1), inGeo = H.geo(Dr.y0, Dr.y1, 8, 0.002, d0, d1);
+    for (const geo of [outGeo, inGeo]) geo.translate(-hinge.position.x, 0, -hinge.position.z);
+    const leaf = new THREE.Group();
+    leaf.add(new THREE.Mesh(outGeo, leafMat(THREE.FrontSide, 0xf8fafc, H.tex())), new THREE.Mesh(inGeo, leafMat(THREE.BackSide, 0x94a3b8, null)));
+    leaf.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    hinge.add(leaf);
+    // Plattform vor der Luke und Leiter mit Haltegriffen
+    const step = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.07, 0.62), metal);
+    step.position.set(0, HATCH.y - 0.035, 1.68); step.castShadow = true; g.add(step);
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.03, 0.06), new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.6 }));
+    edge.position.set(0, HATCH.y - 0.005, 1.97); g.add(edge);
+    const railGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 8), top = HATCH.y + 0.95;
+    for (const x of [-0.34, 0.34]) {
+      const rail = new THREE.Mesh(railGeo, metal); rail.scale.y = top; rail.position.set(x, top / 2, 1.88); rail.castShadow = true; g.add(rail);
+      const grip = new THREE.Mesh(railGeo, metal); grip.scale.y = 0.42; grip.rotation.x = Math.PI / 2; grip.position.set(x, top, 1.67); g.add(grip);
+      const knee = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), metal); knee.position.set(x, top, 1.88); g.add(knee);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.22), dark); foot.position.set(x, 0.025, 1.88); g.add(foot);
+      const strut = new THREE.Mesh(railGeo, dark); strut.scale.y = 0.5; strut.rotation.x = Math.PI / 2; strut.position.set(x, 2.95, 1.62); g.add(strut);
     }
-    for (let y = 0.35; y < HATCH.y; y += 0.34) {
-      const rung = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.05), metal);
-      rung.position.set(0, y, 1.8); g.add(rung);
-    }
-    g.userData = { door };
+    const rungGeo = new THREE.CylinderGeometry(0.026, 0.026, 0.68, 8); rungGeo.rotateZ(Math.PI / 2);
+    for (let y = 0.34; y < HATCH.y - 0.15; y += 0.34) { const rung = new THREE.Mesh(rungGeo, metal); rung.position.set(0, y, 1.88); g.add(rung); }
+    const setDoor = (k) => {
+      hinge.rotation.y = -1.8 * k;           // ganz offen: weit nach außen geklappt
+      leaf.visible = cabin.visible = k > 0.002;
+    };
+    setDoor(1);
+    g.userData = { setDoor };
     return g;
   }
 
@@ -1982,9 +2039,9 @@ window.Surface = (function () {
       const R = 3.4, x = HATCH.x * R, z = HATCH.z * R;
       ast.pos.set(x, world.height(x, z), z); ast.vy = ast.speed = 0; ast.onGround = true; ast.jumping = ast.hopping = false;
       ast.heading = view.yaw = Math.atan2(-HATCH.x, -HATCH.z);
-      if (guide) { // Nora steht neben dem Kind und steigt zuerst ein
-        const n = guide.n, a = HATCH.a + 0.55, nx = Math.sin(a) * 3.1, nz = Math.cos(a) * 3.1;
-        n.obj.visible = true; n.climbY = null; n.talk = 0; n.obj.position.set(nx, world.height(nx, nz), nz);
+      if (guide) { // Nora steht vor der Leiter und steigt zuerst ein
+        const n = guide.n, nx = HATCH.x * 2.45, nz = HATCH.z * 2.45; // schon vor der Leiter – sie klettert gleich los
+        n.obj.visible = true; n.climbY = n.outR = n.standY = null; n.talk = 0; n.obj.position.set(nx, world.height(nx, nz), nz); n.heading = Math.atan2(-HATCH.x, -HATCH.z);
       }
       const ca = HATCH.a + 0.45;
       world.camera.position.set(Math.sin(ca) * 9.5, world.hatchY + 2.6, Math.cos(ca) * 9.5);
@@ -2091,7 +2148,7 @@ window.Surface = (function () {
     experiment = null; boarding = null; jumpPressed = actionPressed = false;
     world.scene.add(world.astronaut); // holt den Astronauten aus dem zuletzt besuchten Ort hierher
     world.astronaut.visible = true; world.astronaut.scale.setScalar(1);
-    world.hatch.userData.door.material.emissiveIntensity = 0.9;
+    world.hatch.userData.setDoor(1);
     world.rocket.position.y = world.rocketY; world.hatch.position.y = world.hatchY;
     world.rocket.userData.flame.visible = false;
     for (const [key, st] of Object.entries(world.stations)) st.marker.visible = !cfg.stations[key].info;
@@ -2317,7 +2374,7 @@ window.Surface = (function () {
     a.rotation.y = ast.heading;
     const hold = !!(experiment && experiment.t < 0.15);
     if (u.rig) {
-      const mode = boarding ? (boarding.phase === "walk" ? "walk" : boarding.phase === "climb" ? "climb" : "stand")
+      const mode = boarding ? ((boarding.phase === "walk" && !boarding.waiting) || boarding.phase === "enter" ? "walk" : boarding.phase === "climb" ? "climb" : "stand")
         : ast.jumping ? "jump" : lowG && (ast.hopping || (ast.speed > 0.7 && ast.onGround)) ? "lope" : ast.run ? "run" : ast.speed > 0.15 ? "walk" : "stand";
       poseRig(u.rig, { mode, air: !ast.onGround, airP: ast.airDur ? Math.min(1, ast.airT / ast.airDur) : 0, contact: ast.contact || 0,
         speed: mode === "walk" && !boarding ? walkK : speedFrac, phase: ast.phase, hold, t: elapsed, carry: !!(chal && chal.kind === "shadow") });
@@ -3065,50 +3122,84 @@ window.Surface = (function () {
     }
   }
 
-  // Einsteigen: zur Leiter gehen, hochklettern, durch die Luke in die Kabine – dann startet die Rakete zurück ins All
+  // Einsteigen: Nora läuft außen um die Rakete zur Leiter, klettert hoch und geht durch die Luke; das Kind wartet
+  // vor der Leiter, bis sie weit genug oben ist, und folgt ihr. Dann klappt die Tür zu und die Rakete startet zurück ins All.
+  const LADDER_R = 2.05, INSIDE_R = 1.15, WAIT_R = 2.95; // Abstand von der Raketenachse: Fuß der Leiter, drinnen, Warteplatz
   function startBoarding() {
-    boarding = { phase: "walk", t: 0, y: ast.pos.y };
-    if (guide) guide.n.talk = 0; // alte Sprechblase weg, Nora steigt mit ein
+    boarding = { phase: "walk", t: 0, y: ast.pos.y, foot: world.height(HATCH.x * LADDER_R, HATCH.z * LADDER_R) };
+    const n = guide && guide.n;
+    if (n) { // alte Sprechblase weg, Nora steigt zuerst ein
+      n.talk = 0;
+      if (n.obj.visible) boarding.nora = n.outR != null ? { phase: "enter", r: n.outR } // kam gerade erst heraus: gleich wieder hinein
+        : { phase: n.climbY != null ? "climb" : "walk" };
+      if (n.outR == null) n.standY = null;
+      n.outR = null;
+    }
     ast.speed = ast.vy = 0; ast.onGround = true; ast.jumping = ast.hopping = false;
     radioTimer = 0; $("radio").classList.add("hidden");
     world.stations.rakete.marker.visible = false;
   }
-  function updateBoarding(dt) {
-    const b = boarding, R = 2.05; b.t += dt;
-    const nora = guide && guide.n;
-    if (nora && nora.obj.visible) { // Nora steigt zuerst ein
-      const np = nora.obj.position, ex = HATCH.x * 2.6 - np.x, ez = HATCH.z * 2.6 - np.z, ed = Math.hypot(ex, ez);
-      if (ed > 0.2) { const st = Math.min(ed, 2 * dt); np.x += (ex / ed) * st; np.z += (ez / ed) * st; nora.heading = Math.atan2(ex, ez); nora.moving = true; nora.speedNow = 2; }
-      else nora.moving = false;
-      if (b.phase !== "walk") nora.obj.visible = false;
+  function updateBoardingNora(dt) {
+    const bn = boarding.nora, n = guide && guide.n;
+    if (!bn || !n) return;
+    const p = n.obj.position, top = world.hatchY + HATCH.y, inward = Math.atan2(-HATCH.x, -HATCH.z);
+    n.moving = false;
+    if (bn.phase === "walk") {
+      // nicht durch Rumpf und Flossen: erst außen herum, dann gerade auf die Leiter zu
+      const ang = Math.atan2(p.z, p.x), rad = Math.hypot(p.x, p.z);
+      let dA = Math.atan2(HATCH.z, HATCH.x) - ang; dA = Math.atan2(Math.sin(dA), Math.cos(dA));
+      const around = Math.abs(dA) > 0.2;
+      let tx = HATCH.x * LADDER_R, tz = HATCH.z * LADDER_R;
+      if (around) { const a = ang + Math.sign(dA) * Math.min(Math.abs(dA), 0.5), r = Math.min(Math.max(rad, 3.5), 4.2); tx = Math.cos(a) * r; tz = Math.sin(a) * r; } // Flossenspitzen reichen 2,8 m weit
+      const ex = tx - p.x, ez = tz - p.z, ed = Math.hypot(ex, ez), st = (rad > 5 ? 3 : 2.2) * dt; // von weiter weg läuft sie
+      if (!around && ed <= st) { p.x = tx; p.z = tz; bn.phase = "climb"; n.climbY = world.height(tx, tz); }
+      else if (ed > 1e-4) {
+        p.x += (ex / ed) * Math.min(st, ed); p.z += (ez / ed) * Math.min(st, ed);
+        n.heading = angleLerp(n.heading, Math.atan2(ex, ez), 1 - Math.exp(-dt * 8)); n.moving = true; n.speedNow = st / dt;
+      }
+    } else if (bn.phase === "climb") {
+      p.x = HATCH.x * LADDER_R; p.z = HATCH.z * LADDER_R;
+      n.heading = angleLerp(n.heading, inward, 1 - Math.exp(-dt * 10));
+      n.climbY = Math.min(top, n.climbY + 1.6 * dt);
+      if (n.climbY >= top) { n.climbY = null; n.standY = top; bn.phase = "enter"; bn.r = LADDER_R; }
+    } else if (bn.phase === "enter") { // oben durch die Luke hinein (der Rahmen verdeckt sie dabei)
+      bn.r -= 1.1 * dt; p.x = HATCH.x * bn.r; p.z = HATCH.z * bn.r; n.heading = inward; n.moving = true; n.speedNow = 1.1;
+      if (bn.r <= INSIDE_R) { n.obj.visible = false; n.standY = null; bn.phase = "in"; }
     }
+  }
+  function updateBoarding(dt) {
+    const b = boarding, R = LADDER_R; b.t += dt;
+    updateBoardingNora(dt);
+    const bn = b.nora, n = guide && guide.n;
+    // erst auf die Leiter, wenn Nora schon gut zwei Meter höher ist (sonst stehen beide auf derselben Sprosse)
+    const free = !bn || bn.phase === "enter" || bn.phase === "in" || (bn.phase === "climb" && n.climbY - b.foot > 2.1);
     if (b.phase === "walk") {
-      const dx = HATCH.x * R - ast.pos.x, dz = HATCH.z * R - ast.pos.z, d = Math.hypot(dx, dz), step = 1.3 * dt;
-      if (d <= step) { ast.pos.x = HATCH.x * R; ast.pos.z = HATCH.z * R; b.phase = "climb"; b.t = 0; }
+      const goal = free ? R : WAIT_R;
+      const dx = HATCH.x * goal - ast.pos.x, dz = HATCH.z * goal - ast.pos.z, d = Math.hypot(dx, dz), step = 1.3 * dt;
+      b.waiting = d <= step && !free;
+      if (d <= step) { ast.pos.x = HATCH.x * goal; ast.pos.z = HATCH.z * goal; if (free) { b.phase = "climb"; b.t = 0; } }
       else {
         ast.pos.x += (dx / d) * step; ast.pos.z += (dz / d) * step;
         ast.heading = angleLerp(ast.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 8));
       }
+      if (b.waiting) ast.heading = angleLerp(ast.heading, Math.atan2(-HATCH.x, -HATCH.z), 1 - Math.exp(-dt * 6));
       b.y = world.height(ast.pos.x, ast.pos.z);
     } else {
       ast.heading = angleLerp(ast.heading, Math.atan2(-HATCH.x, -HATCH.z), 1 - Math.exp(-dt * 8)); // Blick zur Rakete
       if (b.phase === "climb") {
         const top = world.hatchY + HATCH.y; // Luke über dem Landeplatz (der kann höher liegen, z. B. Mars-Hochebene)
-        b.y = Math.min(top, b.y + 0.95 * dt);
+        b.y = Math.min(top, b.y + 1.15 * dt);
         if (b.y >= top) { b.phase = "enter"; b.t = 0; }
-      } else if (b.phase === "enter") {
-        const k = Math.min(1, b.t / 0.9), r = R - 1.2 * k;
+      } else if (b.phase === "enter") { // durch die Luke hinein – der Rahmen verdeckt das Kind Stück für Stück
+        const k = Math.min(1, b.t / 0.85), r = R - (R - INSIDE_R) * k;
         ast.pos.x = HATCH.x * r; ast.pos.z = HATCH.z * r;
-        world.astronaut.scale.setScalar(1 - 0.25 * k);
-        if (k >= 1) {
-          // Luke zu: das Licht aus der Kabine verschwindet
-          world.astronaut.visible = false;
-          world.hatch.userData.door.material.emissiveIntensity = 0;
-          Sound.land();
-          b.phase = "closed"; b.t = 0;
-        }
+        if (k >= 1) { world.astronaut.visible = false; b.phase = "closing"; b.t = 0; }
+      } else if (b.phase === "closing") { // Tür klappt zu
+        const k = Math.min(1, b.t / 0.7);
+        world.hatch.userData.setDoor(1 - k * k * (3 - 2 * k));
+        if (k >= 1) { Sound.land(); b.phase = "closed"; b.t = 0; }
       } else if (b.phase === "closed") {
-        if (b.t > 0.8) { b.phase = "launch"; b.t = 0; world.rocket.userData.flame.visible = true; Sound.engine(1); }
+        if (b.t > 0.6) { b.phase = "launch"; b.t = 0; world.rocket.userData.flame.visible = true; Sound.engine(1); }
       } else {
         // Start: Triebwerk zündet, Staub fliegt weg, die Rakete hebt immer schneller ab
         const lift = Math.max(0, b.t - 0.6);
@@ -3247,7 +3338,7 @@ window.Surface = (function () {
       if (n.voice && n.talk < 0.5 && Voice.speaking(n.voice)) n.talk = 0.5; // Blase bleibt, solange gesprochen wird
       if (n.el) n.el.classList.toggle("talking", !!(n.voice && Voice.speaking(n.voice)));
       n.cool -= dt; n.waveT -= dt;
-      if (n.guide) moving = !!n.moving;
+      if (n.guide || (n.isNora && boarding)) moving = !!n.moving;
       else if (n.isNora) { if (dist < 6) n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5)); }
       else if (dist < 5.5 && !busy) { // stehen bleiben, zum Kind drehen und etwas sagen
         n.heading = angleLerp(n.heading, Math.atan2(dx, dz), 1 - Math.exp(-dt * 5));
@@ -3264,7 +3355,7 @@ window.Surface = (function () {
         }
       }
       const climbing = n.climbY != null;
-      p.y = climbing ? n.climbY : world.height(p.x, p.z);
+      p.y = climbing ? n.climbY : n.standY != null ? n.standY : world.height(p.x, p.z);
       n.obj.rotation.y = n.heading;
       const acting = !!n.act && !moving && !climbing && !n.isNora && n.wait > 0.4 && dist > 5.5; // bleibt stehen und tut etwas
       if (n.prop) {
@@ -3328,13 +3419,14 @@ window.Surface = (function () {
     navGrid();
     const allDone = foundCount() >= cfg.discoveries.length && quizDone;
     guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0 };
-    n.guide = guide.on; n.obj.visible = true; n.talk = 0; n.climbY = null;
+    n.guide = guide.on; n.obj.visible = true; n.talk = 0; n.climbY = n.outR = n.standY = null;
     const lx = HATCH.x * 2.05, lz = HATCH.z * 2.05; // Fuß der Leiter
     n.obj.position.set(HATCH.x * 2.6, world.height(HATCH.x * 2.6, HATCH.z * 2.6), HATCH.z * 2.6);
     n.heading = Math.atan2(world.L.spawn[0] - n.obj.position.x, world.L.spawn[1] - n.obj.position.z);
     if (guide.on) { // Sie klettert hinter dem Kind die Leiter herunter
       const [sx, sz] = world.L.spawn, mx = lx, mz = lz;
-      n.obj.position.set(lx, world.hatchY + HATCH.y, lz); n.climbY = world.hatchY + HATCH.y; n.heading = Math.atan2(-HATCH.x, -HATCH.z);
+      const top = world.hatchY + HATCH.y; // sie kommt aus der Luke und klettert hinter dem Kind herunter
+      n.obj.position.set(HATCH.x * INSIDE_R, top, HATCH.z * INSIDE_R); n.standY = top; n.outR = INSIDE_R; n.heading = Math.atan2(HATCH.x, HATCH.z);
       // Das Kind schaut zur Rakete, damit es sie herunterklettern sieht
       ast.heading = view.yaw = Math.atan2(mx - sx, mz - sz);
       const cp = world.camera.position.set(sx - Math.sin(view.yaw) * 7, ast.pos.y + 3.2, sz - Math.cos(view.yaw) * 7), cr = Math.hypot(cp.x, cp.z);
@@ -3518,7 +3610,15 @@ window.Surface = (function () {
       const pm = guide.pending; guide.pending = null;
       if (performance.now() - pm.at < 20000) guideShow(pm.msg);
     }
-    if (n.climbY != null) { // erst die Leiter herunter
+    if (boarding) return; // steigt gerade ein (updateBoardingNora)
+    if (n.outR != null) { // erst aus der Luke heraus auf die Plattform …
+      n.outR = Math.min(LADDER_R, n.outR + 1.1 * dt); p.x = HATCH.x * n.outR; p.z = HATCH.z * n.outR;
+      n.moving = true; n.speedNow = 1.1;
+      if (n.outR >= LADDER_R) { n.outR = null; n.standY = null; n.climbY = world.hatchY + HATCH.y; n.moving = false; }
+      return;
+    }
+    if (n.climbY != null) { // … dann die Leiter herunter (Gesicht zur Leiter)
+      n.heading = angleLerp(n.heading, Math.atan2(-HATCH.x, -HATCH.z), 1 - Math.exp(-dt * 10));
       n.climbY -= 1.5 * dt;
       const g = world.height(p.x, p.z);
       if (n.climbY <= g) { n.climbY = null; p.y = g; }

@@ -405,13 +405,14 @@
           s.quaternion.copy(seq.qUp);
           s.scale.setScalar(seq.s);
           flame = 0.8 - e * 0.5;
-          if (e > 0.55) emitDust(3);
+          emitExhaust(flame);
+          if (e > 0.55) emitDust(2, 0.7);
         } else {
           s.position.copy(seq.ground); s.quaternion.copy(seq.qUp); s.scale.setScalar(seq.s);
           if (!seq.touched) {
             seq.touched = true;
             Sound.land();
-            for (let i = 0; i < 14; i++) emitDust(1);
+            emitDust(16, 1);
             UI.toast(`🛬 Gelandet auf ${seq.id === "mond" ? "dem Mond" : seq.b.name}!`, "gold");
           }
           if (t >= seq.dur) arrive();
@@ -421,7 +422,8 @@
         s.position.lerpVectors(seq.from, seq.to, ease(e));
         s.scale.setScalar(THREE.MathUtils.lerp(seq.fromScale, 1, e));
         flame = 1;
-        if (e < 0.3) emitDust(2);
+        emitExhaust(1);
+        if (e < 0.25) emitDust(3, 1.3);
         if (e >= 1) { finishTakeoff(); return; }
       }
     } else {
@@ -460,17 +462,25 @@
     Sound.engine(flame * 0.6);
   }
 
-  // Staub beim Landen/Starten: kleine Wolken rund um den Landepunkt
-  function emitDust(n) {
-    const parent = seq.parent;
+  // Staub beim Landen/Starten: matte Wolken in der Farbe des Bodens, die flach vom Landepunkt wegrollen.
+  // Sie hängen an der Planetenkugel – so bleiben sie am Boden, auch wenn der Planet weiterzieht und sich dreht.
+  const DUST_COLOR = { mond: 0xc8c4bc, merkur: 0xb9ab99, venus: 0xe4bd84, erde: 0xd9cfbf, mars: 0xd08a5c };
+  function emitDust(n, power = 1) {
+    const col = DUST_COLOR[seq.id] || 0xcfc8bd, s = seq.s;
     for (let i = 0; i < n; i++) {
-      const p = tmpA.copy(seq.n).multiplyScalar(seq.r + 0.1 * seq.s);
-      const side = tmpB.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).cross(seq.n).normalize()
-        .multiplyScalar(seq.s * (0.5 + Math.random() * 2));
-      p.add(side);
-      parent.localToWorld(p);
-      W.emitTrail(p, 0.8, seq.s * 2.2);
+      const side = tmpB.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).cross(seq.n).normalize();
+      const p = tmpA.copy(seq.n).multiplyScalar(seq.r + 0.15 * s).addScaledVector(side, s * (0.4 + Math.random() * 0.6));
+      const v = tmpC.copy(side).multiplyScalar(s * (1.6 + Math.random() * 2.2) * power).addScaledVector(seq.n, s * 0.5 * Math.random());
+      W.emitPuff("dust", seq.parent, p, v, s * (1.1 + Math.random() * 0.9), 1 + Math.random() * 0.7, col);
     }
+  }
+  // Abgas an der Düse (wie im Flug, aber am Planeten befestigt)
+  function emitExhaust(f) {
+    if (Math.random() > 0.35 + f * 0.6) return;
+    const sh = W.ship, back = tmpB.set(0, 0, 1).applyQuaternion(sh.quaternion);
+    const p = tmpA.copy(sh.position).addScaledVector(back, 0.95 * sh.scale.x);
+    const v = tmpC.copy(back).multiplyScalar(sh.scale.x * (1.5 + Math.random()));
+    W.emitPuff("fire", seq.parent, p, v, sh.scale.x * (0.5 + Math.random() * 0.4) * (0.6 + f * 0.6), 0.25 + f * 0.35);
   }
 
   // ---------- Eingabe ----------
