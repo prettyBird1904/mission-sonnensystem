@@ -3081,6 +3081,14 @@ window.Surface = (function () {
     if ($("chalInfo").textContent !== (info || "")) $("chalInfo").textContent = info || "";
   }
   function endChallenge() { if (chal && chal.kind === "safari") safariUi(false); if (chal && chal.kind === "shadow") iceRunShow(false); chal = null; $("chalHud").classList.add("hidden"); }
+  // Ein Spiel beginnt erst richtig, wenn die Erklärung zu Ende gesprochen ist (ohne Vorlesen: Zeit zum Lesen je nach Länge)
+  function chalListen(c, text) { c.listen = true; c.listenAt = performance.now() / 1000; c.listenMin = Voice.enabled ? 0.8 : Math.min(7, Math.max(2.5, String(text || "").length / 15)); }
+  function chalListening(c) {
+    if (!c.listen) return false;
+    const t = performance.now() / 1000 - c.listenAt;
+    if (t > c.listenMin && (!Voice.busy() || t > 15)) c.listen = false;
+    return c.listen;
+  }
   function chalSay(text) { if (guide && guide.on && guide.n.obj.visible) guideSay(text, null, "now"); else radio(text); }
   // Erde: Foto-Safari – Lebewesen in die Bildmitte nehmen und fotografieren; fünf verschiedene Arten sind das Ziel
   let cardExtra = null; // Zusatz für die nächste Entdeckungskarte (die Safari-Fotos)
@@ -3238,11 +3246,12 @@ window.Surface = (function () {
   function startRadar() {
     chal = { kind: "radar", cool: 1, beep: 0, last: null, lastAt: 0, t: 0, hint: "" };
     world.stations.venera.marker.visible = false;
-    chalSay(cfg.radar.start); Sound.click();
+    chalSay(cfg.radar.start); Sound.click(); chalListen(chal, cfg.radar.start);
   }
   function updateRadar(dt, busy) {
     const T = cfg.radar, c = chal, [vx, vz] = world.L.venera;
     if (busy) return;
+    if (chalListening(c)) { chalHud(T.label, 0, D.chalListen, false, true); return; } // erst zuhören – die Kühlung läuft noch nicht
     c.t += dt;
     const d = Math.hypot(ast.pos.x - vx, ast.pos.z - vz), sig = Math.max(0, Math.min(1, 1 - (d - 4) / 55));
     c.cool = Math.max(0, c.cool - dt / 100); // gut anderthalb Minuten Kühlung
@@ -3262,7 +3271,7 @@ window.Surface = (function () {
     if (c.cool <= 0) { // Kühlung leer: zurück zum Peiler
       Sound.wrong(); chalSay(T.hot);
       const st = world.stations.venera; ast.pos.set(st.x - 1.5, world.height(st.x - 1.5, st.z + 1.5), st.z + 1.5); ast.speed = 0;
-      c.cool = 1; c.last = null; c.lastAt = c.t;
+      c.cool = 1; c.last = null; c.lastAt = c.t; chalListen(c, T.hot);
       return;
     }
     if (Math.hypot(ast.pos.x - rx, ast.pos.z - rz) > 95) { endRadar(false); chalSay(T.quit); }
@@ -3326,7 +3335,7 @@ window.Surface = (function () {
     if (!run.shade) run.shade = iceShadeMap();
     chal = { kind: "shadow", ice: 1 };
     iceRunBack(); iceRunShow(true);
-    chalSay(T.start); Sound.click();
+    chalSay(T.start); Sound.click(); chalListen(chal, T.start);
   }
   function updateShadowRun(dt, busy) {
     const run = world.run, T = cfg.iceRun, c = chal;
@@ -3337,6 +3346,7 @@ window.Surface = (function () {
     run.drops.visible = !inShade;
     if (!inShade) run.drops.children.forEach((d, i) => { const f = (performance.now() / 1000 * 1.7 + i / run.drops.children.length) % 1; d.position.set(run.block.position.x + Math.sin(i * 2.4) * 0.14 * k, run.block.position.y - 0.12 * k - f * 0.85, run.block.position.z + Math.cos(i * 2.4) * 0.1 * k); });
     if (busy) return;
+    if (chalListening(c)) { chalHud(T.label, c.ice, D.chalListen, false, true); return; } // erst zuhören – das Eis schmilzt noch nicht
     if (!inShade) c.ice = Math.max(0, c.ice - ICE_MELT * dt);
     chalHud(T.label, c.ice, inShade ? T.cool : T.sun, c.ice < 0.35, inShade);
     const toGoal = Math.hypot(ast.pos.x - run.F[0], ast.pos.z - run.F[1]);
@@ -3344,7 +3354,7 @@ window.Surface = (function () {
       endChallenge(); Sound.correct(); UI.confetti(80); discover("temperatur"); return;
     }
     if (c.ice <= 0) { // geschmolzen: neuer Eisblock am Eis-Lager
-      Sound.wrong(); chalSay(T.melted); c.ice = 1; iceRunBack(); return;
+      Sound.wrong(); chalSay(T.melted); c.ice = 1; iceRunBack(); chalListen(c, T.melted); return;
     }
     // weit weg gelaufen: abbrechen
     const line = Math.hypot(ast.pos.x - (run.S[0] + run.F[0]) / 2, ast.pos.z - (run.S[1] + run.F[1]) / 2);
