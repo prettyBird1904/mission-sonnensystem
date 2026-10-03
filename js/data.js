@@ -290,7 +290,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "48",
+  version: "49",
 
   // Anzeige der Sonden-Aufgaben (oben, unter der Überschrift aus course.tasks)
   probeHud: { listen: "🎧 Hör zu, was Nora sagt …", photo: "🎯 Schieb den Sucher auf das Ziel", photoHold: "📸 Stillhalten …", collect: "{n} von {max}", inside: "📈 Messung läuft – bleib drin!", outside: "↩️ Zurück ins Messfeld!", gap: "↕️ Flieg zwischen die Leuchtlinien" },

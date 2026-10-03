@@ -11,7 +11,7 @@ window.Surface = (function () {
   const S = { active: false, scene: null, camera: null };
   const worlds = {};          // fertig gebaute Welten (schneller Wiedereinstieg)
   let G = null, W = null, UI = null;
-  let world = null, cfg = null, bodyId = null, onExit = null, astronautModel = null;
+  let world = null, cfg = null, bodyId = null, onExit = null, astronautModel = null, probeCam = null; // probeCam: nur für Tests (Kamera um die Sonde)
   let site = null;            // Besonderheiten des aktuellen Ortes (siehe SITES ganz unten)
   let sharedAstronaut = null;
   const isTouch = () => document.documentElement.classList.contains("touch-ui");
@@ -1370,7 +1370,10 @@ window.Surface = (function () {
     mond:   { env: [0x0a0b10, 0x3a3a3e, 0x8a8883], a: 0x1d4ed8, b: 0xf59e0b, hull: "#eef0f3" },
     merkur: { env: [0x07070a, 0x4a4540, 0x8f877c], a: 0xb45309, b: 0x475569, hull: "#f4f1ea" },
     venus:  { env: [0xe8b25a, 0xc98a3a, 0x4a3420], a: 0x7c2d12, b: 0x0f766e, hull: "#d9d4c7" },
-    erde:   { env: [0x9fd0f5, 0xd8ecf8, 0x4f7a3a], a: 0x2563eb, b: 0x16a34a, hull: "#fafaf7" }
+    erde:   { env: [0x9fd0f5, 0xd8ecf8, 0x4f7a3a], a: 0x2563eb, b: 0x16a34a, hull: "#fafaf7" },
+    pspace:   { env: [0x05070d, 0x2c3446, 0x4a4640], a: 0xc84a12, b: 0x0d9488, hull: "#f5f2ec" }, // Sonden: Weltraum
+    pjupiter: { env: [0xe6d6bc, 0xc49a6c, 0x6a4628], a: 0xc84a12, b: 0x0d9488, hull: "#f5f2ec" },
+    psonne:   { env: [0x3a1206, 0xff8a30, 0xffc860], a: 0xc84a12, b: 0x0d9488, hull: "#f5f2ec" }
   };
   const envCache = {};
   function envFor(key) { // weiche Spiegelung von Himmel und Boden – ohne sie wirken glatte Flächen stumpf
@@ -5126,9 +5129,9 @@ window.Surface = (function () {
   // userData.cells = Material der Solarzellen (färbt sich bei Staub rotbraun)
   // Isolierdecke wie auf echten Raumsonden: Goldfolie mit Knitterfalten (als Relief, spiegelt das Licht), in Kissen abgesteppt,
   // an den Kreuzungen der Nähte kleine Befestigungsknöpfe. Nahtlos, eine Kachel ≈ 0,5 m
-  let mliCache = null;
-  function mliSurface() {
-    if (mliCache) return mliCache;
+  const mliCache = {};
+  function mliSurface(neutral = false) { // neutral: grau – die Farbe (silber, schwarz, gold) kommt dann vom Material
+    if (mliCache[neutral]) return mliCache[neutral];
     const S = 512, hc = document.createElement("canvas"); hc.width = hc.height = S; const h = hc.getContext("2d");
     h.fillStyle = "#808080"; h.fillRect(0, 0, S, S); h.lineCap = "round";
     for (let i = 0; i < 320; i++) { // Falten: kurze, leicht gebogene Grate (hell) und Täler (dunkel), über den Rand hinweg nahtlos
@@ -5147,16 +5150,16 @@ window.Surface = (function () {
       const o = (y * S + x) * 4, dx = (hh(x + 1, y) - hh(x - 1, y)) * 3.2, dy = (hh(x, y + 1) - hh(x, y - 1)) * 3.2, l = Math.hypot(dx, dy, 1);
       ni.data[o] = (-dx / l * 0.5 + 0.5) * 255; ni.data[o + 1] = (dy / l * 0.5 + 0.5) * 255; ni.data[o + 2] = (1 / l * 0.5 + 0.5) * 255; ni.data[o + 3] = 255;
       const v = H(x, y), k = 0.78 + (v - 0.5) * 0.9 + (hash2(x, y) - 0.5) * 0.04; // helle Grate, dunkle Falten
-      ci.data[o] = Math.min(255, 214 * k); ci.data[o + 1] = Math.min(255, 160 * k); ci.data[o + 2] = Math.min(255, 62 * k); ci.data[o + 3] = 255;
+      const [cr, cg, cb] = neutral ? [236, 236, 236] : [214, 160, 62]; ci.data[o] = Math.min(255, cr * k); ci.data[o + 1] = Math.min(255, cg * k); ci.data[o + 2] = Math.min(255, cb * k); ci.data[o + 3] = 255;
     }
     col.getContext("2d").putImageData(ci, 0, 0); nor.getContext("2d").putImageData(ni, 0, 0);
     const c2 = col.getContext("2d"); // Stiche entlang der Nähte und Knöpfe an den Kreuzungen
-    c2.fillStyle = "rgba(60,38,8,0.85)"; for (let k = 0; k <= S; k += 128) for (let t = 4; t < S; t += 12) { c2.fillRect(k - 1, t, 2, 6); c2.fillRect(t, k - 1, 6, 2); }
+    c2.fillStyle = neutral ? "rgba(40,40,44,0.8)" : "rgba(60,38,8,0.85)"; for (let k = 0; k <= S; k += 128) for (let t = 4; t < S; t += 12) { c2.fillRect(k - 1, t, 2, 6); c2.fillRect(t, k - 1, 6, 2); }
     for (let x = 0; x <= S; x += 128) for (let y = 0; y <= S; y += 128) { c2.fillStyle = "#f1f1ee"; c2.beginPath(); c2.arc(x, y, 6, 0, 7); c2.fill(); c2.fillStyle = "rgba(0,0,0,0.35)"; c2.beginPath(); c2.arc(x + 1, y + 1, 3, 0, 7); c2.fill(); }
     const map = new THREE.CanvasTexture(col), normalMap = new THREE.CanvasTexture(nor);
     map.encoding = THREE.sRGBEncoding; normalMap.encoding = THREE.LinearEncoding;
     for (const t of [map, normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
-    return (mliCache = { map, normalMap });
+    return (mliCache[neutral] = { map, normalMap });
   }
   function merWheel(R, W, alu, dark) {
     const b = partBuilder(), rim = alu.clone(); rim.side = THREE.DoubleSide;
@@ -9337,8 +9340,18 @@ window.Surface = (function () {
   }
   // ---------- Was zu den Aufgaben gehört ----------
   // Einsammeln: leuchtende Funken (oder Bildchen wie 🌍), die vor der Sonde schweben; was vorbeizieht, kommt weiter vorn wieder
+  // Zum Einsammeln überall dasselbe Zeichen: ein heller, funkelnder Stern mit Ring (nie zu verwechseln mit Hindernissen)
+  function starTex(col) {
+    return canvasTex(128, 128, (c) => {
+      const gr = c.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, "rgba(255,255,255,0.75)"); gr.addColorStop(0.45, "rgba(255,255,255,0.35)"); gr.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = gr; c.fillRect(0, 0, 128, 128);
+      c.strokeStyle = "rgba(255,255,255,0.9)"; c.lineWidth = 4; c.beginPath(); c.arc(64, 64, 40, 0, 7); c.stroke();
+      c.beginPath(); for (let k = 0; k < 10; k++) { const a = (k * Math.PI) / 5 - Math.PI / 2, rr = k % 2 ? 20 : 50; c.lineTo(64 + Math.cos(a) * rr, 64 + Math.sin(a) * rr); } c.closePath();
+      c.lineJoin = "round"; c.lineWidth = 9; c.strokeStyle = "#0b2545"; c.stroke(); c.fillStyle = col; c.fill(); c.lineWidth = 3; c.strokeStyle = "#ffffff"; c.stroke();
+      c.fillStyle = "rgba(255,255,255,0.9)"; c.beginPath(); c.arc(58, 58, 7, 0, 7); c.fill();
+    });
+  }
   function makeSparks(scene, def) {
-    const list = [], mat = def.icon ? null : new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,255,1)", def.glow), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
+    const list = [], mat = def.icon ? null : new THREE.SpriteMaterial({ map: starTex(def.glow), transparent: true, depthWrite: false, toneMapped: false, fog: false });
     for (let i = 0; i < 9; i++) {
       const sp = def.icon ? iconSprite(def.icon) : new THREE.Sprite(mat);
       sp.scale.setScalar(def.icon ? 3.4 : 2.8); sp.visible = false; sp.userData = { x: 0, y: 0, z: -1e9, ph: Math.random() * 6 }; scene.add(sp); list.push(sp);
@@ -9434,91 +9447,198 @@ window.Surface = (function () {
     return m;
   }
 
-  // ---------- Jede Sonde ist einer echten Mission nachgebaut (Flugrichtung = +Z) ----------
+  // ---------- Jede Sonde ist einer echten Mission nachgebaut (Flugrichtung = +Z; im Spiel sieht man sie von hinten oben) ----------
+  // Werkstoffe: Isolierdecken (gold, silber, schwarz, kupfer), weißer Lack, Aluminium, Kohlefaser, Solarzellen – mit weicher Spiegelung
+  const PROBE_ENV = { jupiter: "pjupiter", sonne: "psonne" };
   function probeMats() {
-    const gold = new THREE.MeshStandardMaterial({ map: foilTex(), roughness: 0.3, metalness: 0.75 });
+    const env = envFor(PROBE_ENV[bodyId] || "pspace"), mli = mliSurface(true);
+    const std = (o) => new THREE.MeshStandardMaterial({ envMap: env, envMapIntensity: 1, ...o });
+    const blanket = (color, rep = 3) => { const a = mli.map.clone(), b = mli.normalMap.clone(); for (const t of [a, b]) { t.repeat.set(rep, rep * 0.6); t.needsUpdate = true; } return std({ map: a, normalMap: b, normalScale: new THREE.Vector2(1.1, 1.1), color: srgb(color), roughness: 0.3, metalness: 0.9, envMapIntensity: 1.35 }); };
+    const panels = canvasTex(256, 256, (c) => { c.fillStyle = "#f3f4f6"; c.fillRect(0, 0, 256, 256); c.strokeStyle = "rgba(110,118,130,0.6)"; c.lineWidth = 2; for (let x = 0; x <= 256; x += 32) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 256); c.stroke(); } for (let y = 0; y <= 256; y += 64) { c.beginPath(); c.moveTo(0, y); c.lineTo(256, y); c.stroke(); } });
+    panels.wrapS = panels.wrapT = THREE.RepeatWrapping; panels.repeat.set(2, 1);
+    const cells = canvasTex(256, 128, (c) => { c.fillStyle = "#0f2350"; c.fillRect(0, 0, 256, 128); const gr = c.createLinearGradient(0, 0, 256, 128); gr.addColorStop(0, "rgba(120,170,255,0.25)"); gr.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = gr; c.fillRect(0, 0, 256, 128); c.strokeStyle = "#b8c4d8"; c.lineWidth = 1.5; for (let i = 0; i <= 16; i++) { c.beginPath(); c.moveTo(i * 16, 0); c.lineTo(i * 16, 128); c.stroke(); } for (let j = 0; j <= 8; j++) { c.beginPath(); c.moveTo(0, j * 16); c.lineTo(256, j * 16); c.stroke(); } });
+    const char = canvasTex(256, 256, (c) => { c.fillStyle = "#3b2416"; c.fillRect(0, 0, 256, 256); for (let i = 0; i < 260; i++) { const x = hash2(i, 1) * 256, y = hash2(i, 2) * 256, rr = 4 + hash2(i, 3) * 22; c.fillStyle = hash2(i, 4) > 0.5 ? "rgba(110,64,34,0.35)" : "rgba(14,8,4,0.4)"; c.beginPath(); c.arc(x, y, rr, 0, 7); c.fill(); } });
     return {
-      gold, white: new THREE.MeshStandardMaterial({ color: srgb(0xeef0f3), roughness: 0.5, side: THREE.DoubleSide }),
-      dark: new THREE.MeshStandardMaterial({ color: srgb(0x23262e), roughness: 0.5, metalness: 0.5 }),
-      cell: new THREE.MeshStandardMaterial({ color: srgb(0x1e3a8a), metalness: 0.6, roughness: 0.25 }),
-      steel: new THREE.MeshStandardMaterial({ color: srgb(0xc7cdd6), roughness: 0.3, metalness: 0.8 })
+      env, std, gold: blanket(0xe9b04a), silver: blanket(0xd2d7dd), black: blanket(0x3b3b3e), copper: blanket(0xc8794a),
+      white: std({ color: srgb(0xf1f2f4), roughness: 0.45, side: THREE.DoubleSide }), dishIn: std({ map: panels, roughness: 0.5, side: THREE.DoubleSide }),
+      dark: std({ color: srgb(0x23262e), roughness: 0.5, metalness: 0.5 }), steel: std({ color: srgb(0xc7cdd6), roughness: 0.3, metalness: 0.85 }),
+      alu: std({ color: srgb(0xd3d8de), roughness: 0.25, metalness: 0.9 }), comp: std({ color: srgb(0x2b2e33), roughness: 0.7, metalness: 0.15 }),
+      cell: std({ map: cells, roughness: 0.3, metalness: 0.5 }), nozzle: std({ color: srgb(0x4b4f55), roughness: 0.35, metalness: 0.85, side: THREE.DoubleSide }),
+      char: std({ map: char, roughness: 0.9 }), lens: std({ color: srgb(0x0b1d33), roughness: 0.05, metalness: 0.8 }), record: std({ map: canvasTex(128, 128, (c) => { c.fillStyle = "#d4a93a"; c.fillRect(0, 0, 128, 128); c.strokeStyle = "rgba(90,60,10,0.45)"; for (let rr = 14; rr < 64; rr += 2.5) { c.beginPath(); c.arc(64, 64, rr, 0, 7); c.stroke(); } c.fillStyle = "#8a6a1e"; c.beginPath(); c.arc(64, 64, 12, 0, 7); c.fill(); }), roughness: 0.25, metalness: 0.95 })
     };
   }
-  const PROBE_M = { std: (o) => new THREE.MeshStandardMaterial(o) }; // für dishCap
+  const PROBE_M = { std: (o) => new THREE.MeshStandardMaterial(o) }; // für dishCap (alte Sonde)
   const boom = (g, m, a, b, r = 0.03) => { const d = b.clone().sub(a), c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 6), m); c.position.copy(a).addScaledVector(d, 0.5); c.quaternion.setFromUnitVectors(new V(0, 1, 0), d.normalize()); g.add(c); return c; };
-  // Jupiter: Eintauchkapsel wie bei „Galileo“ (1995) – vorn der Hitzeschild, oben der Fallschirm
-  function craftGalileo() {
-    const P = probeMats(), g = new THREE.Group();
-    const shield = new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.8, 28), new THREE.MeshStandardMaterial({ color: srgb(0x6b3d1e), roughness: 0.8 })); shield.rotation.x = Math.PI / 2; shield.position.z = 0.55; g.add(shield);
-    const back = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.9, 28), P.white); back.rotation.x = -Math.PI / 2; back.position.z = -0.2; g.add(back);
-    const chuteTex = canvasTex(256, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? "#f97316" : "#f8fafc"; c.fillRect(i * 32, 0, 32, 64); } });
-    const chute = new THREE.Mesh(new THREE.SphereGeometry(2.2, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2.4), new THREE.MeshStandardMaterial({ map: chuteTex, side: THREE.DoubleSide, roughness: 0.8 }));
-    chute.position.set(0, 5.2, -2.2); chute.rotation.x = -0.5; g.add(chute);
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; boom(g, P.steel, new V(0, 0.2, -0.4), new V(Math.sin(a) * 1.9, 5.2 - 0.6 + Math.cos(a) * 0.9, -2.2 + Math.cos(a) * 1.1), 0.01); }
-    g.userData.chute = chute;
-    // Goldfolien-Band zwischen Hitzeschild und Rückschale, kleine Antenne, Steuerdüsen, Lichter
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.83, 0.83, 0.14, 32, 1, true), P.gold); band.rotation.x = Math.PI / 2; band.position.z = 0.17; g.add(band);
-    boom(g, P.steel, new V(0, 0.35, -0.45), new V(0, 0.95, -0.75), 0.015);
-    craftDetail(g, P, [[0.6, 0, -0.45], [-0.6, 0, -0.45]], [[0.78, 0, -0.2, 0xff3b30], [-0.78, 0, -0.2, 0x22c55e]]);
-    return g;
+  // Bausteine (alles in einen partBuilder b): Stab von p nach q, Teil in einem gedrehten Rahmen, Rahmen mit Achse
+  const pRod = (b, mat, p, q, rr, seg = 6) => { const d = q.clone().sub(p); b.addM(new THREE.CylinderGeometry(rr, rr, 1, seg), mat, new THREE.Matrix4().compose(p.clone().addScaledVector(d, 0.5), new THREE.Quaternion().setFromUnitVectors(new V(0, 1, 0), d.clone().normalize()), new V(1, d.length(), 1))); };
+  const pFrame = (pos, axis) => new THREE.Matrix4().compose(pos, new THREE.Quaternion().setFromUnitVectors(new V(0, 1, 0), axis.clone().normalize()), new V(1, 1, 1));
+  const pAt = (b, geo, mat, base, lp = [0, 0, 0], lr = [0, 0, 0]) => b.addM(geo, mat, base.clone().multiply(new THREE.Matrix4().compose(new V(...lp), new THREE.Quaternion().setFromEuler(new THREE.Euler(...lr)), new V(1, 1, 1))));
+  // Gitterausleger: drei Längsstäbe im Dreieck, Ringe und Diagonalen
+  function pTruss(b, mat, a, c, w, n) {
+    const d = c.clone().sub(a), dir = d.clone().normalize(), up = Math.abs(dir.y) > 0.9 ? new V(1, 0, 0) : new V(0, 1, 0), u = new V().crossVectors(dir, up).normalize(), v = new V().crossVectors(dir, u).normalize();
+    const k3 = (k) => u.clone().multiplyScalar(Math.cos(k * 2.0944) * w).addScaledVector(v, Math.sin(k * 2.0944) * w), at = (i, k) => a.clone().addScaledVector(d, i / n).add(k3(k));
+    for (let k = 0; k < 3; k++) pRod(b, mat, at(0, k), at(n, k), w * 0.11, 5);
+    for (let i = 0; i <= n; i++) for (let k = 0; k < 3; k++) { pRod(b, mat, at(i, k), at(i, k + 1), w * 0.06, 4); if (i < n) pRod(b, mat, at(i, k), at(i + 1, k + 1), w * 0.05, 4); }
   }
-  // Saturn: „Cassini“ – hoher goldener Körper, große weiße Schüssel, langer Messarm, Landekapsel „Huygens“ an der Seite
-  function craftCassini() {
-    const P = probeMats(), g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 1.8, 16), P.gold); body.rotation.x = Math.PI / 2; g.add(body);
-    const dish = dishCap(PROBE_M, 1.6, 0.62); dish.rotation.x = -Math.PI / 2; dish.position.z = -0.1; g.add(dish);
-    const hu = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.25, 20), new THREE.MeshStandardMaterial({ color: srgb(0xb45309), roughness: 0.6 })); hu.rotation.z = Math.PI / 2; hu.position.set(0.8, 0, 0.3); g.add(hu);
-    boom(g, P.steel, new V(-0.4, 0.2, 0.2), new V(-3.4, 0.4, 0.8), 0.03);
-    for (const x of [-0.35, 0.35]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.9, 10), P.dark); r.position.set(x, -0.6, 0.6); r.rotation.x = 0.6; g.add(r); }
-    // drei Atom-Batterien mit Kühlrippen an Auslegern, zwei Haupttriebwerke vorn, Steuerdüsen, Lichter
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + 0.3, rtg = new THREE.Group(); rtg.position.set(Math.cos(a) * 0.95, Math.sin(a) * 0.95, 0.55); rtg.rotation.x = Math.PI / 2; g.add(rtg);
-      rtg.add(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 12), P.dark));
-      for (let k = 0; k < 4; k++) { const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.66, 0.34), P.dark); fin.rotation.y = (k / 4) * Math.PI; rtg.add(fin); }
-      boom(g, P.steel, new V(0, 0, 0.55), rtg.position.clone(), 0.025);
+  // Atombatterie (RTG): Zylinder mit acht Kühlrippen und Endkappen, entlang axis
+  function pRTG(b, P, pos, axis, L = 1.1, rr = 0.16) {
+    const fr = pFrame(pos, axis);
+    pAt(b, new THREE.CylinderGeometry(rr, rr, L, 20), P.dark, fr);
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; pAt(b, new THREE.BoxGeometry(0.016, L * 0.9, rr * 0.95), P.dark, fr, [Math.cos(a) * rr * 1.45, 0, Math.sin(a) * rr * 1.45], [0, Math.PI / 2 - a, 0]); }
+    for (const y of [-L / 2, L / 2]) pAt(b, new THREE.CylinderGeometry(rr * 1.08, rr * 1.08, 0.05, 20), P.alu, fr, [0, y, 0]);
+  }
+  // Triebwerksdüse: Glocke, die nach dir aufgeht
+  function pBell(b, P, pos, dir, L, r0, r1) { const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector2(r0 + (r1 - r0) * Math.pow(t, 1.7), -t * L)); } const fr = pFrame(pos, dir.clone().negate()); pAt(b, new THREE.LatheGeometry(pts, 32), P.nozzle, fr); pAt(b, new THREE.TorusGeometry(r1, r1 * 0.04, 6, 32), P.alu, fr, [0, -L, 0], [Math.PI / 2, 0, 0]); pAt(b, new THREE.CylinderGeometry(r0 * 1.4, r0 * 1.6, L * 0.25, 16), P.dark, fr, [0, L * 0.12, 0]); }
+  // Kasten aus Feldern: Vieleck-Prisma entlang Z, jede Seite eine Isolierdecke (mats im Wechsel)
+  function pBus(b, P, n, rr, len, z, mats, rot = 0) {
+    b.add(new THREE.CylinderGeometry(rr * 0.97, rr * 0.97, len, n), P.dark, [0, 0, z], [Math.PI / 2, rot, 0]);
+    const side = 2 * rr * Math.sin(Math.PI / n), ap = rr * Math.cos(Math.PI / n), Zv = new V(0, 0, 1);
+    for (let k = 0; k < n; k++) { // Feld: Breite quer, Länge entlang Z, Dicke nach außen
+      const a = rot + (k + 0.5) * (2 * Math.PI / n) - Math.PI / 2, rad = new V(Math.cos(a), Math.sin(a), 0), tg = new V(-Math.sin(a), Math.cos(a), 0);
+      b.addM(new THREE.BoxGeometry(side * 0.94, len * 0.94, 0.03), mats[k % mats.length], new THREE.Matrix4().makeBasis(tg, Zv, rad).setPosition(rad.x * ap, rad.y * ap, z));
     }
-    for (const x of [-0.22, 0.22]) { const n = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.22, 0.45, 18, 1, true), P.steel); n.rotation.x = -Math.PI / 2; n.position.set(x, 0, 1.12); g.add(n); }
-    craftDetail(g, P, [[0.62, 0.3, 0.75], [-0.62, 0.3, 0.75]], [[1.55, 0, -0.1, 0xff3b30], [-1.55, 0, -0.1, 0x22c55e]]);
-    return g;
   }
-  // Uranus: geplante NASA-Sonde „Uranus Orbiter and Probe“ – Körper mit großer Schüssel und drei Atom-Batterien
-  function craftUranusOrbiter() {
-    const P = probeMats(), g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.2, 8), P.gold); body.rotation.x = Math.PI / 2; g.add(body);
-    const dish = dishCap(PROBE_M, 1.4, 0.6); dish.rotation.x = -Math.PI / 2; dish.position.z = -0.5; g.add(dish);
-    const entry = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.5, 20), new THREE.MeshStandardMaterial({ color: srgb(0x0f766e), roughness: 0.6 })); entry.rotation.x = Math.PI / 2; entry.position.z = 0.9; g.add(entry);
-    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + 0.5, r = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1, 10), P.dark); r.position.set(Math.sin(a) * 1.3, Math.cos(a) * 1.3, 0.1); r.rotation.x = Math.PI / 2; g.add(r); boom(g, P.steel, new V(0, 0, 0.1), r.position.clone(), 0.03); }
-    craftDetail(g, P, [[0.85, 0, 0.5], [-0.85, 0, 0.5]], [[1.4, 0, -0.5, 0xff3b30], [-1.4, 0, -0.5, 0x22c55e]]);
-    const nz = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.2, 0.4, 16, 1, true), P.steel); nz.rotation.x = Math.PI / 2; nz.position.set(0, -0.55, 0.75); g.add(nz);
-    return g;
+  // Parabolantenne (Öffnung nach +Y): Schale aus Paneelen, Rippen und Ringe auf der Rückseite, Rand, Speisehorn, Fangspiegel auf Streben
+  function probeDish(P, R, depth, struts = 4) {
+    const b = partBuilder(), fz = (R * R) / (4 * depth), y = (rr) => (rr * rr) / (4 * fz), prof = [];
+    for (let i = 0; i <= 16; i++) { const rr = (i / 16) * R; prof.push(new THREE.Vector2(Math.max(0.002, rr), y(rr))); }
+    b.add(new THREE.LatheGeometry(prof, 64), P.dishIn);
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2, pts = []; for (let i = 2; i <= 10; i++) { const rr = (i / 10) * R * 0.98; pts.push(new V(Math.cos(a) * rr, y(rr) - R * 0.03, Math.sin(a) * rr)); } b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, R * 0.012, 5), P.alu); }
+    for (const t of [0.5, 0.82]) b.add(new THREE.TorusGeometry(t * R, R * 0.01, 5, 48), P.alu, [0, y(t * R) - R * 0.035, 0], [Math.PI / 2, 0, 0]);
+    b.add(new THREE.TorusGeometry(R, R * 0.022, 6, 64), P.white, [0, depth, 0], [Math.PI / 2, 0, 0]);
+    b.add(new THREE.CylinderGeometry(R * 0.2, R * 0.26, R * 0.16, 24), P.dark, [0, -R * 0.06, 0]);
+    b.add(new THREE.CylinderGeometry(R * 0.05, R * 0.09, R * 0.3, 16), P.alu, [0, R * 0.15, 0]);
+    const hy = Math.max(depth * 1.15, fz * 0.8), sr = R * 0.13;
+    b.add(new THREE.SphereGeometry(sr, 20, 8, 0, Math.PI * 2, 0, 0.9), P.alu, [0, hy + sr, 0], [Math.PI, 0, 0]);
+    for (let k = 0; k < struts; k++) { const a = (k / struts) * Math.PI * 2 + 0.4, rr = R * 0.85; pRod(b, P.alu, new V(Math.cos(a) * rr, y(rr), Math.sin(a) * rr), new V(Math.cos(a) * sr * 0.6, hy + sr * 0.3, Math.sin(a) * sr * 0.6), R * 0.011, 5); }
+    return b.group(true);
   }
-  // Neptun: „Voyager 2“ (flog 1989 vorbei) – riesige Schüssel, zehneckiger Körper, Arme für Atom-Batterien, Kameras und Magnetfeld-Messung
+  // Eintauchkapsel: stumpfer Hitzeschild (45°, verkohlt) nach +Y, Rückschale mit Isolierdecke nach −Y
+  function pEntry(b, P, base, R, back = P.gold) {
+    const prof = [], rn = R * 0.32; for (let i = 0; i <= 8; i++) { const a = (i / 8) * (Math.PI / 4); prof.push(new THREE.Vector2(Math.max(0.002, Math.sin(a) * rn), R * 0.72 - rn + Math.cos(a) * rn)); }
+    const last = prof[prof.length - 1]; for (let i = 1; i <= 6; i++) { const t = i / 6, rr = last.x + (R - last.x) * t; prof.push(new THREE.Vector2(rr, last.y - (rr - last.x))); }
+    prof.reverse(); pAt(b, new THREE.LatheGeometry(prof, 48), P.char, base);
+    pAt(b, new THREE.TorusGeometry(R, R * 0.04, 8, 48), P.alu, base, [0, prof[0].y, 0], [Math.PI / 2, 0, 0]);
+    const bk = [[R * 0.98, prof[0].y], [R * 0.82, prof[0].y - R * 0.3], [R * 0.45, prof[0].y - R * 0.55], [R * 0.2, prof[0].y - R * 0.62], [0.002, prof[0].y - R * 0.63]].map(([a, c]) => new THREE.Vector2(a, c)).reverse();
+    pAt(b, new THREE.LatheGeometry(bk, 48), back, base);
+    return prof[0].y - R * 0.63;
+  }
+
+  // Neptun: „Voyager 2“ (flog 1989 vorbei) – große Schüssel zur Erde (zur Kamera), zehneckiger Körper mit Isolierdecken,
+  // Ausleger mit drei Atom-Batterien, Messplattform mit Kameras, langer Magnetfeld-Ausleger, Radioantennen, goldene Schallplatte
   function craftVoyager() {
-    const P = probeMats(), g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.5, 10), P.gold); body.rotation.x = Math.PI / 2; g.add(body);
-    const dish = dishCap(PROBE_M, 2, 0.6); dish.rotation.x = -Math.PI / 2; dish.position.z = -0.05; g.add(dish);
-    boom(g, P.steel, new V(0.6, 0, 0), new V(2.4, -0.4, 0.3), 0.04);
-    for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.5, 10), P.dark); r.position.set(1.6 + i * 0.4, -0.25 - i * 0.05, 0.2); r.rotation.z = Math.PI / 2; g.add(r); }
-    boom(g, P.steel, new V(-0.6, 0, 0), new V(-2.3, 0.3, 0.3), 0.04);
-    const cam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.35), P.dark); cam.position.set(-2.4, 0.35, 0.4); g.add(cam);
-    boom(g, P.steel, new V(0, 0.5, 0), new V(-1.2, 4.5, -1), 0.02);
-    // die goldene Schallplatte mit Grüßen von der Erde – falls jemand die Sonde findet
-    const rec = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.03, 32), new THREE.MeshStandardMaterial({ color: srgb(0xd4af37), metalness: 0.9, roughness: 0.25 })); rec.rotation.z = Math.PI / 2; rec.position.set(0.72, 0, 0.12); g.add(rec);
-    craftDetail(g, P, [[0, -0.72, 0.2]], [[2.1, 0, -0.1, 0xff3b30], [-2.1, 0, -0.1, 0x22c55e]]);
+    const P = probeMats(), g = new THREE.Group(), b = partBuilder();
+    pBus(b, P, 10, 0.8, 0.45, 0.35, [P.gold, P.black, P.gold, P.silver, P.gold, P.black]);
+    for (const z of [0.12, 0.58]) b.add(new THREE.CylinderGeometry(0.82, 0.82, 0.03, 10), P.alu, [0, 0, z], [Math.PI / 2, 0, 0]);
+    b.add(new THREE.SphereGeometry(0.36, 24, 16), P.silver, [0, 0, 0.72]);                            // Treibstofftank
+    for (let k = 0; k < 6; k++) b.add(new THREE.BoxGeometry(0.03, 0.34, 0.02), P.alu, [-0.6 + k * 0.05, -0.55, 0.585]);  // Lamellen (Wärme)
+    pTruss(b, P.alu, new V(0.72, -0.05, 0.35), new V(2.7, -0.35, 0.45), 0.09, 8);                       // Ausleger der Atom-Batterien
+    for (let i = 0; i < 3; i++) pRTG(b, P, new V(1.75 + i * 0.42, -0.2 - i * 0.06, 0.42), new V(1, -0.15, 0.05), 0.38, 0.13);
+    pTruss(b, P.alu, new V(-0.72, 0.05, 0.35), new V(-2.4, 0.3, 0.4), 0.09, 8);                         // Ausleger der Messgeräte
+    b.add(new THREE.BoxGeometry(0.42, 0.36, 0.4), P.gold, [-2.45, 0.32, 0.4]);                          // Plattform (dreht sich zum Ziel)
+    b.add(new THREE.CylinderGeometry(0.075, 0.075, 0.62, 18), P.white, [-2.5, 0.62, 0.62], [Math.PI / 2, 0, 0]); // Teleobjektiv
+    b.add(new THREE.CircleGeometry(0.065, 18), P.lens, [-2.5, 0.62, 0.935]);
+    b.add(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 16), P.white, [-2.28, 0.6, 0.5], [Math.PI / 2, 0, 0]);       // Weitwinkel
+    b.add(new THREE.CircleGeometry(0.05, 16), P.lens, [-2.28, 0.6, 0.655]);
+    b.add(new THREE.CylinderGeometry(0.12, 0.14, 0.24, 20), P.black, [-2.7, 0.35, 0.45], [0, 0, Math.PI / 2]);     // Infrarot-Spektrometer
+    b.add(new THREE.BoxGeometry(0.24, 0.18, 0.2), P.silver, [-1.5, 0.35, 0.4]);                         // Teilchen-Messer
+    for (let k = 0; k < 3; k++) b.add(new THREE.ConeGeometry(0.05, 0.12, 12), P.alu, [-1.5 + (k - 1) * 0.08, 0.5, 0.4]);
+    pTruss(b, P.alu, new V(-0.25, 0.75, 0.45), new V(-1.6, 4.2, 1.2), 0.05, 14);                       // Magnetfeld-Ausleger
+    for (const t of [0.55, 1]) b.add(new THREE.CylinderGeometry(0.06, 0.06, 0.14, 12), P.white, [-0.25 + (-1.35) * t, 0.75 + 3.45 * t, 0.45 + 0.75 * t]);
+    pRod(b, P.steel, new V(0.3, -0.75, 0.45), new V(2.4, -3.3, 0.7), 0.01); pRod(b, P.steel, new V(-0.3, -0.75, 0.45), new V(-2.2, -3.4, 0.75), 0.01); // Radioantennen
+    { const a = (72 * Math.PI) / 180, ap = 0.8 * Math.cos(Math.PI / 10) + 0.03; pAt(b, new THREE.CylinderGeometry(0.2, 0.2, 0.02, 32), P.record, pFrame(new V(Math.cos(a) * ap, Math.sin(a) * ap, 0.35), new V(Math.cos(a), Math.sin(a), 0))); } // goldene Schallplatte an der Seite
+    g.add(b.group(true));
+    const dish = probeDish(P, 1.5, 0.42, 3); dish.rotation.x = -Math.PI / 2; dish.position.z = 0.08; g.add(dish); // Öffnung nach hinten zur Erde
+    craftDetail(g, P, [[0, -0.85, 0.35], [0.6, 0.6, 0.6]], [[2.75, -0.35, 0.45, 0xff3b30], [-2.75, 0.3, 0.4, 0x22c55e]]);
     return g;
   }
-  // Sonne: „Parker Solar Probe“ – sechseckiger Hitzeschild (vorn weiß, hinten schwarz), kleiner Körper, schräge Solarflügel
+  // Saturn: „Cassini“ – vorn die große Schüssel, dahinter der zwölfeckige Elektronik-Ring, der goldene Treibstofftank,
+  // hinten zwei Haupttriebwerke und drei Atom-Batterien; an der Seite die Landekapsel „Huygens“, oben der Magnetfeld-Ausleger
+  function craftCassini() {
+    const P = probeMats(), g = new THREE.Group(), b = partBuilder();
+    pBus(b, P, 12, 0.78, 0.45, 0.55, [P.black, P.gold, P.black, P.silver]);
+    b.add(new THREE.CylinderGeometry(0.6, 0.62, 0.26, 24), P.silver, [0, 0, 0.2], [Math.PI / 2, 0, 0]);   // oberes Gerätemodul
+    b.add(new THREE.CylinderGeometry(0.64, 0.64, 1.35, 32), P.gold, [0, 0, -0.62], [Math.PI / 2, 0, 0]);  // Treibstofftank
+    for (const z of [-0.1, -1.3]) b.add(new THREE.TorusGeometry(0.645, 0.02, 6, 40), P.alu, [0, 0, z]);
+    b.add(new THREE.CylinderGeometry(0.58, 0.52, 0.32, 24), P.black, [0, 0, -1.46], [Math.PI / 2, 0, 0]); // unteres Gerätemodul
+    for (const x of [-0.24, 0.24]) pBell(b, P, new V(x, 0, -1.62), new V(0, 0, -1), 0.55, 0.08, 0.24);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + Math.PI / 2, d = new V(Math.cos(a), Math.sin(a), -0.55).normalize(); pRTG(b, P, new V(Math.cos(a) * 0.82, Math.sin(a) * 0.82, -1.6), d, 0.85, 0.15); pRod(b, P.alu, new V(Math.cos(a) * 0.5, Math.sin(a) * 0.5, -1.4), new V(Math.cos(a) * 0.8, Math.sin(a) * 0.8, -1.55), 0.025); }
+    const hu = pFrame(new V(0.72, 0.15, -0.35), new V(1, 0, 0)); pEntry(b, P, hu, 0.62, P.copper);    // Huygens
+    b.add(new THREE.BoxGeometry(0.4, 0.3, 0.45), P.gold, [-0.78, 0, 0.25]);                             // Kamera-Plattform
+    for (const [y, z, rr, L] of [[0.08, 0.36, 0.07, 0.4], [-0.08, 0.36, 0.05, 0.3], [0.08, 0.12, 0.06, 0.3], [-0.08, 0.12, 0.08, 0.35]]) { b.add(new THREE.CylinderGeometry(rr, rr, L, 16), P.white, [-1.0 - L / 2 + 0.1, y, z], [0, 0, Math.PI / 2]); b.add(new THREE.CircleGeometry(rr * 0.85, 16), P.lens, [-1.0 - L + 0.095, y, z], [0, -Math.PI / 2, 0]); }
+    b.add(new THREE.BoxGeometry(0.34, 0.24, 0.3), P.silver, [0, 0.82, 0.3]);                            // Teilchen-Plattform
+    pTruss(b, P.alu, new V(-0.15, 0.9, 0.3), new V(-0.7, 3.9, 0.9), 0.05, 12);                          // Magnetfeld-Ausleger
+    b.add(new THREE.CylinderGeometry(0.06, 0.06, 0.16, 12), P.white, [-0.7, 3.95, 0.9]);
+    for (const a of [0.4, 2.6, 4.4]) pRod(b, P.steel, new V(Math.cos(a) * 0.6, Math.sin(a) * 0.6, 0.0), new V(Math.cos(a) * 2.4, Math.sin(a) * 2.4, -0.3), 0.01); // Radio- und Plasmawellen-Antennen
+    g.add(b.group(true));
+    const dish = probeDish(P, 1.65, 0.42, 4); dish.rotation.x = Math.PI / 2; dish.position.z = 0.82; g.add(dish); // Schüssel nach vorn
+    craftDetail(g, P, [[0.55, -0.55, -1.2], [-0.55, -0.55, -1.2]], [[1.7, 0, 0.9, 0xff3b30], [-1.7, 0, 0.9, 0x22c55e]]);
+    return g;
+  }
+  // Uranus: geplante NASA-Sonde „Uranus Orbiter and Probe“ – sechseckiger Körper, oben die Schüssel (schräg nach hinten),
+  // vorn die Eintauchkapsel für die Atmosphäre, hinten Haupttriebwerk und zwei Atom-Batterien, seitlich der Magnetfeld-Ausleger
+  function craftUranusOrbiter() {
+    const P = probeMats(), g = new THREE.Group(), b = partBuilder();
+    pBus(b, P, 6, 0.78, 1.15, 0, [P.gold, P.silver, P.gold, P.black, P.gold, P.silver], Math.PI / 6);
+    b.add(new THREE.CylinderGeometry(0.42, 0.5, 0.18, 24), P.alu, [0, 0, 0.66], [Math.PI / 2, 0, 0]);   // Adapter für die Kapsel
+    pEntry(b, P, pFrame(new V(0, 0, 0.78), new V(0, 0, 1)), 0.6, P.gold);                             // Eintauchkapsel
+    pBell(b, P, new V(0, 0, -0.58), new V(0, 0, -1), 0.5, 0.09, 0.27);                                  // Haupttriebwerk
+    for (const sx of [-1, 1]) { const d = new V(sx * 0.6, -0.3, -0.75).normalize(); pRTG(b, P, new V(sx * 0.95, -0.35, -0.8), d, 0.75, 0.17); pRod(b, P.alu, new V(sx * 0.6, -0.2, -0.5), new V(sx * 0.85, -0.3, -0.7), 0.03); }
+    pTruss(b, P.alu, new V(-0.7, 0.2, 0.1), new V(-3.0, 0.5, 0.3), 0.06, 12);                           // Magnetfeld-Ausleger
+    for (const t of [0.55, 1]) b.add(new THREE.CylinderGeometry(0.06, 0.06, 0.14, 12), P.white, [-0.7 - 2.3 * t, 0.2 + 0.3 * t, 0.1 + 0.2 * t], [0, 0, Math.PI / 2]);
+    for (const x of [0.3, 0.45]) { b.add(new THREE.BoxGeometry(0.1, 0.1, 0.14), P.dark, [x, 0.72, -0.3]); b.add(new THREE.CylinderGeometry(0.06, 0.04, 0.16, 12), P.black, [x, 0.72, -0.43], [Math.PI / 2, 0, 0]); } // Sternkameras
+    g.add(b.group(true));
+    const dish = probeDish(P, 1.15, 0.3, 3); dish.position.set(0, 0.76, -0.05); dish.quaternion.setFromUnitVectors(new V(0, 1, 0), new V(0, 0.75, -0.66).normalize()); g.add(dish);
+    craftDetail(g, P, [[0.72, -0.5, 0.45], [-0.72, -0.5, 0.45]], [[1.2, 0, 0.2, 0xff3b30], [-3.05, 0.5, 0.3, 0x22c55e]]);
+    return g;
+  }
+  // Sonne: „Parker Solar Probe“ – vorn der Hitzeschild (weiße Vorderseite, Kohlenstoff), dahinter im Schatten der Körper,
+  // vier Kühler, zwei schräge Solarflügel mit Kühlrohren, vier Antennen, die über den Schild hinausragen, der Faraday-Becher, hinten der Magnetfeld-Ausleger
   function craftParker() {
-    const P = probeMats(), g = new THREE.Group();
-    const sh = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.16, 6), [new THREE.MeshStandardMaterial({ color: srgb(0x111111), roughness: 0.8 }), new THREE.MeshStandardMaterial({ color: srgb(0xf5f5f0), roughness: 0.7 }), new THREE.MeshStandardMaterial({ color: srgb(0x111111), roughness: 0.8 })]);
-    sh.rotation.x = Math.PI / 2; sh.position.z = 1.1; g.add(sh);
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 1.2, 12), P.gold); body.rotation.x = Math.PI / 2; body.position.z = 0.2; g.add(body);
-    for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.5), P.cell); w.position.set(s * 0.9, 0, -0.3); w.rotation.set(0.9, 0, s * 0.3); g.add(w); }
-    boom(g, P.steel, new V(0, 0, -0.4), new V(0, 0, -2.2), 0.025);
-    // Faraday-Becher schaut über den Hitzeschild hinaus und misst den Sonnenwind; Steuerdüsen, Lichter
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.3, 14), P.steel); cup.position.set(0.95, 0.95, 1.3); cup.rotation.x = Math.PI / 2; g.add(cup);
-    boom(g, P.steel, new V(0.3, 0.3, 0.7), new V(0.95, 0.95, 1.18), 0.02);
-    craftDetail(g, P, [[0.55, -0.42, 0.1], [-0.55, -0.42, 0.1]], [[1.3, 0, 1.0, 0xff3b30], [-1.3, 0, 1.0, 0x22c55e]]);
+    const P = probeMats(), g = new THREE.Group(), b = partBuilder(), Z = 1.1, RS = 1.3;
+    b.add(new THREE.CylinderGeometry(RS, RS, 0.13, 6, 1, true), P.comp, [0, 0, Z], [Math.PI / 2, 0, 0]);
+    b.add(new THREE.CircleGeometry(RS, 6, -Math.PI / 2), P.std({ color: srgb(0xf6f4ee), roughness: 0.75 }), [0, 0, Z + 0.065]);
+    b.add(new THREE.CircleGeometry(RS, 6, -Math.PI / 2), P.comp, [0, 0, Z - 0.065], [0, Math.PI, 0]);
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2 + Math.PI / 6; pRod(b, P.alu, new V(Math.cos(a) * 0.75, Math.sin(a) * 0.75, Z - 0.07), new V(Math.cos(a) * 0.42, Math.sin(a) * 0.42, 0.78), 0.022); } // Stützen
+    pBus(b, P, 6, 0.55, 0.85, 0.35, [P.silver, P.black, P.silver, P.black, P.silver, P.black]);
+    for (const x of [-0.33, -0.11, 0.11, 0.33]) { b.add(new THREE.BoxGeometry(0.035, 0.42, 0.55), P.white, [x, 0.84, 0.38]); b.add(new THREE.BoxGeometry(0.04, 0.03, 0.57), P.dark, [x, 0.64, 0.38]); } // Kühler im Schatten
+    for (const sx of [-1, 1]) {
+      pRod(b, P.alu, new V(sx * 0.5, 0, 0.45), new V(sx * 0.95, 0, 0.5), 0.03);
+      const fr = new THREE.Matrix4().compose(new V(sx * 1.32, 0, 0.4), new THREE.Quaternion().setFromEuler(new THREE.Euler(0.95, 0, sx * 0.3)), new V(1, 1, 1));
+      pAt(b, new THREE.BoxGeometry(0.78, 0.035, 0.5), P.alu, fr); pAt(b, new THREE.PlaneGeometry(0.72, 0.44), P.cell, fr, [0, 0.019, 0], [-Math.PI / 2, 0, 0]);
+      for (const zz of [-0.24, 0.24]) pAt(b, new THREE.CylinderGeometry(0.014, 0.014, 0.8, 8), P.steel, fr, [0, 0.03, zz], [0, 0, Math.PI / 2]); // Kühlrohre
+    }
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + Math.PI / 4; pRod(b, P.dark, new V(Math.cos(a) * 0.9, Math.sin(a) * 0.9, Z - 0.12), new V(Math.cos(a) * 2.2, Math.sin(a) * 2.2, Z + 0.3), 0.013); } // Antennen
+    { const a = 1.05, p0 = new V(Math.cos(a) * 0.6, Math.sin(a) * 0.6, Z - 0.1), p1 = new V(Math.cos(a) * 1.4, Math.sin(a) * 1.4, Z - 0.05); pRod(b, P.alu, p0, p1, 0.02); b.add(new THREE.CylinderGeometry(0.09, 0.07, 0.24, 18), P.alu, [p1.x, p1.y, Z + 0.12], [Math.PI / 2, 0, 0]); } // Faraday-Becher
+    pTruss(b, P.alu, new V(0, 0, -0.1), new V(0, 0.15, -2.3), 0.05, 12);                                // Magnetfeld-Ausleger
+    for (const t of [0.45, 0.75, 1]) b.add(new THREE.BoxGeometry(0.1, 0.1, 0.1), P.white, [0, 0.15 * t, -0.1 - 2.2 * t]);
+    b.add(new THREE.BoxGeometry(0.16, 0.16, 0.16), P.black, [0.56, 0.25, 0.7]); b.add(new THREE.CircleGeometry(0.05, 16), P.lens, [0.645, 0.25, 0.7], [0, Math.PI / 2, 0]); // Kamera WISPR
+    g.add(b.group(true));
+    const dish = probeDish(P, 0.3, 0.08, 3); dish.position.set(0.25, -0.35, -0.12); dish.rotation.x = -Math.PI / 2; g.add(dish);
+    craftDetail(g, P, [[0.5, -0.45, 0.1], [-0.5, -0.45, 0.1]], [[1.35, 0, 0.9, 0xff3b30], [-1.35, 0, 0.9, 0x22c55e]]);
+    return g;
+  }
+  // Jupiter: Eintauchkapsel wie bei „Galileo“ (1995) – vorn der verkohlte Hitzeschild, hinten die Rückschale mit Isolierdecke,
+  // Mörser für den Fallschirm; dahinter ein Bandfallschirm mit Bahnen, Schlitzen, Öffnung oben und Fangleinen
+  function craftGalileo() {
+    const P = probeMats(), g = new THREE.Group(), b = partBuilder();
+    const back = pEntry(b, P, pFrame(new V(0, 0, 0.15), new V(0, 0, 1)), 0.95, P.gold);
+    b.add(new THREE.CylinderGeometry(0.13, 0.15, 0.32, 20), P.dark, [0, 0, 0.15 + back - 0.12], [Math.PI / 2, 0, 0]); // Mörser
+    pRod(b, P.steel, new V(0.35, 0.25, -0.3), new V(0.5, 0.42, -0.62), 0.012);                         // Antenne
+    for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2; b.add(new THREE.BoxGeometry(0.1, 0.06, 0.08), P.alu, [Math.cos(a) * 0.62, Math.sin(a) * 0.62, -0.08]); } // Halterungen der Hülle
+    g.add(b.group(true));
+    // Fallschirm: Kappe mit 16 Bahnen (orange/weiß), Schlitzen zwischen den Bändern, Öffnung oben; Fangleinen zum Zusammenführungspunkt
+    const tex = canvasTex(512, 256, (c) => { for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? "#f97316" : "#f8fafc"; c.fillRect(i * 32, 0, 32, 256); } c.globalCompositeOperation = "destination-out"; for (let y = 52; y < 250; y += 40) c.fillRect(0, y, 512, 7); for (let i = 0; i <= 16; i++) c.fillRect(i * 32 - 1, 0, 2, 256); });
+    const chute = new THREE.Group(), cb = partBuilder(), RC = 2.2, T0 = 0.12, TL = Math.PI / 2.4;
+    cb.add(new THREE.SphereGeometry(RC, 48, 12, 0, Math.PI * 2, T0, TL - T0), P.std({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8 }));
+    const rimR = RC * Math.sin(TL), rimY = RC * Math.cos(TL), conf = new V(0, -1.4, 0);
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; pRod(cb, P.steel, new V(Math.cos(a) * rimR, rimY, Math.sin(a) * rimR), conf, 0.006, 3); }
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; pRod(cb, P.steel, new V(Math.cos(a) * RC * Math.sin(T0), RC * Math.cos(T0), Math.sin(a) * RC * Math.sin(T0)), new V(Math.cos(a) * rimR, rimY, Math.sin(a) * rimR), 0.005, 3); } // Nähte
+    chute.add(cb.group(false)); chute.position.set(0, 4.6, -2.2); chute.rotation.x = -0.5; g.add(chute);
+    chute.updateMatrixWorld(true); const att = chute.worldToLocal(new V(0, 0, 0.15 + back - 0.27)), rb = partBuilder();
+    pRod(rb, P.steel, conf, att, 0.012, 5); chute.add(rb.group(false));                                   // Hauptleine zum Mörser
+    g.userData.chute = chute;
+    craftDetail(g, P, [[0.7, 0, -0.1], [-0.7, 0, -0.1]], [[0.92, 0, 0.1, 0xff3b30], [-0.92, 0, 0.1, 0x22c55e]]);
     return g;
   }
 
@@ -9733,7 +9853,7 @@ window.Surface = (function () {
       planet: { r: 760, from: [0, -60, 1700], to: [0, -60, 1080] },
       puff: { inner: "rgba(255,240,180,1)", outer: "rgba(255,140,30,0.8)", size: [0.3, 1.0], opacity: 0.9, from: 0 },
       rocks: { count: 12, size: [1.2, 2.4], glow: true },
-      tasks: [{ kind: "hold", color: 0xffd27a, r: 3.4, dur: 4, amp: [6, 3], speed: 0.45 }, { kind: "collect", n: 8, glow: "rgba(255,230,140,0.95)" }, { kind: "photo", target: "flecken" }],
+      tasks: [{ kind: "hold", color: 0xffd27a, r: 3.4, dur: 4, amp: [6, 3], speed: 0.45 }, { kind: "collect", n: 8, glow: "rgba(120,235,255,0.95)" }, { kind: "photo", target: "flecken" }],
       instr: (f) => ["🌡️", `Hitzeschild: ${fmtInt(Math.round(lerp(300, 1400, f) / 50) * 50)} °C`],
       update(w, p, f, dt) { w.planet.rotation.y += dt * 0.01; }
     }
@@ -9778,10 +9898,16 @@ window.Surface = (function () {
     // Hindernisse: Eisbrocken (Saturn) oder Glutbälle (Sonne)
     const rocks = [], iceGeos = C.rocks && !C.rocks.glow ? [0, 1, 2, 3].map((k) => sphereUV(naturalRockGeo(120 + k, 3))) : null;
     const iceMat = iceGeos ? new THREE.MeshStandardMaterial({ color: C.rocks.color, roughness: 0.35, metalness: 0.05, vertexColors: true, ...rockTex(2, 1, 1.1) }) : null;
+    let lavaMat = null, haloMat = null;
+    if (C.rocks && C.rocks.glow) { // Glutball: dunkle Kruste mit glühenden Rissen (leuchtet von selbst), dazu ein roter Hitzeschein
+      const tex = canvasTex(256, 128, (c) => { c.fillStyle = "#2a0802"; c.fillRect(0, 0, 256, 128); c.lineCap = "round"; for (let i = 0; i < 70; i++) { let x = hash2(i, 1) * 256, y = hash2(i, 2) * 128, a = hash2(i, 3) * 6.3; c.strokeStyle = hash2(i, 4) > 0.6 ? "#ffd060" : "#ff5a10"; c.lineWidth = 1.5 + hash2(i, 5) * 3; c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 5; k++) { a += (hash2(i * 5 + k, 6) - 0.5) * 1.6; x += Math.cos(a) * 9; y += Math.sin(a) * 9; c.lineTo(x, y); } c.stroke(); } });
+      lavaMat = new THREE.MeshStandardMaterial({ color: srgb(0x3a0c04), roughness: 0.85, emissive: srgb(0xffffff), emissiveMap: tex, emissiveIntensity: 1.5 });
+      haloMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,90,20,0.75)", "rgba(160,20,0,0)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
+    }
     if (C.rocks) for (let i = 0; i < C.rocks.count; i++) {
-      const m = C.rocks.glow
-        ? new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,250,200,1)", "rgba(255,110,20,0.9)"), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }))
-        : new THREE.Mesh(iceGeos[i % 4], iceMat);
+      let m;
+      if (C.rocks.glow) { m = new THREE.Group(); m.add(new THREE.Mesh(sphereUV(naturalRockGeo(170 + (i % 4), 3)), lavaMat)); const h = new THREE.Sprite(haloMat); h.scale.setScalar(3.4); m.add(h); }
+      else m = new THREE.Mesh(iceGeos[i % 4], iceMat);
       m.userData = { z: -1e9, r: 1 }; scene.add(m); rocks.push(m);
     }
     return { scene, camera, ambient, sun, far, planet, craft, tg, sparks, zone, gap, jets, puffs, rocks, extra, stations: {} };
@@ -9849,6 +9975,7 @@ window.Surface = (function () {
       for (const sp of w.sparks) {
         if (!sp.visible) continue;
         const u = sp.userData; sp.position.y = u.y + Math.sin(t.t * 2.2 + u.ph) * 0.35; sp.material.rotation = t.t * 0.8 + u.ph;
+        if (!def.icon) sp.scale.setScalar(2.8 * (1 + 0.18 * Math.sin(t.t * 6 + u.ph))); // funkelt
         if (u.z < p.z - 4) { spawnSpark(sp, p, 125 + Math.random() * 30); continue; }
         if (Math.abs(u.z - p.z) < 2.4 && Math.hypot(sp.position.x - p.x, sp.position.y - p.y) < 2.4) {
           t.got++; Sound.sparkle(t.got - 1);
@@ -9951,9 +10078,10 @@ window.Surface = (function () {
           if (w.gap && Math.abs(w.gap.z - u.z) < 16) u.z += 30; // nicht direkt vor die Ring-Wand
           u.r = lerp(C.rocks.size[0], C.rocks.size[1], Math.random());
           r.position.set((Math.random() - 0.5) * 2 * LANE_X, (Math.random() - 0.5) * 2 * LANE_Y, u.z);
-          r.scale.setScalar(C.rocks.glow ? u.r * 2.6 : u.r);
+          r.scale.setScalar(u.r);
         }
-        if (!C.rocks.glow) { r.rotation.x += dt * 0.5; r.rotation.y += dt * 0.3; }
+        if (C.rocks.glow) r.children[1].scale.setScalar(3.4 * (1 + 0.15 * Math.sin(p.t * 17 + u.r * 9) + 0.08 * Math.sin(p.t * 31 + u.r * 4))); // der Hitzeschein flackert
+        { r.rotation.x += dt * 0.5; r.rotation.y += dt * 0.3; }
         if (Math.abs(u.z - p.z) < 1.6 && Math.hypot(r.position.x - p.x, r.position.y - p.y) < u.r + 1.1) {
           u.z = -1e9; r.position.z = p.z - 50;
           p.shake = 0.6; p.vx += (p.x - r.position.x) * 6; p.vy += (p.y - r.position.y) * 6;
@@ -9986,6 +10114,7 @@ window.Surface = (function () {
     // Kamera etwas oberhalb: die Sonde sitzt im unteren Bilddrittel und verdeckt das nächste Tor nicht
     c.position.set(p.x * 0.75 + (Math.random() - 0.5) * sh, p.y * 0.75 + 3.4 + (Math.random() - 0.5) * sh, p.z - 10);
     c.lookAt(p.x * 0.9, p.y * 0.9 + 1.6, p.z + 25);
+    if (probeCam) probeCam(c, w.craft);
     w.sun.position.set(p.x - 30, p.y + 60, p.z - 40); w.sun.target.position.set(p.x, p.y, p.z);
 
     const [icon, value] = C.instr(p.f);
@@ -10090,6 +10219,6 @@ window.Surface = (function () {
     }
   };
 
-  if (/[?&]test/.test(location.search)) S._test = { probeAim, navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, get experiment() { return experiment; }, KIT, dropFall, discover, startAction, showFound, POSE, setBone, setArm, poseRig, HATCH, setJoy: (x, y) => { joy.x = x; joy.y = y; } };
+  if (/[?&]test/.test(location.search)) S._test = { probeAim, setProbeCam: (fn) => { probeCam = fn; }, navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, get experiment() { return experiment; }, KIT, dropFall, discover, startAction, showFound, POSE, setBone, setArm, poseRig, HATCH, setJoy: (x, y) => { joy.x = x; joy.y = y; } };
   return S;
 })();
