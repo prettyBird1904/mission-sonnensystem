@@ -497,6 +497,7 @@ kbd {
 .scope-ui { position: fixed; left: 50%; bottom: 2vh; transform: translateX(-50%); z-index: 11; width: min(680px, calc(100% - 28px)); padding: 10px 16px 12px; border-radius: 18px; text-align: center; }
 #scopeText { font-size: 17px; line-height: 1.4; white-space: pre-line; }
 .scope-ui .row-gap { margin-top: 8px; }
+.rover-cam { display: block; width: min(380px, 80vw, 56vh); height: auto; margin: 2px auto 10px; border-radius: 12px; border: 3px solid #fcd34d; box-shadow: 0 6px 22px rgba(0,0,0,.45); background: #000; }
 #surfaceHud.scoping > :not(#surfLabels) { display: none; }
 /* Sprechblase eines Mitbewohners */
 .npc-bubble { display: block; white-space: normal; max-width: 280px; font-family: var(--font-body, inherit); font-size: 15px; line-height: 1.35; padding: 8px 12px; border-radius: 16px;

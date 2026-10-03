@@ -290,7 +290,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "41",
+  version: "42",
 
   // Ergebnis der Funk-Fragen ({r} von {n} richtig)
   quizEnd: { all: "Alle {n} Fragen richtig – ich bin beeindruckt! Bodenstation Ende – guten Flug!", some: "{r} von {n} richtig – gut gemacht! Bodenstation Ende – guten Flug!", none: "Diesmal hat's nicht geklappt – macht nichts, entdeckt hast du trotzdem alles! Bodenstation Ende – guten Flug!" },
@@ -545,7 +545,9 @@ window.SPACE_DATA = {
         empty: "Batterie leer! Der Rover lädt in der Sonne – einen Moment …",
         far: "Zu weit weg – hier reicht der Funk nicht. Fahr zurück!",
         done: "Alle 3 Proben gesammelt!",
-        doneBtn: "Was hat der Rover entdeckt? ▶"
+        doneBtn: "Was hat der Rover entdeckt? ▶",
+        next: "Weiterfahren ▶", nextHint: "Weiter geht's – fahr zum nächsten gelben Ziel!",
+        cam: ["🔬 Mikroskop-Kamera", "🪥 Schleifbürste: frisch geschliffen", "🧪 Bohrkern im Probenröhrchen"]
       },
       curling: {
         aim: "Eis-Curling! Ziel mit den Pfeiltasten ⬅️ ➡️ oder mit A und D auf die Zielscheibe.",

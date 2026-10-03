@@ -122,8 +122,8 @@ window.World = (function () {
     g.lineWidth = 5; g.strokeStyle = "rgba(30,40,60,0.55)"; rrect(g, d.x, d.y, d.w, d.h, d.r); g.stroke();
     g.lineWidth = 2; g.strokeStyle = "rgba(30,40,60,0.25)"; rrect(g, d.x + 9, d.y + 9, d.w - 18, d.h - 18, d.r - 8); g.stroke();
     g.fillStyle = "rgba(30,40,60,0.6)"; g.fillRect(d.x + d.w - 22, d.y + d.h / 2 - 18, 8, 36); // Griff
-    // Wappen „Mission Sonnensystem“ unter dem großen Fenster (90° = im Flug oben)
-    const px = X(90), py = Y(0.13), pr = 46;
+    // Wappen „Mission Sonnensystem“ über der Luke (150°) – dort schaut man beim Einsteigen direkt drauf, nichts verdeckt es
+    const px = X(150), py = Y(0.385), pr = 50;
     g.fillStyle = "#1e3a8a"; g.beginPath(); g.arc(px, py, pr, 0, Math.PI * 2); g.fill();
     g.lineWidth = 6; g.strokeStyle = "#facc15"; g.stroke();
     g.fillStyle = "#fde047"; g.beginPath(); g.arc(px - 16, py + 6, 13, 0, Math.PI * 2); g.fill();
@@ -211,7 +211,7 @@ window.World = (function () {
     hot.rotation.x = Math.PI / 2; hot.position.y = -0.66; up.add(hot);
 
     // Bullaugen mit Metallrahmen: groß oben (im Flug sichtbar), klein über der Luke
-    for (const [deg, y, r] of [[90, 0.33, 0.085], [150, 0.39, 0.055]]) {
+    for (const [deg, y, r] of [[90, 0.33, 0.085]]) { // großes Bullauge oben (im Flug sichtbar); über der Luke sitzt das Wappen
       const a = THREE.MathUtils.degToRad(deg), R = hullR(y), nx = Math.cos(a), nz = Math.sin(a);
       const w = new THREE.Group(); w.position.set(nx * R, y, nz * R); w.lookAt(nx * 2, y, nz * 2);
       w.add(new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.22, 8, 28), trim));
