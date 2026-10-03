@@ -101,14 +101,31 @@
   Game.onPlanetDone = (id) => {
     const m = Game.currentMission();
     if (m && m.target === id) completeMission();
+    else if (D.missions.slice(Game.state.mission).some((x) => x.target === id)) UI.toast(`✓ ${missionName(id)} ist erforscht – diese Mission hast du damit schon erledigt!`, "gold"); // vorgezogen: wird später übersprungen
     UI.updateHUD();
   };
 
+  // Missionen, deren Ziel schon erledigt ist (dort vorher auf eigene Faust alles entdeckt bzw. schon geordnet), werden übersprungen –
+  // sie zählen als geschafft. Gibt die übersprungenen zurück.
+  const missionName = (id) => (id === "#order" ? "„Planeten ordnen“" : Game.bodyById[id].name);
+  function missionDone(m) { return m.target === "#order" ? Game.state.orderStars > 0 : Game.planetDone(m.target); }
+  function skipDoneMissions() {
+    const s = Game.state, skipped = [];
+    while (D.missions[s.mission] && missionDone(D.missions[s.mission])) { skipped.push(D.missions[s.mission]); s.mission++; }
+    return skipped;
+  }
+  Game.skipDoneMissions = skipDoneMissions;
+  function toastSkipped(skipped) {
+    if (skipped.length) UI.toast(`✓ ${skipped.map((m) => missionName(m.target)).join(", ")}: schon erforscht – Mission${skipped.length > 1 ? "en" : ""} übersprungen!`, "gold");
+  }
+
   function completeMission() {
-    const s = Game.state;
+    const s = Game.state, was = D.missions[s.mission];
     s.mission++;
+    const skipped = skipDoneMissions();
     s.hint = false;
-    nora.justDone = true;
+    nora.justDone = true; nora.doneMission = was;
+    if (skipped.length) setTimeout(() => toastSkipped(skipped), 2600);
     Game.save();
     Sound.fanfare();
     UI.confetti();
@@ -154,7 +171,7 @@
     if (nora.queue) { nora.queue.at -= dt; if (nora.queue.at <= 0) { const q = nora.queue; nora.queue = null; noraMission(q.prefix); } return; }
     if (nora.justDone) { // jede geschaffte Mission hat ihren eigenen Satz
       nora.justDone = false; nora.back = null;
-      const was = D.missions[Game.state.mission - 1];
+      const was = nora.doneMission || D.missions[Game.state.mission - 1];
       noraMission(Game.currentMission() ? (was && was.done) || NS.done : ""); return;
     }
     const m = Game.currentMission();
@@ -903,7 +920,9 @@
       const existing = loadStore().profiles[profileKey(name)];
       Game.state = existing || freshState(name, color);
       ohnePluto(Game.state);
+      const skipped = skipDoneMissions();
       Game.save();
+      if (skipped.length) setTimeout(() => toastSkipped(skipped), 4000);
       Voice.setName(Game.state.name);
       W.setShipColor(Game.state.color);
       Sound.unlock();
