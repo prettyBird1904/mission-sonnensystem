@@ -5124,22 +5124,87 @@ window.Surface = (function () {
   // darunter der Elektronik-Kasten in Goldfolie, sechs Räder an der Rocker-Bogie-Schwinge, vorn der Kameramast mit zwei „Augen“,
   // hinten die flache Hochgewinn-Antenne und der Stab der Rundstrahl-Antenne, vorn eingeklappt der Roboterarm.
   // userData.cells = Material der Solarzellen (färbt sich bei Staub rotbraun)
+  // Isolierdecke wie auf echten Raumsonden: Goldfolie mit Knitterfalten (als Relief, spiegelt das Licht), in Kissen abgesteppt,
+  // an den Kreuzungen der Nähte kleine Befestigungsknöpfe. Nahtlos, eine Kachel ≈ 0,5 m
+  let mliCache = null;
+  function mliSurface() {
+    if (mliCache) return mliCache;
+    const S = 512, hc = document.createElement("canvas"); hc.width = hc.height = S; const h = hc.getContext("2d");
+    h.fillStyle = "#808080"; h.fillRect(0, 0, S, S); h.lineCap = "round";
+    for (let i = 0; i < 320; i++) { // Falten: kurze, leicht gebogene Grate (hell) und Täler (dunkel), über den Rand hinweg nahtlos
+      const x = hash2(i, 1) * S, y = hash2(i, 2) * S, a = hash2(i, 3) * 6.3, l = 18 + hash2(i, 4) * 80, up = hash2(i, 5) > 0.5;
+      h.strokeStyle = up ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"; h.lineWidth = 2 + hash2(i, 6) * 6;
+      for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { h.beginPath(); h.moveTo(x + ox, y + oy); h.quadraticCurveTo(x + ox + Math.cos(a + 0.5) * l * 0.5, y + oy + Math.sin(a + 0.5) * l * 0.5, x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); h.stroke(); }
+    }
+    h.strokeStyle = "rgba(0,0,0,0.75)"; h.lineWidth = 5; // Steppnähte (Täler) alle 128 px
+    for (let k = 0; k <= S; k += 128) { h.beginPath(); h.moveTo(k, 0); h.lineTo(k, S); h.stroke(); h.beginPath(); h.moveTo(0, k); h.lineTo(S, k); h.stroke(); }
+    const img = h.getImageData(0, 0, S, S).data, H = (x, y) => img[((((y % S) + S) % S) * S + (((x % S) + S) % S)) * 4] / 255;
+    // Polster: zwischen den Nähten leicht gewölbt
+    const puff = (x, y) => { const u = (x % 128) / 128, v = (y % 128) / 128; return Math.sin(u * Math.PI) * Math.sin(v * Math.PI) * 0.35; };
+    const col = document.createElement("canvas"), nor = document.createElement("canvas"); col.width = col.height = nor.width = nor.height = S;
+    const ci = col.getContext("2d").createImageData(S, S), ni = nor.getContext("2d").createImageData(S, S), hh = (x, y) => H(x, y) + puff(((x % S) + S) % S, ((y % S) + S) % S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const o = (y * S + x) * 4, dx = (hh(x + 1, y) - hh(x - 1, y)) * 3.2, dy = (hh(x, y + 1) - hh(x, y - 1)) * 3.2, l = Math.hypot(dx, dy, 1);
+      ni.data[o] = (-dx / l * 0.5 + 0.5) * 255; ni.data[o + 1] = (dy / l * 0.5 + 0.5) * 255; ni.data[o + 2] = (1 / l * 0.5 + 0.5) * 255; ni.data[o + 3] = 255;
+      const v = H(x, y), k = 0.78 + (v - 0.5) * 0.9 + (hash2(x, y) - 0.5) * 0.04; // helle Grate, dunkle Falten
+      ci.data[o] = Math.min(255, 214 * k); ci.data[o + 1] = Math.min(255, 160 * k); ci.data[o + 2] = Math.min(255, 62 * k); ci.data[o + 3] = 255;
+    }
+    col.getContext("2d").putImageData(ci, 0, 0); nor.getContext("2d").putImageData(ni, 0, 0);
+    const c2 = col.getContext("2d"); // Stiche entlang der Nähte und Knöpfe an den Kreuzungen
+    c2.fillStyle = "rgba(60,38,8,0.85)"; for (let k = 0; k <= S; k += 128) for (let t = 4; t < S; t += 12) { c2.fillRect(k - 1, t, 2, 6); c2.fillRect(t, k - 1, 6, 2); }
+    for (let x = 0; x <= S; x += 128) for (let y = 0; y <= S; y += 128) { c2.fillStyle = "#f1f1ee"; c2.beginPath(); c2.arc(x, y, 6, 0, 7); c2.fill(); c2.fillStyle = "rgba(0,0,0,0.35)"; c2.beginPath(); c2.arc(x + 1, y + 1, 3, 0, 7); c2.fill(); }
+    const map = new THREE.CanvasTexture(col), normalMap = new THREE.CanvasTexture(nor);
+    map.encoding = THREE.sRGBEncoding; normalMap.encoding = THREE.LinearEncoding;
+    for (const t of [map, normalMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
+    return (mliCache = { map, normalMap });
+  }
+  function merWheel(R, W, alu, dark) {
+    const b = partBuilder(), rim = alu.clone(); rim.side = THREE.DoubleSide;
+    b.add(new THREE.CylinderGeometry(R, R, W, 48, 1, true), rim, [0, 0, 0], [0, 0, Math.PI / 2]);
+    for (const sx of [-1, 1]) b.add(new THREE.TorusGeometry(R, 0.012, 6, 48), alu, [sx * W / 2, 0, 0], [0, Math.PI / 2, 0]);
+    for (let k = 0; k < 18; k++) { const a = (k / 18) * Math.PI * 2; b.add(new THREE.BoxGeometry(W * 0.96, 0.022, 0.03), dark, [0, Math.cos(a) * (R + 0.008), Math.sin(a) * (R + 0.008)], [a, 0, 0]); }
+    for (const sx of [-1, 1]) for (let k = 0; k < 6; k++) {
+      const a0 = (k / 6) * Math.PI * 2, pts = [];
+      for (let i = 0; i <= 10; i++) { const t = i / 10, rr = 0.06 + t * (R * 0.94 - 0.06), a = a0 + sx * (t * 1.1 - 0.25 * Math.sin(t * Math.PI)); pts.push(new V(sx * (W / 2 - 0.02), Math.cos(a) * rr, Math.sin(a) * rr)); }
+      b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.009, 5), alu);
+    }
+    b.add(new THREE.CylinderGeometry(0.065, 0.065, W * 0.9, 20), alu, [0, 0, 0], [0, 0, Math.PI / 2]);
+    for (const sx of [-1, 1]) { b.add(new THREE.CylinderGeometry(0.04, 0.05, 0.03, 16), dark, [sx * (W * 0.45 + 0.015), 0, 0], [0, 0, Math.PI / 2]); for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; b.add(new THREE.CylinderGeometry(0.008, 0.008, 0.02, 6), alu, [sx * (W * 0.45 + 0.03), Math.cos(a) * 0.03, Math.sin(a) * 0.03], [0, 0, Math.PI / 2]); } }
+    return b.group(true);
+  }
   function makeSolarRover(M) {
     const g = new THREE.Group(), b = partBuilder();
     // Solarzellen matt und dunkelblau (glänzten sie stark, spiegelten sie von der Seite nur den hellen Himmel – das Deck wirkte weiß)
     const cells = marsCellMat(M).clone(); cells.roughness = 0.42; cells.metalness = 0.25; cells.envMapIntensity = 0.45;
-    const gold = new THREE.MeshStandardMaterial({ map: foilTex(), roughness: 0.35, metalness: 0.7 });
     const white = M.std({ color: srgb(0xeef0f2), roughness: 0.5 }), grey = M.std({ color: srgb(0x8f98a3), roughness: 0.4, metalness: 0.55 });
     const dark = M.std({ color: srgb(0x2b2e34), roughness: 0.8, metalness: 0.2 }), alu = M.std({ color: srgb(0xc3c8cf), roughness: 0.32, metalness: 0.8 });
     const ti = M.std({ color: srgb(0xa9b0b8), roughness: 0.3, metalness: 0.85 }), lens = M.std({ color: srgb(0x0f1216), roughness: 0.12, metalness: 0.6 });
-    // Elektronik-Kasten (goldene Isolierfolie), unten dunkler Bodenrahmen, vorn und hinten je zwei Gefahrenkameras
-    b.add(new THREE.BoxGeometry(1.1, 0.44, 1.4), gold, [0, 0.8, 0]);
+    // Elektronik-Kasten: Kern, darauf gepolsterte Isolierdecken aus Goldfolie (Texturkoordinaten in Metern, damit die Kacheln überall gleich groß sind),
+    // Eckprofile und Rahmen aus Aluminium; unten dunkler Bodenrahmen, vorn und hinten je zwei Gefahrenkameras
+    const mli = mliSurface(), blanket = new THREE.MeshStandardMaterial({ map: mli.map, normalMap: mli.normalMap, normalScale: new THREE.Vector2(1.3, 1.3), roughness: 0.32, metalness: 0.85, envMap: M.env, envMapIntensity: 1.15 });
+    b.add(new THREE.BoxGeometry(1.06, 0.42, 1.36), dark, [0, 0.8, 0]);
+    const pillow = (w, h) => { const g2 = new THREE.PlaneGeometry(w, h, 16, 6), p = g2.attributes.position, uv = g2.attributes.uv; for (let i = 0; i < p.count; i++) { const u = p.getX(i) / (w / 2), v = p.getY(i) / (h / 2); p.setZ(i, 0.022 * (1 - u * u) * (1 - v * v)); uv.setXY(i, (p.getX(i) + w / 2) / 0.5, (p.getY(i) + h / 2) / 0.5); } g2.computeVertexNormals(); return g2; };
+    for (const sx of [-1, 1]) b.add(pillow(1.32, 0.38), blanket, [sx * 0.532, 0.8, 0], [0, sx * Math.PI / 2, 0]);
+    for (const sz of [-1, 1]) b.add(pillow(1.02, 0.38), blanket, [0, 0.8, sz * 0.682], [0, sz > 0 ? 0 : Math.PI, 0]);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(new THREE.BoxGeometry(0.045, 0.46, 0.045), alu, [sx * 0.545, 0.8, sz * 0.695]);
+    for (const y of [0.595, 1.005]) { for (const sx of [-1, 1]) b.add(new THREE.BoxGeometry(0.03, 0.03, 1.4), alu, [sx * 0.548, y, 0]); for (const sz of [-1, 1]) b.add(new THREE.BoxGeometry(1.12, 0.03, 0.03), alu, [0, y, sz * 0.698]); }
     b.add(new THREE.BoxGeometry(1.14, 0.06, 1.44), dark, [0, 0.56, 0]);
+    const radTex = canvasTex(64, 128, (c) => { c.fillStyle = "#e8ebee"; c.fillRect(0, 0, 64, 128); c.fillStyle = "rgba(90,100,112,0.55)"; for (let y = 6; y < 128; y += 10) c.fillRect(4, y, 56, 3); c.strokeStyle = "rgba(60,70,80,0.7)"; c.lineWidth = 3; c.strokeRect(1.5, 1.5, 61, 125); });
+    const radMat = M.std({ map: radTex, roughness: 0.45, metalness: 0.3 }), kapton = M.std({ color: srgb(0xb7782b), roughness: 0.55, metalness: 0.2 });
+    for (const sx of [-1, 1]) {
+      const X = sx * 0.555;
+      b.add(new THREE.BoxGeometry(0.02, 0.28, 0.62), radMat, [X + sx * 0.005, 0.84, -0.22]);                                   // Kühlfläche
+      for (const [z, w, h] of [[0.36, 0.2, 0.16], [0.55, 0.1, 0.1]]) b.add(new THREE.BoxGeometry(0.07, h, w), dark, [X + sx * 0.035, 0.78, z]); // Gerätekästen
+      for (const [y, c] of [[0.66, kapton], [0.97, dark]]) { const pts = [new V(X + sx * 0.02, y, -0.66), new V(X + sx * 0.035, y + 0.03, -0.2), new V(X + sx * 0.03, y - 0.02, 0.25), new V(X + sx * 0.02, y, 0.66)]; b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.014, 6), c); }
+      for (const z of [0.1, 0.2]) b.add(new THREE.CylinderGeometry(0.02, 0.02, 0.04, 10), alu, [X + sx * 0.03, 0.66, z], [0, 0, Math.PI / 2]);  // Steckverbinder
+    }
+    b.add(new THREE.BoxGeometry(0.5, 0.16, 0.05), radMat, [0, 0.82, -0.72]); // Lüftungsgitter hinten
     for (const z of [0.72, -0.72]) for (const x of [-0.18, 0.18]) { b.add(new THREE.BoxGeometry(0.1, 0.07, 0.06), dark, [x, 0.66, z]); b.add(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12), lens, [x, 0.66, z + Math.sign(z) * 0.035], [Math.PI / 2, 0, 0]); }
     // Solarflügel: jedes Feld mit Rahmen aus Aluminium, die Zellen leicht vertieft
     const deckY = 1.045;
     for (const [w, d, x, z] of [[1.24, 1.5, 0, -0.03], [0.56, 1.17, -0.9, 0.035], [0.56, 1.17, 0.9, 0.035], [1.2, 0.42, 0, -1.0], [0.46, 0.44, -0.86, -0.83], [0.46, 0.44, 0.86, -0.83]]) {
       b.add(new THREE.BoxGeometry(w, 0.03, d), grey, [x, deckY - 0.01, z]);
+      b.add(new THREE.BoxGeometry(w - 0.04, 0.05, d - 0.04), dark, [x, deckY - 0.05, z]);
       for (const [fx, fz, fw, fd] of [[0, d / 2 - 0.015, w, 0.03], [0, -d / 2 + 0.015, w, 0.03], [w / 2 - 0.015, 0, 0.03, d], [-w / 2 + 0.015, 0, 0.03, d]]) b.add(new THREE.BoxGeometry(fw, 0.045, fd), alu, [x + fx, deckY + 0.005, z + fz]);
       b.add(new THREE.PlaneGeometry(w - 0.05, d - 0.05), cells, [x, deckY + 0.008, z], [-Math.PI / 2, 0, 0]);
     }
@@ -5151,34 +5216,36 @@ window.Surface = (function () {
     b.add(new THREE.CylinderGeometry(0.035, 0.045, 0.18, 10), grey, [0.42, deckY + 0.1, -0.2]);
     b.add(new THREE.BoxGeometry(0.2, 0.04, 0.05), grey, [0.42, deckY + 0.2, -0.2]);
     for (const x of [0.33, 0.51]) b.add(new THREE.BoxGeometry(0.025, 0.12, 0.04), grey, [x, deckY + 0.26, -0.2]);
-    b.add(new THREE.CylinderGeometry(0.17, 0.17, 0.03, 32), white, [0.42, deckY + 0.3, -0.2], [-0.7, 0, 0]);
+    b.add(new THREE.CylinderGeometry(0.24, 0.24, 0.035, 40), white, [0.42, deckY + 0.32, -0.2], [-0.7, 0, 0]);
+    b.add(new THREE.TorusGeometry(0.24, 0.012, 6, 40), grey, [0.42, deckY + 0.32, -0.2], [Math.PI / 2 - 0.7, 0, 0]);
     b.add(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12), grey, [0.42, deckY + 0.31, -0.18], [-0.7, 0, 0]);
     b.add(new THREE.CylinderGeometry(0.01, 0.012, 0.6, 6), grey, [0.62, deckY + 0.3, 0.12]); b.add(new THREE.SphereGeometry(0.02, 8, 6), white, [0.62, deckY + 0.61, 0.12]);
     // Kameramast vorn links: Gelenk am Fuß, Mast, Kamerabalken mit zwei Panoramakameras (mit Blenden), zwei Navigationskameras, Infrarot-Spektrometer
     const mx = -0.42, mz = 0.5;
     b.add(new THREE.BoxGeometry(0.18, 0.1, 0.18), grey, [mx, deckY + 0.075, mz]);
     b.add(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 14), dark, [mx, deckY + 0.12, mz], [0, 0, Math.PI / 2]);
-    b.add(new THREE.CylinderGeometry(0.04, 0.05, 0.86, 12), white, [mx, deckY + 0.55, mz]);
+    b.add(new THREE.CylinderGeometry(0.055, 0.065, 0.86, 16), white, [mx, deckY + 0.55, mz]);
+    { const pts = []; for (let i = 0; i <= 40; i++) { const t = i / 40, a = t * Math.PI * 6; pts.push(new V(mx + Math.cos(a) * 0.07, deckY + 0.14 + t * 0.8, mz + Math.sin(a) * 0.07)); } b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.008, 5), dark); } // Kabel um den Mast
     for (const y of [0.3, 0.62]) b.add(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 12), grey, [mx, deckY + y, mz]);
     const hy = deckY + 1.02;
     b.add(new THREE.CylinderGeometry(0.055, 0.055, 0.1, 12), grey, [mx, hy - 0.08, mz]);
-    b.add(new THREE.BoxGeometry(0.5, 0.12, 0.14), grey, [mx, hy, mz]);
-    for (const x of [-0.19, 0.19]) { b.add(new THREE.BoxGeometry(0.1, 0.1, 0.06), dark, [mx + x, hy, mz + 0.09]); b.add(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 14), lens, [mx + x, hy, mz + 0.125], [Math.PI / 2, 0, 0]); }
+    b.add(new THREE.BoxGeometry(0.6, 0.15, 0.17), grey, [mx, hy, mz]);
+    for (const x of [-0.23, 0.23]) { b.add(new THREE.BoxGeometry(0.12, 0.12, 0.08), dark, [mx + x, hy, mz + 0.12]); b.add(new THREE.CylinderGeometry(0.038, 0.038, 0.02, 16), lens, [mx + x, hy, mz + 0.165], [Math.PI / 2, 0, 0]); b.add(new THREE.CylinderGeometry(0.048, 0.044, 0.05, 16, 1, true), dark, [mx + x, hy, mz + 0.18], [Math.PI / 2, 0, 0]); }
     for (const x of [-0.06, 0.06]) { b.add(new THREE.BoxGeometry(0.07, 0.05, 0.07), white, [mx + x, hy + 0.09, mz + 0.02]); b.add(new THREE.CylinderGeometry(0.015, 0.015, 0.02, 10), lens, [mx + x, hy + 0.09, mz + 0.06], [Math.PI / 2, 0, 0]); }
     b.add(new THREE.CylinderGeometry(0.045, 0.045, 0.3, 14), dark, [mx, hy - 0.02, mz - 0.17], [Math.PI / 2, 0, 0]);
     // Rocker-Bogie aus Titanrohren: jedes Rad hängt an einem Bein, so fahren die echten Rover über Steine; oben das Ausgleichsgestänge
-    const WX = 0.95, WR = 0.22, BX = 0.8, joint = (p, r = 0.05) => b.add(new THREE.SphereGeometry(r, 12, 8), dark, [p.x, p.y, p.z]);
+    const WX = 0.97, WR = 0.25, BX = 0.8, joint = (p, r = 0.05) => b.add(new THREE.SphereGeometry(r, 12, 8), dark, [p.x, p.y, p.z]);
     const tube = (a, c, rr = 0.032) => { const d = c.clone().sub(a); b.addM(new THREE.CylinderGeometry(rr, rr, 1, 10), ti, new THREE.Matrix4().compose(a.clone().addScaledVector(d, 0.5), new THREE.Quaternion().setFromUnitVectors(new V(0, 1, 0), d.clone().normalize()), new V(1, d.length(), 1))); };
     for (const sx of [-1, 1]) {
       const x = sx * BX, F = new V(x, 0.62, 0.55), P = new V(x, 0.8, 0.06), Bp = new V(x, 0.52, -0.35), Bm = new V(x, 0.52, 0.02), Br = new V(x, 0.52, -0.72);
       tube(F, P); tube(P, Bp); tube(Bm, Br); tube(Bm, Bp, 0.03);
-      for (const [top, z] of [[F, 0.72], [Bm, 0.02], [Br, -0.72]]) tube(top, new V(sx * (WX - 0.12), WR, z), 0.028);
+      for (const [top, z] of [[F, 0.72], [Bm, 0.02], [Br, -0.72]]) tube(top, new V(sx * (WX - 0.08), WR, z), 0.028);
       tube(P, new V(sx * 0.55, 0.8, 0.06), 0.045); joint(P, 0.06); joint(Bp); joint(F, 0.045); joint(Br, 0.045);
     }
     b.add(new THREE.BoxGeometry(1.5, 0.04, 0.06), ti, [0, 1.0, -0.62]);
     g.add(b.group(true));
     // Räder: Aluminium mit Stollen, drehen beim Fahren (rotation.x)
-    const wheelSrc = roverWheel(M, WR, 0.2, alu), wheels = [];
+    const wheelSrc = merWheel(WR, 0.17, alu, dark), wheels = [];
     for (const sx of [-1, 1]) for (const z of [-0.72, 0.02, 0.72]) { const w = wheelSrc.clone(); w.position.set(sx * WX, WR, z); g.add(w); wheels.push(w); }
     // Roboterarm vorn: Schulter (dreht und kippt), Ober- und Unterarm, Werkzeugkopf mit Mikroskop-Kamera, Schleifbürste und Bohrer.
     // Beim Fahren quer vor dem Kasten eingeklappt; an einer Fundstelle fährt er aus (roverArmPose)
@@ -9904,6 +9971,10 @@ window.Surface = (function () {
       C.update(w, p, p.f, dt);
       if (w.extra) w.extra(dt, p, p.t, w, wind);
       p.shake = Math.max(0, p.shake - dt * 1.5);
+      Sound.engine(0.35);
+    } else { // ein Fenster ist offen: die Sonde steht – Düsen und Messton aus, Triebwerk leise
+      Sound.loop("thrust", 0); Sound.loop("measure", 0); Sound.engine(0.08);
+      for (const sp of w.jets.list) sp.visible = false;
     }
 
     w.craft.position.set(p.x, p.y, p.z);
