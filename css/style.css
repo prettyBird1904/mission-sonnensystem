@@ -519,6 +519,17 @@ kbd {
 .chal-bar { height: 12px; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; margin-top: 5px; }
 .chal-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #22c55e, #facc15 60%, #ef4444); transition: width .15s linear; }
 .chal-hud.hot { box-shadow: 0 0 0 2px #ef4444, 0 0 24px rgba(239,68,68,.55); }
+/* Sonden: Sucher fürs Foto (wird mit der Steuerung bewegt), gestrichelter Kreis am Ziel, Blitz */
+#surfaceHud > .probe-finder, #surfaceHud > .probe-target, #surfaceHud > .probe-flash { pointer-events: none; }
+.probe-finder { position: absolute; left: 50%; top: 55%; width: 124px; height: 124px; margin: -62px 0 0 -62px; border: 3px solid rgba(255,255,255,.92); border-radius: 18px; box-shadow: 0 0 0 2px rgba(0,0,0,.3), inset 0 0 0 2px rgba(0,0,0,.2); }
+.probe-finder::before { content: ""; position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; background: linear-gradient(#fff, #fff) center / 26px 3px no-repeat, linear-gradient(#fff, #fff) center / 3px 26px no-repeat; filter: drop-shadow(0 0 2px #000); }
+.probe-finder b { position: absolute; left: 10px; right: 10px; bottom: 8px; height: 7px; border-radius: 7px; background: linear-gradient(90deg, #4ade80 calc(var(--p, 0) * 100%), rgba(255,255,255,.25) 0); }
+.probe-finder.on { border-color: #4ade80; box-shadow: 0 0 0 2px rgba(0,0,0,.3), 0 0 22px rgba(74,222,128,.85); }
+.probe-target { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border: 3px dashed #fde68a; border-radius: 50%; animation: probeTgt 1.2s ease-in-out infinite; }
+.probe-target span { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; white-space: nowrap; font: 700 14px var(--font-head); color: #fde68a; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+@keyframes probeTgt { 50% { transform: scale(1.12); } }
+.probe-flash { position: absolute; inset: 0; background: #fff; opacity: 0; transition: opacity .45s ease-out; }
+.probe-flash.on { opacity: .85; transition: none; }
 .chal-hud.good .chal-bar i { background: linear-gradient(90deg, #ef4444, #facc15 35%, #22c55e 75%); }
 #chalInfo { font-size: 13px; color: #cbd5e1; margin-top: 4px; min-height: 0; }
 #chalInfo:empty { display: none; }

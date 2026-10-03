@@ -2482,7 +2482,7 @@ window.Surface = (function () {
   function allQuestions() { return cfg.quiz.map((q) => ({ ...q, own: true })); }
   function fmtVars(t, vars) {
     const std = { name: G.state.name, anzahl: cfg.discoveries.length, fragen: allQuestions().length };
-    return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : "")).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung").replace(/\bNoch 1 Mess-Tore\b/g, "Noch 1 Mess-Tor");
+    return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : std[k] != null ? std[k] : "")).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung").replace(/\bNoch 1 Mess-Tore\b/g, "Noch 1 Mess-Tor").replace(/\bNoch 1 Aufgaben\b/g, "Noch 1 Aufgabe");
   }
 
   // fn erst ausführen, wenn gerade niemand spricht und Nora keinen Satz mehr in der Warteschlange hat (spätestens nach max ms)
@@ -2509,7 +2509,7 @@ window.Surface = (function () {
 
   function updateCounter() {
     $("discCount").textContent = `${foundCount()}/${cfg.discoveries.length}`;
-    if (probe) { refreshGates(); return; }
+    if (probe) return;
     world.station.userData.refresh(foundMap()); // Tafeln an der Station
     for (const [key, st] of Object.entries(world.stations)) {
       const home = !!cfg.stations[key].home, done = !!foundMap()[key];
@@ -2791,7 +2791,7 @@ window.Surface = (function () {
     $("guideBtn").classList.add("hidden"); guide = null;
     if (!S.active) return;
     S.active = false; probe = null;
-    Sound.engine(0); Sound.wind(0); Sound.ambience(null); Voice.stop();
+    Sound.engine(0); Sound.wind(0); Sound.ambience(null); Sound.loopsOff(); Voice.stop();
     if (chal) endChallenge();
     compassShown = ""; $("surfCompass").classList.add("hidden");
     $("surfaceHud").classList.add("hidden");
@@ -2928,7 +2928,7 @@ window.Surface = (function () {
       ast.jumpFrom = [ast.pos.x, ast.pos.z];
       ast.airT = 0; ast.airDur = 2 * ast.vy / g;
       if (chal && chal.kind === "weit") longJumpTakeoff();
-      Sound.whoosh();
+      Sound.hop(lowG);
       grains(ast.pos, 8, 0.6);
     } else if (lowG && ast.onGround && ast.speed > 0.7 && (ast.contact || 0) > 0.18 && !paused) {
       // Lope-Schritt: ein kleiner, echter Flug – so haben sich die Apollo-Astronauten fortbewegt
@@ -2947,12 +2947,13 @@ window.Surface = (function () {
           ast.hopping = false;
           footprint(0.17); footprint(-0.17, -0.35);
           grains(ast.pos, 3, 0.5, -hx, -hz);
+          Sound.thud(0.22); // leiser Schritt beim Hüpfen auf Mond und Mars
         }
         if (ast.jumping) {
           ast.jumping = false;
           grains(ast.pos, 14, 0.8);
           footprint(0.17); footprint(-0.17);
-          Sound.land();
+          Sound.thud(1);
           // Höhe aus dem Absprung berechnen (gemessen wäre sie auf langsamen Geräten zu klein – die Erde springt nur 11 cm)
           const h = Math.max(ast.maxY - ast.jumpBase, cfg.jump);
           const jump = { hoehe: `${Math.round(h * 100)} Zentimeter`, zeit: Math.max(ast.airT, ast.airDur).toFixed(1).replace(".", ",") };
@@ -3625,6 +3626,7 @@ window.Surface = (function () {
     $("surfaceHud").classList.add(hud);
   }
   function leaveExhibit() {
+    Sound.loopsOff();
     const key = view.special.key;
     view.special = null;
     world.stations[key].marker.visible = true;
@@ -5123,52 +5125,71 @@ window.Surface = (function () {
   // hinten die flache Hochgewinn-Antenne und der Stab der Rundstrahl-Antenne, vorn eingeklappt der Roboterarm.
   // userData.cells = Material der Solarzellen (färbt sich bei Staub rotbraun)
   function makeSolarRover(M) {
-    const g = new THREE.Group(), cells = marsCellMat(M).clone();
+    const g = new THREE.Group(), b = partBuilder();
+    // Solarzellen matt und dunkelblau (glänzten sie stark, spiegelten sie von der Seite nur den hellen Himmel – das Deck wirkte weiß)
+    const cells = marsCellMat(M).clone(); cells.roughness = 0.42; cells.metalness = 0.25; cells.envMapIntensity = 0.45;
     const gold = new THREE.MeshStandardMaterial({ map: foilTex(), roughness: 0.35, metalness: 0.7 });
-    const white = M.std({ color: srgb(0xeef0f2), roughness: 0.5 }), grey = M.std({ color: srgb(0x9aa3ad), roughness: 0.4, metalness: 0.5 });
-    const dark = M.std({ color: srgb(0x2b2e34), roughness: 0.8, metalness: 0.2 }), alu = M.std({ color: srgb(0xc3c8cf), roughness: 0.35, metalness: 0.75 });
-    const lens = M.std({ color: srgb(0x0f1216), roughness: 0.12, metalness: 0.6 });
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.44, 1.4), gold), 0, 0.8, 0); // Elektronik-Kasten
-    // Solarzellen-Deck: alle Teile in einer Ebene, mit schmalen Fugen dazwischen (nichts überlappt)
+    const white = M.std({ color: srgb(0xeef0f2), roughness: 0.5 }), grey = M.std({ color: srgb(0x8f98a3), roughness: 0.4, metalness: 0.55 });
+    const dark = M.std({ color: srgb(0x2b2e34), roughness: 0.8, metalness: 0.2 }), alu = M.std({ color: srgb(0xc3c8cf), roughness: 0.32, metalness: 0.8 });
+    const ti = M.std({ color: srgb(0xa9b0b8), roughness: 0.3, metalness: 0.85 }), lens = M.std({ color: srgb(0x0f1216), roughness: 0.12, metalness: 0.6 });
+    // Elektronik-Kasten (goldene Isolierfolie), unten dunkler Bodenrahmen, vorn und hinten je zwei Gefahrenkameras
+    b.add(new THREE.BoxGeometry(1.1, 0.44, 1.4), gold, [0, 0.8, 0]);
+    b.add(new THREE.BoxGeometry(1.14, 0.06, 1.44), dark, [0, 0.56, 0]);
+    for (const z of [0.72, -0.72]) for (const x of [-0.18, 0.18]) { b.add(new THREE.BoxGeometry(0.1, 0.07, 0.06), dark, [x, 0.66, z]); b.add(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12), lens, [x, 0.66, z + Math.sign(z) * 0.035], [Math.PI / 2, 0, 0]); }
+    // Solarflügel: jedes Feld mit Rahmen aus Aluminium, die Zellen leicht vertieft
     const deckY = 1.045;
-    for (const [w, d, x, z] of [[1.24, 1.5, 0, -0.03], [0.56, 1.17, -0.9, 0.035], [0.56, 1.17, 0.9, 0.035], [1.2, 0.42, 0, -1.0], [0.46, 0.44, -0.86, -0.83], [0.46, 0.44, 0.86, -0.83]])
-      put(g, new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, d), [white, white, cells, white, white, white]), x, deckY, z);
-    // Räder an der Rocker-Bogie-Schwinge: jedes Rad hängt an einem Bein, so fahren die echten Rover über Steine
-    const wheels = [], WX = 0.95, WR = 0.22, BX = 0.8;
-    for (const s of [-1, 1]) {
-      for (const z of [-0.72, 0.02, 0.72]) {
-        const w = put(g, new THREE.Mesh(new THREE.CylinderGeometry(WR, WR, 0.18, 20), [dark, alu, alu]), s * WX, WR, z); w.rotation.z = Math.PI / 2; wheels.push(w);
-        put(w, new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.2, 12), grey), 0, 0, 0, false); // Nabe (dreht sich mit)
-      }
-      const x = s * BX, F = new V(x, 0.62, 0.55), P = new V(x, 0.8, 0.06), Bm = new V(x, 0.52, 0.02), Br = new V(x, 0.52, -0.72);
-      pipeSeg(g, M, F, P, 0.035, white); pipeSeg(g, M, P, new V(x, 0.52, -0.35), 0.035, white); // Rocker bis zum Drehpunkt des Bogies
-      pipeSeg(g, M, Bm, Br, 0.035, white); // Bogie
-      for (const [top, z] of [[F, 0.72], [Bm, 0.02], [Br, -0.72]]) pipeSeg(g, M, top, new V(s * (WX - 0.1), WR, z), 0.03, white); // Beine zu den Naben
-      pipeSeg(g, M, P, new V(s * 0.55, 0.8, 0.06), 0.045, grey); // Gelenk am Kasten
+    for (const [w, d, x, z] of [[1.24, 1.5, 0, -0.03], [0.56, 1.17, -0.9, 0.035], [0.56, 1.17, 0.9, 0.035], [1.2, 0.42, 0, -1.0], [0.46, 0.44, -0.86, -0.83], [0.46, 0.44, 0.86, -0.83]]) {
+      b.add(new THREE.BoxGeometry(w, 0.03, d), grey, [x, deckY - 0.01, z]);
+      for (const [fx, fz, fw, fd] of [[0, d / 2 - 0.015, w, 0.03], [0, -d / 2 + 0.015, w, 0.03], [w / 2 - 0.015, 0, 0.03, d], [-w / 2 + 0.015, 0, 0.03, d]]) b.add(new THREE.BoxGeometry(fw, 0.045, fd), alu, [x + fx, deckY + 0.005, z + fz]);
+      b.add(new THREE.PlaneGeometry(w - 0.05, d - 0.05), cells, [x, deckY + 0.008, z], [-Math.PI / 2, 0, 0]);
     }
-    // Kameramast vorn rechts: Kamerakopf mit zwei Panoramakameras („Augen“) und obendrauf die Navigationskamera
+    // Sonnenuhr zum Einstellen der Kamerafarben (wie auf Spirit und Opportunity): Sockel, Farbfelder, Schattenstab
+    b.add(new THREE.CylinderGeometry(0.075, 0.08, 0.04, 20), white, [0.42, deckY + 0.03, -0.62]);
+    [[0xdc2626, 0.03, 0.03], [0x16a34a, -0.03, 0.03], [0x2563eb, 0.03, -0.03], [0xfacc15, -0.03, -0.03]].forEach(([c, dx, dz]) => b.add(new THREE.BoxGeometry(0.025, 0.012, 0.025), M.std({ color: srgb(c), roughness: 0.6 }), [0.42 + dx * 1.6, deckY + 0.055, -0.62 + dz * 1.6]));
+    b.add(new THREE.CylinderGeometry(0.006, 0.006, 0.09, 6), dark, [0.42, deckY + 0.095, -0.62]);
+    // Hochgewinn-Antenne: flache Scheibe auf einem Kardangelenk; Rundstrahl-Antenne: Stab mit Spitze
+    b.add(new THREE.CylinderGeometry(0.035, 0.045, 0.18, 10), grey, [0.42, deckY + 0.1, -0.2]);
+    b.add(new THREE.BoxGeometry(0.2, 0.04, 0.05), grey, [0.42, deckY + 0.2, -0.2]);
+    for (const x of [0.33, 0.51]) b.add(new THREE.BoxGeometry(0.025, 0.12, 0.04), grey, [x, deckY + 0.26, -0.2]);
+    b.add(new THREE.CylinderGeometry(0.17, 0.17, 0.03, 32), white, [0.42, deckY + 0.3, -0.2], [-0.7, 0, 0]);
+    b.add(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12), grey, [0.42, deckY + 0.31, -0.18], [-0.7, 0, 0]);
+    b.add(new THREE.CylinderGeometry(0.01, 0.012, 0.6, 6), grey, [0.62, deckY + 0.3, 0.12]); b.add(new THREE.SphereGeometry(0.02, 8, 6), white, [0.62, deckY + 0.61, 0.12]);
+    // Kameramast vorn links: Gelenk am Fuß, Mast, Kamerabalken mit zwei Panoramakameras (mit Blenden), zwei Navigationskameras, Infrarot-Spektrometer
     const mx = -0.42, mz = 0.5;
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.16), grey), mx, deckY + 0.075, mz);
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.78, 10), white), mx, deckY + 0.48, mz);
-    const head = new THREE.Group(); head.position.set(mx, deckY + 0.92, mz); g.add(head);
-    put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.12, 10), grey), 0, -0.06, 0);
-    put(head, new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.11, 0.13), grey), 0, 0.03, 0);
-    put(head, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 0.1), white), 0, 0.12, 0);
-    for (const x of [-0.17, 0.17]) put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.04, 14), lens), x, 0.03, 0.075, false).rotation.x = Math.PI / 2;
-    // Hochgewinn-Antenne (flache Scheibe zur Erde) und Rundstrahl-Antenne (dünner Stab)
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.2, 8), grey), 0.4, deckY + 0.12, -0.42);
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.035, 24), white), 0.4, deckY + 0.24, -0.42).rotation.x = -0.6;
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.55, 6), grey), 0.62, deckY + 0.3, -0.05, false);
+    b.add(new THREE.BoxGeometry(0.18, 0.1, 0.18), grey, [mx, deckY + 0.075, mz]);
+    b.add(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 14), dark, [mx, deckY + 0.12, mz], [0, 0, Math.PI / 2]);
+    b.add(new THREE.CylinderGeometry(0.04, 0.05, 0.86, 12), white, [mx, deckY + 0.55, mz]);
+    for (const y of [0.3, 0.62]) b.add(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 12), grey, [mx, deckY + y, mz]);
+    const hy = deckY + 1.02;
+    b.add(new THREE.CylinderGeometry(0.055, 0.055, 0.1, 12), grey, [mx, hy - 0.08, mz]);
+    b.add(new THREE.BoxGeometry(0.5, 0.12, 0.14), grey, [mx, hy, mz]);
+    for (const x of [-0.19, 0.19]) { b.add(new THREE.BoxGeometry(0.1, 0.1, 0.06), dark, [mx + x, hy, mz + 0.09]); b.add(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 14), lens, [mx + x, hy, mz + 0.125], [Math.PI / 2, 0, 0]); }
+    for (const x of [-0.06, 0.06]) { b.add(new THREE.BoxGeometry(0.07, 0.05, 0.07), white, [mx + x, hy + 0.09, mz + 0.02]); b.add(new THREE.CylinderGeometry(0.015, 0.015, 0.02, 10), lens, [mx + x, hy + 0.09, mz + 0.06], [Math.PI / 2, 0, 0]); }
+    b.add(new THREE.CylinderGeometry(0.045, 0.045, 0.3, 14), dark, [mx, hy - 0.02, mz - 0.17], [Math.PI / 2, 0, 0]);
+    // Rocker-Bogie aus Titanrohren: jedes Rad hängt an einem Bein, so fahren die echten Rover über Steine; oben das Ausgleichsgestänge
+    const WX = 0.95, WR = 0.22, BX = 0.8, joint = (p, r = 0.05) => b.add(new THREE.SphereGeometry(r, 12, 8), dark, [p.x, p.y, p.z]);
+    const tube = (a, c, rr = 0.032) => { const d = c.clone().sub(a); b.addM(new THREE.CylinderGeometry(rr, rr, 1, 10), ti, new THREE.Matrix4().compose(a.clone().addScaledVector(d, 0.5), new THREE.Quaternion().setFromUnitVectors(new V(0, 1, 0), d.clone().normalize()), new V(1, d.length(), 1))); };
+    for (const sx of [-1, 1]) {
+      const x = sx * BX, F = new V(x, 0.62, 0.55), P = new V(x, 0.8, 0.06), Bp = new V(x, 0.52, -0.35), Bm = new V(x, 0.52, 0.02), Br = new V(x, 0.52, -0.72);
+      tube(F, P); tube(P, Bp); tube(Bm, Br); tube(Bm, Bp, 0.03);
+      for (const [top, z] of [[F, 0.72], [Bm, 0.02], [Br, -0.72]]) tube(top, new V(sx * (WX - 0.12), WR, z), 0.028);
+      tube(P, new V(sx * 0.55, 0.8, 0.06), 0.045); joint(P, 0.06); joint(Bp); joint(F, 0.045); joint(Br, 0.045);
+    }
+    b.add(new THREE.BoxGeometry(1.5, 0.04, 0.06), ti, [0, 1.0, -0.62]);
+    g.add(b.group(true));
+    // Räder: Aluminium mit Stollen, drehen beim Fahren (rotation.x)
+    const wheelSrc = roverWheel(M, WR, 0.2, alu), wheels = [];
+    for (const sx of [-1, 1]) for (const z of [-0.72, 0.02, 0.72]) { const w = wheelSrc.clone(); w.position.set(sx * WX, WR, z); g.add(w); wheels.push(w); }
     // Roboterarm vorn: Schulter (dreht und kippt), Ober- und Unterarm, Werkzeugkopf mit Mikroskop-Kamera, Schleifbürste und Bohrer.
     // Beim Fahren quer vor dem Kasten eingeklappt; an einer Fundstelle fährt er aus (roverArmPose)
     const arm = { L1: 0.55, L2: 0.5, S: new V(0.3, 0.62, 0.74), TOOL: 0.27 };
     arm.shoulder = new THREE.Group(); arm.shoulder.position.copy(arm.S); g.add(arm.shoulder);
-    put(arm.shoulder, new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 8), grey), 0, 0, 0);
+    put(arm.shoulder, new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 8), dark), 0, 0, 0);
     arm.upper = new THREE.Group(); arm.shoulder.add(arm.upper);
-    put(arm.upper, new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, arm.L1, 10), white), 0, 0, arm.L1 / 2).rotation.x = Math.PI / 2;
+    put(arm.upper, new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, arm.L1, 10), ti), 0, 0, arm.L1 / 2).rotation.x = Math.PI / 2;
     arm.elbow = new THREE.Group(); arm.elbow.position.z = arm.L1; arm.upper.add(arm.elbow);
-    put(arm.elbow, new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 8), grey), 0, 0, 0);
-    put(arm.elbow, new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, arm.L2, 10), white), 0, 0, arm.L2 / 2).rotation.x = Math.PI / 2;
+    put(arm.elbow, new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 8), dark), 0, 0, 0);
+    put(arm.elbow, new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, arm.L2, 10), ti), 0, 0, arm.L2 / 2).rotation.x = Math.PI / 2;
     arm.wrist = new THREE.Group(); arm.wrist.position.z = arm.L2; arm.elbow.add(arm.wrist);
     arm.turret = new THREE.Group(); arm.wrist.add(arm.turret);
     put(arm.turret, new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.17), grey), 0, -0.07, 0);
@@ -5969,6 +5990,7 @@ window.Surface = (function () {
   function updateRover(dt) {
     const sp = view.special, r = world.rover, u = r.userData, c = world.camera, T = cfg.rover;
     sp.t += dt;
+    { const k = Math.min(1, Math.abs(u.speed) / ROVER_SPEED); Sound.loop("rover", sp.phase === "drive" ? 0.25 + 0.75 * k : 0, k); } // Motor: leises Summen im Stand, lauter und höher beim Fahren
     if (sp.phase === "drive") {
       u.speed += ((sp.bat > 0 ? sp.iy * ROVER_SPEED : 0) - u.speed) * Math.min(1, dt * 2.5);
       u.heading -= sp.ix * 1.3 * dt * (u.speed < -0.2 ? -1 : 1);
@@ -5991,6 +6013,7 @@ window.Surface = (function () {
       if (sp.ct > 4) { sp.phase = "drive"; scopeSay(sp.dusty ? T.dusty : `${T.start} (${isTouch() ? T.keysTouch : T.keys})`); }
     } else if (sp.phase === "scan") { // heranfahren, Arm ausfahren, Werkzeug arbeiten lassen, dann das Nahbild zeigen
       const s = sp.last, A = u.arm, T2 = cfg.rover; sp.st += dt; u.speed = 0;
+      if (sp.st >= 1.2 && sp.st - dt < 1.2) Sound.servo(); // der Arm fährt aus
       if (sp.st < 1.2) { const k = 1 - Math.exp(-dt * 4); r.position.x += (sp.stop.x - r.position.x) * k; r.position.z += (sp.stop.z - r.position.z) * k; u.heading = angleLerp(u.heading, sp.stop.h, k); for (const w of u.wheels) w.rotation.x += dt * 3; }
       else {
         if (!sp.contact) { r.updateMatrixWorld(true); sp.contact = roverContact(s); sp.local = r.worldToLocal(sp.contact.p.clone()); }
@@ -7072,7 +7095,7 @@ window.Surface = (function () {
   function curlPower() { const sp = view.special; sp.phase = "power"; sp.t = 0; scopeSay(cfg.curling.power, [[cfg.curling.throwBtn, curlThrow, true]]); }
   function curlThrow() {
     const sp = view.special; sp.phase = "slide"; sp.v = 3.2 + sp.power * 5; sp.left--;
-    world.curl.arrow.visible = false; Sound.whoosh();
+    world.curl.arrow.visible = false; Sound.push();
     scopeSay(cfg.curling.slide);
   }
   function curlEnd(success) {
@@ -7089,8 +7112,9 @@ window.Surface = (function () {
     if (sp.phase === "slide") {
       sp.x += dx * sp.v * dt; sp.z += dz * sp.v * dt; sp.v = Math.max(0, sp.v - CURL_DECEL * (onMarsIce(sp.x, sp.z) ? 1 : 7) * dt); // neben dem Eis bremst der Staub sofort
       st.rotation.y += dt * sp.v * 0.6; // dreht sich beim Rutschen
+      { const k = Math.min(1, sp.v / 6); Sound.loop("slide", sp.v > 0.05 ? 0.2 + 0.8 * k : 0, onMarsIce(sp.x, sp.z) ? k : k * 0.4); } // auf dem Staub dumpfer
       if (sp.v <= 0) { // liegen geblieben: wie nah am Ziel?
-        sp.phase = "result";
+        sp.phase = "result"; Sound.loop("slide", 0);
         const d = Math.hypot(sp.x - ln.tx, sp.z - ln.tz), along = (sp.x - ln.sx) * ln.dx + (sp.z - ln.sz) * ln.dz;
         const pts = d < 1.2 ? 3 : d < 2.4 ? 2 : d < 3.8 ? 1 : 0;
         const first = pts > 0 && !sp.best; sp.best = Math.max(sp.best, pts);
@@ -9210,11 +9234,12 @@ window.Surface = (function () {
   }
 
   // =========================================================
-  //  Sonden: Wo man nicht landen kann (Gasriesen, Sonne), steuert das Kind eine Sonde durch leuchtende Mess-Tore.
-  //  Jedes Tor ist eine Entdeckung. Funk, Entdeckungskarten, Liste und Funk-Fragen sind dieselben wie beim Astronauten.
+  //  Sonden: Wo man nicht landen kann (Gasriesen, Sonne), steuert das Kind eine Sonde und erledigt drei Aufgaben – an jedem
+  //  Ort andere (PROBES[ort].tasks): ein Foto mit dem Sucher, Funken einsammeln, im Messfeld bleiben, durch die Lücke im Ring.
+  //  Jede Aufgabe ist eine Entdeckung. Funk, Entdeckungskarten, Liste und Funk-Fragen sind dieselben wie beim Astronauten.
   // =========================================================
   let probe = null; // Zustand des laufenden Sondenflugs
-  const GATE_R = 4.6, GATE_GAP = 95, PROBE_SPEED = 15, LANE_X = 13, LANE_Y = 7;
+  const PROBE_SPEED = 15, LANE_X = 13, LANE_Y = 7, GAP_H = 2.4, FINDER_PX = 62, PHOTO_HOLD = 0.9;
   const lerp = (a, b, t) => a + (b - a) * t;
   const fmtInt = (n) => Math.round(n).toLocaleString("de-DE");
 
@@ -9243,17 +9268,97 @@ window.Surface = (function () {
     s.scale.setScalar(3.2);
     return s;
   }
-  function makeGate(d) {
-    const g = new THREE.Group();
-    const mat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, fog: false, toneMapped: false }); // kräftige Farbe: blau = offen, grün = entdeckt
-    g.add(new THREE.Mesh(new THREE.TorusGeometry(GATE_R, 0.22, 10, 48), mat));
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(GATE_R, 0.6, 8, 48), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }));
-    g.add(halo);
-    const mystery = iconSprite("❓"), icon = iconSprite(d.icon);
-    g.add(mystery, icon);
-    g.userData = { key: d.key, mat, halo: halo.material, mystery, icon, passed: false };
+  // ---------- Was zu den Aufgaben gehört ----------
+  // Einsammeln: leuchtende Funken (oder Bildchen wie 🌍), die vor der Sonde schweben; was vorbeizieht, kommt weiter vorn wieder
+  function makeSparks(scene, def) {
+    const list = [], mat = def.icon ? null : new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,255,1)", def.glow), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
+    for (let i = 0; i < 9; i++) {
+      const sp = def.icon ? iconSprite(def.icon) : new THREE.Sprite(mat);
+      sp.scale.setScalar(def.icon ? 3.4 : 2.8); sp.visible = false; sp.userData = { x: 0, y: 0, z: -1e9, ph: Math.random() * 6 }; scene.add(sp); list.push(sp);
+    }
+    return list;
+  }
+  function spawnSpark(sp, p, ahead) {
+    const u = sp.userData; u.z = p.z + ahead;
+    u.x = Math.max(-LANE_X + 1.5, Math.min(LANE_X - 1.5, p.x * 0.3 + (Math.random() - 0.5) * 18));
+    u.y = Math.max(-LANE_Y + 1.2, Math.min(LANE_Y - 1.2, p.y * 0.3 + (Math.random() - 0.5) * 10));
+    sp.position.set(u.x, u.y, u.z); sp.visible = true;
+  }
+  // Messfeld: eine leuchtende Röhre mit wandernden Streifen und Ringen, die vor der Sonde her schwebt (Radius = scale)
+  function makeZone(scene) {
+    const tex = canvasTex(64, 256, (c) => { const gr = c.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.5, "rgba(255,255,255,0.95)"); gr.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = gr; for (let y = 0; y < 256; y += 32) c.fillRect(0, y, 64, 12); });
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(12, 4);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false });
+    const ringMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false });
+    const g = new THREE.Group(), tube = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 64, 48, 1, true), mat); tube.rotation.x = Math.PI / 2; g.add(tube);
+    for (const z of [-28, -12, 4, 20]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 6, 64), ringMat); ring.position.z = z; g.add(ring); }
+    g.visible = false; g.userData = { mat, ringMat, tex }; scene.add(g);
     return g;
   }
+  // Ring-Wand mit einer Lücke (Saturn): viele Eisbrocken in einer Ebene quer zur Flugbahn, die Lücke zeigen zwei Leuchtlinien
+  function makeGapWall(scene) {
+    const N = 720, inst = new THREE.InstancedMesh(sphereUV(naturalRockGeo(150, 2)), new THREE.MeshStandardMaterial({ color: 0xe2ecf8, roughness: 0.4, vertexColors: true, ...rockTex(2, 1, 1) }), N);
+    inst.frustumCulled = false; scene.add(inst);
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false });
+    const W2 = 2 * LANE_X + 56, lines = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.BoxGeometry(W2, 0.22, 0.22), lineMat); scene.add(m); return m; });
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(W2, 2 * GAP_H), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    scene.add(glow);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new V(), ps = new V();
+    const wall = {
+      z: -1e9, y: 0,
+      set(z, y) {
+        wall.z = z; wall.y = y;
+        for (let i = 0; i < N; i++) {
+          let px = 0, py = 0;
+          for (let k = 0; k < 20; k++) { px = (hash2(i + k * 13, z * 0.01) - 0.5) * W2; py = (hash2(i + 77 + k * 7, z * 0.013) - 0.5) * (2 * LANE_Y + 22); if (Math.abs(py - y) > GAP_H + 0.5) break; }
+          const s0 = 0.5 + Math.pow(hash2(i, 5), 2) * 1.6;
+          e.set(hash2(i, 6) * 6, hash2(i, 7) * 6, hash2(i, 8) * 6); q.setFromEuler(e);
+          m4.compose(ps.set(px, py, z + (hash2(i, 9) - 0.5) * 4), q, sc.set(s0, s0 * 0.8, s0)); inst.setMatrixAt(i, m4);
+        }
+        inst.instanceMatrix.needsUpdate = true;
+        lines[0].position.set(0, y + GAP_H, z); lines[1].position.set(0, y - GAP_H, z); glow.position.set(0, y, z);
+        wall.show(true);
+      },
+      show(v) { inst.visible = lines[0].visible = lines[1].visible = glow.visible = v; },
+      pulse(t) { lineMat.opacity = 0.65 + 0.35 * Math.sin(t * 5); }
+    };
+    wall.show(false);
+    return wall;
+  }
+  // Steuerdüsen: kleine weiße Wölkchen auf der Seite, von der die Sonde weggeschoben wird
+  function makeJets(scene) {
+    const list = [];
+    for (let i = 0; i < 22; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,255,0.95)", "rgba(200,220,255,0.3)"), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
+      sp.visible = false; sp.userData = { life: 0, v: new V() }; scene.add(sp); list.push(sp);
+    }
+    return { list, acc: 0 };
+  }
+  function jetsUpdate(J, p, dt, mx, my) {
+    const k = Math.min(1, Math.hypot(mx, my));
+    J.acc += dt * 28 * k;
+    while (J.acc >= 1) {
+      J.acc -= 1; const sp = J.list.find((x) => !x.visible); if (!sp) break;
+      const u = sp.userData; u.life = 0.35; // rechts steuern (mx > 0) schiebt nach −X, also zischt es auf der +X-Seite
+      u.v.set(mx * 7 + (Math.random() - 0.5) * 1.5, -my * 7 + (Math.random() - 0.5) * 1.5, -1.5);
+      sp.position.set(p.x + Math.sign(mx) * 0.9 * (Math.abs(mx) > 0.15 ? 1 : 0), p.y - Math.sign(my) * 0.7 * (Math.abs(my) > 0.15 ? 1 : 0), p.z + 0.2);
+      sp.visible = true;
+    }
+    for (const sp of J.list) if (sp.visible) {
+      const u = sp.userData; u.life -= dt; if (u.life <= 0) { sp.visible = false; continue; }
+      sp.position.addScaledVector(u.v, dt); sp.scale.setScalar(0.35 + (0.35 - u.life) * 3.2); sp.material.opacity = (u.life / 0.35) * 0.85;
+    }
+  }
+  // Kleine Details für alle Sonden: Steuerdüsen-Blöcke (vier Düsen) und blinkende Positionslichter
+  function craftDetail(g, P, rcs, lights) {
+    for (const [x, y, z] of rcs) {
+      const q = new THREE.Group(); q.position.set(x, y, z); g.add(q); q.add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.16), P.dark));
+      for (const d of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]]) { const n = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 8), P.steel), dv = new V(...d); n.position.copy(dv).multiplyScalar(0.11); n.quaternion.setFromUnitVectors(new V(0, -1, 0), dv); q.add(n); }
+    }
+    g.userData.blink = lights.map(([x, y, z, c]) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: c, toneMapped: false })); m.position.set(x, y, z); g.add(m); return m; });
+  }
+  // Kugel des Planeten im Modell finden (die mit der Oberflächen-Textur)
+  function planetSphere(pl) { let best = null; pl.traverse((o) => { if (o.isMesh && o.geometry.type === "SphereGeometry" && o.material && o.material.map && (!best || o.geometry.parameters.radius > best.geometry.parameters.radius)) best = o; }); return best || pl; }
   // Planet (mit Ringen und Neigung) aus der Weltraum-Ansicht nachbauen, in der gewünschten Größe
   function planetModel(id, radius) {
     const b = G.bodyById[id], src = W.bodies[id].mesh;
@@ -9284,6 +9389,10 @@ window.Surface = (function () {
     chute.position.set(0, 5.2, -2.2); chute.rotation.x = -0.5; g.add(chute);
     for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; boom(g, P.steel, new V(0, 0.2, -0.4), new V(Math.sin(a) * 1.9, 5.2 - 0.6 + Math.cos(a) * 0.9, -2.2 + Math.cos(a) * 1.1), 0.01); }
     g.userData.chute = chute;
+    // Goldfolien-Band zwischen Hitzeschild und Rückschale, kleine Antenne, Steuerdüsen, Lichter
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.83, 0.83, 0.14, 32, 1, true), P.gold); band.rotation.x = Math.PI / 2; band.position.z = 0.17; g.add(band);
+    boom(g, P.steel, new V(0, 0.35, -0.45), new V(0, 0.95, -0.75), 0.015);
+    craftDetail(g, P, [[0.6, 0, -0.45], [-0.6, 0, -0.45]], [[0.78, 0, -0.2, 0xff3b30], [-0.78, 0, -0.2, 0x22c55e]]);
     return g;
   }
   // Saturn: „Cassini“ – hoher goldener Körper, große weiße Schüssel, langer Messarm, Landekapsel „Huygens“ an der Seite
@@ -9294,6 +9403,15 @@ window.Surface = (function () {
     const hu = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.25, 20), new THREE.MeshStandardMaterial({ color: srgb(0xb45309), roughness: 0.6 })); hu.rotation.z = Math.PI / 2; hu.position.set(0.8, 0, 0.3); g.add(hu);
     boom(g, P.steel, new V(-0.4, 0.2, 0.2), new V(-3.4, 0.4, 0.8), 0.03);
     for (const x of [-0.35, 0.35]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.9, 10), P.dark); r.position.set(x, -0.6, 0.6); r.rotation.x = 0.6; g.add(r); }
+    // drei Atom-Batterien mit Kühlrippen an Auslegern, zwei Haupttriebwerke vorn, Steuerdüsen, Lichter
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.3, rtg = new THREE.Group(); rtg.position.set(Math.cos(a) * 0.95, Math.sin(a) * 0.95, 0.55); rtg.rotation.x = Math.PI / 2; g.add(rtg);
+      rtg.add(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 12), P.dark));
+      for (let k = 0; k < 4; k++) { const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.66, 0.34), P.dark); fin.rotation.y = (k / 4) * Math.PI; rtg.add(fin); }
+      boom(g, P.steel, new V(0, 0, 0.55), rtg.position.clone(), 0.025);
+    }
+    for (const x of [-0.22, 0.22]) { const n = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.22, 0.45, 18, 1, true), P.steel); n.rotation.x = -Math.PI / 2; n.position.set(x, 0, 1.12); g.add(n); }
+    craftDetail(g, P, [[0.62, 0.3, 0.75], [-0.62, 0.3, 0.75]], [[1.55, 0, -0.1, 0xff3b30], [-1.55, 0, -0.1, 0x22c55e]]);
     return g;
   }
   // Uranus: geplante NASA-Sonde „Uranus Orbiter and Probe“ – Körper mit großer Schüssel und drei Atom-Batterien
@@ -9303,6 +9421,8 @@ window.Surface = (function () {
     const dish = dishCap(PROBE_M, 1.4, 0.6); dish.rotation.x = -Math.PI / 2; dish.position.z = -0.5; g.add(dish);
     const entry = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.5, 20), new THREE.MeshStandardMaterial({ color: srgb(0x0f766e), roughness: 0.6 })); entry.rotation.x = Math.PI / 2; entry.position.z = 0.9; g.add(entry);
     for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + 0.5, r = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1, 10), P.dark); r.position.set(Math.sin(a) * 1.3, Math.cos(a) * 1.3, 0.1); r.rotation.x = Math.PI / 2; g.add(r); boom(g, P.steel, new V(0, 0, 0.1), r.position.clone(), 0.03); }
+    craftDetail(g, P, [[0.85, 0, 0.5], [-0.85, 0, 0.5]], [[1.4, 0, -0.5, 0xff3b30], [-1.4, 0, -0.5, 0x22c55e]]);
+    const nz = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.2, 0.4, 16, 1, true), P.steel); nz.rotation.x = Math.PI / 2; nz.position.set(0, -0.55, 0.75); g.add(nz);
     return g;
   }
   // Neptun: „Voyager 2“ (flog 1989 vorbei) – riesige Schüssel, zehneckiger Körper, Arme für Atom-Batterien, Kameras und Magnetfeld-Messung
@@ -9315,6 +9435,9 @@ window.Surface = (function () {
     boom(g, P.steel, new V(-0.6, 0, 0), new V(-2.3, 0.3, 0.3), 0.04);
     const cam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.35), P.dark); cam.position.set(-2.4, 0.35, 0.4); g.add(cam);
     boom(g, P.steel, new V(0, 0.5, 0), new V(-1.2, 4.5, -1), 0.02);
+    // die goldene Schallplatte mit Grüßen von der Erde – falls jemand die Sonde findet
+    const rec = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.03, 32), new THREE.MeshStandardMaterial({ color: srgb(0xd4af37), metalness: 0.9, roughness: 0.25 })); rec.rotation.z = Math.PI / 2; rec.position.set(0.72, 0, 0.12); g.add(rec);
+    craftDetail(g, P, [[0, -0.72, 0.2]], [[2.1, 0, -0.1, 0xff3b30], [-2.1, 0, -0.1, 0x22c55e]]);
     return g;
   }
   // Sonne: „Parker Solar Probe“ – sechseckiger Hitzeschild (vorn weiß, hinten schwarz), kleiner Körper, schräge Solarflügel
@@ -9325,6 +9448,10 @@ window.Surface = (function () {
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 1.2, 12), P.gold); body.rotation.x = Math.PI / 2; body.position.z = 0.2; g.add(body);
     for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.5), P.cell); w.position.set(s * 0.9, 0, -0.3); w.rotation.set(0.9, 0, s * 0.3); g.add(w); }
     boom(g, P.steel, new V(0, 0, -0.4), new V(0, 0, -2.2), 0.025);
+    // Faraday-Becher schaut über den Hitzeschild hinaus und misst den Sonnenwind; Steuerdüsen, Lichter
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.3, 14), P.steel); cup.position.set(0.95, 0.95, 1.3); cup.rotation.x = Math.PI / 2; g.add(cup);
+    boom(g, P.steel, new V(0.3, 0.3, 0.7), new V(0.95, 0.95, 1.18), 0.02);
+    craftDetail(g, P, [[0.55, -0.42, 0.1], [-0.55, -0.42, 0.1]], [[1.3, 0, 1.0, 0xff3b30], [-1.3, 0, 1.0, 0x22c55e]]);
     return g;
   }
 
@@ -9343,8 +9470,9 @@ window.Surface = (function () {
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 4);
     return t;
   }
-  // Jupiter: Wolkendecken über und unter der Kapsel, die dunkler werden, je tiefer man kommt – dazu Blitze
-  function sceneryJupiter(scene) {
+  // Jupiter: Wolkendecken über und unter der Kapsel, die dunkler werden, je tiefer man kommt – dazu Blitze mit Donner,
+  // Wolkenfetzen, die der Wind vorbeitreibt, und vorn in den Wolken der Große Rote Fleck (Foto-Ziel)
+  function sceneryJupiter(scene, far, planet, tg) {
     const decks = [[-13, "rgba(255,248,235,0.9)"], [15, "rgba(255,236,210,0.8)"]].map(([y, tint]) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshBasicMaterial({ map: cloudDeckTex(tint), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
       m.rotation.x = -Math.PI / 2; m.userData.y = y; scene.add(m); return m;
@@ -9355,23 +9483,61 @@ window.Surface = (function () {
     const bg = new THREE.BufferGeometry(); bg.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
     const bolt = new THREE.LineSegments(bg, boltMat); scene.add(bolt);
     const tone = new THREE.Color(), top = new THREE.Color(0xfff6e8), deep = new THREE.Color(0x8a5a32);
-    return (dt, p, t, w) => {
+    // Großer Roter Fleck: ein Wirbel aus roten, orangen und hellen Bändern, der sich langsam dreht
+    const swirl = canvasTex(512, 512, (c) => {
+      const m = 256, gr = c.createRadialGradient(m, m, 10, m, m, m); gr.addColorStop(0, "rgba(150,40,20,1)"); gr.addColorStop(0.45, "rgba(196,78,40,1)"); gr.addColorStop(0.75, "rgba(232,160,110,0.85)"); gr.addColorStop(1, "rgba(240,210,170,0)");
+      c.fillStyle = gr; c.fillRect(0, 0, 512, 512);
+      c.lineCap = "round"; for (let k = 0; k < 26; k++) { const a0 = hash2(k, 1) * 6.3, r0 = 30 + hash2(k, 2) * 200; c.strokeStyle = hash2(k, 3) > 0.5 ? "rgba(255,225,190,0.45)" : "rgba(110,25,10,0.4)"; c.lineWidth = 4 + hash2(k, 4) * 10; c.beginPath(); for (let i = 0; i <= 30; i++) { const a = a0 + i * 0.09, rr = r0 * (1 - i * 0.012); const px = m + Math.cos(a) * rr, py = m + Math.sin(a) * rr * 0.62; i ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke(); }
+    });
+    const spot = new THREE.Mesh(new THREE.CircleGeometry(36, 72), new THREE.MeshBasicMaterial({ map: swirl, transparent: true, depthWrite: false }));
+    spot.rotation.x = -Math.PI / 2; spot.userData.z = -1e9; scene.add(spot); tg.fleck = spot;
+    // Wolkenfetzen, die der Wind quer vorbeitreibt
+    const wispMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,240,220,0.75)", "rgba(220,170,120,0.25)"), transparent: true, depthWrite: false });
+    const wisps = []; for (let i = 0; i < 7; i++) { const sp = new THREE.Sprite(wispMat); sp.userData.z = -1e9; scene.add(sp); wisps.push(sp); }
+    let thunderAt = 1e9, lastFlash = 0;
+    return (dt, p, t, w, wind) => {
       decks.forEach((d) => { d.position.set(p.x, p.y + d.userData.y, p.z); d.material.map.offset.set(p.x / 225, -p.z / 225); d.material.color.copy(tone.copy(top).lerp(deep, p.f)); });
       if (w.flash > 0.9 && boltMat.opacity < 0.1) bolt.position.set(p.x + (Math.random() - 0.5) * 60, p.y - 2, p.z + 60 + Math.random() * 60);
       boltMat.opacity = Math.max(0, w.flash || 0);
+      if ((w.flash || 0) > 0.95 && t - lastFlash > 1) { lastFlash = t; thunderAt = t + 0.4 + Math.random() * 0.9; } // erst der Blitz, dann der Donner
+      if (t > thunderAt) { thunderAt = 1e9; Sound.thunder(0.7); }
+      if (spot.userData.z < p.z + 22) { spot.userData.z = p.z + 240 + Math.random() * 40; spot.position.x = (Math.random() - 0.5) * 24; }
+      spot.position.set(spot.position.x, p.y - 11.4, spot.userData.z); spot.rotation.z += dt * 0.12;
+      for (const sp of wisps) {
+        if (sp.userData.z < p.z - 10 || Math.abs(sp.position.x - p.x) > 70) { sp.userData.z = p.z + 40 + Math.random() * 140; sp.position.set(p.x + (Math.random() > 0.5 ? -45 : 45), p.y + (Math.random() - 0.5) * 18, sp.userData.z); sp.scale.set(26 + Math.random() * 24, 7 + Math.random() * 6, 1); }
+        sp.position.x += (wind * 5 + (wind >= 0 ? 7 : -7)) * dt;
+      }
     };
   }
-  // Saturn: der Mond Enceladus mit Eis-Fontänen am Südpol (Cassini ist 2015 mitten hindurchgeflogen)
-  function scenerySaturn(scene, far) {
+  // Saturn: der Mond Enceladus mit Eis-Fontänen am Südpol (Cassini ist 2015 mitten hindurchgeflogen), ein kleiner Mond,
+  // der vorbeizieht, und am Nordpol der sechseckige Sturm (Foto-Ziel)
+  function scenerySaturn(scene, far, planet, tg, C) {
     const moon = new THREE.Mesh(new THREE.SphereGeometry(26, 32, 20), new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 }));
     moon.position.set(150, 40, 520); far.add(moon);
     const plumeMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,255,0.9)", "rgba(190,220,255,0.35)"), transparent: true, depthWrite: false, fog: false });
     const plumes = [];
-    for (let i = 0; i < 5; i++) { const s = new THREE.Sprite(plumeMat); s.scale.set(10, 38, 1); s.position.set(150 + (i - 2) * 6, 40 - 40 - i * 3, 520); far.add(s); plumes.push(s); }
-    return (dt, p, t) => { plumes.forEach((s, i) => { s.scale.y = 34 + Math.sin(t * 1.5 + i) * 6; }); };
+    for (let i = 0; i < 5; i++) { const sp = new THREE.Sprite(plumeMat); sp.scale.set(10, 38, 1); sp.position.set(150 + (i - 2) * 6, 40 - 40 - i * 3, 520); far.add(sp); plumes.push(sp); }
+    const pan = new THREE.Mesh(sphereUV(naturalRockGeo(160, 3)), new THREE.MeshStandardMaterial({ color: 0xcfd4da, roughness: 0.9, vertexColors: true, ...rockTex(2, 1, 1.2) }));
+    pan.scale.setScalar(7); far.add(pan);
+    // Sechseck: helles Randband, dunklere Fläche, in der Mitte das Auge des Sturms
+    const hex = new THREE.Group(), path = new THREE.CurvePath(), hp = []; for (let k = 0; k <= 6; k++) { const a = (k / 6) * Math.PI * 2; hp.push(new V(Math.cos(a), Math.sin(a), 0)); }
+    for (let k = 0; k < 6; k++) path.add(new THREE.LineCurve3(hp[k], hp[k + 1]));
+    hex.add(new THREE.Mesh(new THREE.TubeGeometry(path, 60, 0.05, 6, true), new THREE.MeshBasicMaterial({ color: 0xeaf2ff, transparent: true, opacity: 0.9 })));
+    hex.add(new THREE.Mesh(new THREE.CircleGeometry(0.97, 6), new THREE.MeshBasicMaterial({ color: 0x6b7f99, transparent: true, opacity: 0.55, depthWrite: false })));
+    const eye = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), new THREE.MeshBasicMaterial({ color: 0x2f3f57 })); eye.position.z = 0.01; hex.add(eye);
+    hex.scale.setScalar(C.planet.r * 0.22); far.add(hex); tg.sechseck = hex;
+    const sph = planetSphere(planet), q = new THREE.Quaternion(), pole = new V(), toCam = new V(), Z = new V(0, 0, 1);
+    return (dt, p, t) => {
+      plumes.forEach((sp, i) => { sp.scale.y = 34 + Math.sin(t * 1.5 + i) * 6; });
+      const a = t * 0.04; pan.position.set(-120 + Math.cos(a) * 60, -40 + Math.sin(a * 0.7) * 15, 380); pan.rotation.y += dt * 0.2;
+      sph.getWorldQuaternion(q); toCam.copy(planet.position).negate().normalize(); // der echte Pol läge hinter dem Rand – das Sechseck rückt auf die sichtbare Seite Richtung Nordpol
+      pole.set(0, 1, 0).applyQuaternion(q).addScaledVector(toCam, 1.7).normalize();
+      hex.position.copy(planet.position).addScaledVector(pole, C.planet.r * 0.995); hex.quaternion.setFromUnitVectors(Z, pole); hex.rotateZ(t * 0.02);
+    };
   }
-  // Uranus: der kleine Mond Miranda mit seiner riesigen Klippe (20 Kilometer hoch – die höchste bekannte Steilwand)
-  function sceneryUranus(scene, far) {
+  // Uranus: der kleine Mond Miranda mit seiner riesigen Klippe (20 Kilometer hoch – die höchste bekannte Steilwand),
+  // der Mond Ariel kreist sichtbar, am Pol flackert ein Polarlicht; Foto-Ziel ist der gekippte Planet selbst
+  function sceneryUranus(scene, far, planet, tg, C) {
     const tex = canvasTex(256, 128, (c) => {
       c.fillStyle = "#9ca3af"; c.fillRect(0, 0, 256, 128);
       c.strokeStyle = "rgba(60,60,70,0.6)"; c.lineWidth = 6;
@@ -9380,35 +9546,74 @@ window.Surface = (function () {
     });
     const moon = new THREE.Mesh(new THREE.SphereGeometry(22, 32, 20), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
     moon.position.set(-170, 60, 560); far.add(moon);
-    return (dt) => { moon.rotation.y += dt * 0.05; };
+    const ariel = new THREE.Mesh(new THREE.SphereGeometry(10, 24, 16), new THREE.MeshStandardMaterial({ color: 0xb8c4cc, roughness: 0.85 })); far.add(ariel);
+    const aur = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(170,255,230,0.9)", "rgba(80,200,255,0.25)"), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
+    aur.scale.setScalar(C.planet.r * 0.8); far.add(aur);
+    tg.gekippt = planet;
+    const sph = planetSphere(planet), q = new THREE.Quaternion(), pole = new V(), u = new V(), v = new V();
+    return (dt, p, t) => {
+      moon.rotation.y += dt * 0.05;
+      sph.getWorldQuaternion(q); pole.set(0, 1, 0).applyQuaternion(q); u.set(1, 0, 0).applyQuaternion(q); v.crossVectors(pole, u);
+      const a = t * 0.12, R = C.planet.r * 1.7; ariel.position.copy(planet.position).addScaledVector(u, Math.cos(a) * R).addScaledVector(v, Math.sin(a) * R);
+      aur.position.copy(planet.position).addScaledVector(pole, C.planet.r * 0.95); aur.material.opacity = 0.35 + 0.3 * Math.sin(t * 2.3) * Math.sin(t * 0.9);
+    };
   }
-  // Neptun: helle Wolkenstreifen, die der Sturm quer vorbeijagt, und der Mond Triton mit dunklen Geysiren
-  function sceneryNeptun(scene, far) {
+  // Neptun: helle Wolkenstreifen, die der Sturm quer vorbeijagt, der Mond Triton mit dunklen Geysiren, der Große Dunkle Fleck,
+  // der über die Scheibe wandert – und ganz weit weg die Sonne als heller Stern (Foto-Ziele: die Sonne und der Neptun selbst)
+  function sceneryNeptun(scene, far, planet, tg, C) {
     const mat = new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,255,0.95)", "rgba(200,220,255,0.3)"), transparent: true, depthWrite: false });
     const streaks = [];
-    for (let i = 0; i < 16; i++) { const s = new THREE.Sprite(mat); s.userData.z = -1e9; scene.add(s); streaks.push(s); }
+    for (let i = 0; i < 16; i++) { const sp = new THREE.Sprite(mat); sp.userData.z = -1e9; scene.add(sp); streaks.push(sp); }
     const triton = new THREE.Mesh(new THREE.SphereGeometry(20, 32, 20), new THREE.MeshStandardMaterial({ color: 0xe8d8d0, roughness: 0.8 }));
     triton.position.set(190, 70, 600); far.add(triton);
     const gMat = new THREE.SpriteMaterial({ map: glowTexture("rgba(40,30,30,0.8)", "rgba(40,30,30,0)"), transparent: true, depthWrite: false, fog: false });
-    for (let i = 0; i < 3; i++) { const s = new THREE.Sprite(gMat); s.scale.set(3, 22, 1); s.position.set(182 + i * 7, 90, 590); far.add(s); }
+    for (let i = 0; i < 3; i++) { const sp = new THREE.Sprite(gMat); sp.scale.set(3, 22, 1); sp.position.set(182 + i * 7, 90, 590); far.add(sp); }
+    const sunStar = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,255,245,1)", "rgba(255,225,150,0.45)"), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
+    sunStar.scale.setScalar(64); sunStar.position.set(260, 150, 2300); far.add(sunStar); tg.weit = sunStar; // links oben, weit weg vom Neptun (sonst verdeckt er sie)
+    const dark = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshBasicMaterial({ color: 0x0b1f4d, transparent: true, opacity: 0.7, depthWrite: false })); dark.scale.set(C.planet.r * 0.2, C.planet.r * 0.12, 1); far.add(dark);
+    tg.rechnen = planet;
+    const dd = new V(), Z = new V(0, 0, 1);
     return (dt, p, t, w, wind) => {
-      for (const s of streaks) {
-        if (s.userData.z < p.z - 14 || Math.abs(s.position.x - p.x) > 90) { s.userData.z = p.z + 30 + Math.random() * 160; s.position.set(p.x + (Math.random() > 0.5 ? -70 : 70), p.y + (Math.random() - 0.5) * 30, s.userData.z); s.scale.set(14 + Math.random() * 14, 1.2, 1); }
-        s.position.x += (wind * 6 + (wind >= 0 ? 12 : -12)) * dt;
+      for (const sp of streaks) {
+        if (sp.userData.z < p.z - 14 || Math.abs(sp.position.x - p.x) > 90) { sp.userData.z = p.z + 30 + Math.random() * 160; sp.position.set(p.x + (Math.random() > 0.5 ? -70 : 70), p.y + (Math.random() - 0.5) * 30, sp.userData.z); sp.scale.set(14 + Math.random() * 14, 1.2, 1); }
+        sp.position.x += (wind * 6 + (wind >= 0 ? 12 : -12)) * dt;
       }
+      const a = 0.45 + Math.sin(t * 0.05) * 0.25; dd.set(Math.sin(a), -0.25, -Math.cos(a)).normalize(); // wandert langsam über die Seite, die zur Sonde schaut
+      dark.position.copy(planet.position).addScaledVector(dd, C.planet.r * 1.004); dark.quaternion.setFromUnitVectors(Z, dd);
+      sunStar.material.rotation += dt * 0.1;
     };
   }
-  // Sonne: glühende Bögen aus Gas (Protuberanzen), unter denen man hindurchfliegt
-  function scenerySonne(scene) {
+  // Sonne: glühende Bögen aus Gas (Protuberanzen), unter denen man hindurchfliegt, Eruptionen auf der Oberfläche
+  // und eine Gruppe Sonnenflecken (Foto-Ziel)
+  function scenerySonne(scene, far, planet, tg, C) {
     const mat = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false });
     const loops = [];
     for (let i = 0; i < 5; i++) { const m = new THREE.Mesh(new THREE.TorusGeometry(26, 1.4, 8, 40, Math.PI), mat); m.userData.z = -1e9; scene.add(m); loops.push(m); }
+    const spotTex = canvasTex(128, 128, (c) => { const gr = c.createRadialGradient(64, 64, 4, 64, 64, 62); gr.addColorStop(0, "rgba(25,8,2,1)"); gr.addColorStop(0.42, "rgba(45,14,4,0.97)"); gr.addColorStop(0.6, "rgba(130,48,10,0.8)"); gr.addColorStop(1, "rgba(170,70,10,0)"); c.fillStyle = gr; c.fillRect(0, 0, 128, 128); });
+    const spotMat = new THREE.MeshBasicMaterial({ map: spotTex, transparent: true, depthWrite: false, fog: false, toneMapped: false }), spots = new THREE.Group();
+    [[0, 0, 36], [44, 14, 24], [-30, 22, 17], [20, -28, 13], [-12, -18, 9]].forEach(([x, y, sz]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(sz * 2, sz * 2), spotMat); m.position.set(x, y, 0); spots.add(m); });
+    far.add(spots); tg.flecken = spots;
+    const dir = new V(-0.24, 0.2, -1).normalize(), rad = C.planet.r * 1.003, Z = new V(0, 0, 1), Y = new V(0, 1, 0);
+    const flares = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.13, 8, 40, Math.PI), new THREE.MeshBasicMaterial({ color: 0xffc061, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false })); m.userData = { t: 9, d: new V() }; far.add(m); return m; });
+    let nextFlare = 2;
     return (dt, p, t) => {
       for (const m of loops) {
         if (m.userData.z < p.z - 20) { m.userData.z = p.z + 120 + Math.random() * 200; m.position.set((Math.random() - 0.5) * 20, -18, m.userData.z); m.rotation.y = (Math.random() - 0.5) * 0.8; }
         m.scale.y = 1 + 0.08 * Math.sin(t * 2 + m.userData.z);
       }
       mat.opacity = 0.45 + 0.15 * Math.sin(t * 3);
+      spots.position.copy(planet.position).addScaledVector(dir, rad); spots.quaternion.setFromUnitVectors(Z, dir);
+      if (t > nextFlare) { // Eruption: ein Gasbogen steigt aus der Oberfläche auf und verglüht wieder
+        const m = flares.find((x) => x.userData.t >= 3);
+        if (m) { m.userData.t = 0; m.userData.d.set((Math.random() - 0.5) * 0.9, (Math.random() - 0.3) * 0.7, -1).normalize(); Sound.thunder(0.2); }
+        nextFlare = t + 3 + Math.random() * 4;
+      }
+      for (const m of flares) {
+        const u = m.userData; if (u.t >= 3) { m.visible = false; continue; }
+        u.t += dt; const k = u.t / 3; m.visible = true;
+        m.position.copy(planet.position).addScaledVector(u.d, rad); m.quaternion.setFromUnitVectors(Y, u.d); m.rotateY(u.d.x * 3);
+        m.scale.setScalar(30 + 170 * k); m.material.opacity = Math.sin(Math.PI * Math.min(1, k)) * 0.75;
+      }
     };
   }
 
@@ -9420,6 +9625,7 @@ window.Surface = (function () {
       planet: { r: 640, from: [0, -720, 620], to: [0, -660, 260] },
       puff: { inner: "rgba(255,236,200,1)", outer: "rgba(214,160,100,0.85)", size: [5, 14], opacity: 0.5, from: 0.12 },
       wind: (t, f) => (f > 0.25 ? 5 * Math.sin(t * 0.6) + 3 * Math.sin(t * 1.7 + 1) : 0),
+      tasks: [{ kind: "collect", n: 11, icon: "🌍" }, { kind: "photo", target: "fleck" }, { kind: "hold", color: 0xffb070, r: 3.4, dur: 4.5, amp: [6, 3], speed: 0.4 }],
       instr: (f) => ["⬇️", `${Math.round((f * 150) / 5) * 5} km tief`],
       update(w, p, f, dt) { // in der Tiefe: Wetterleuchten
         w.flash = Math.max(0, (w.flash || 0) - dt * 3);
@@ -9433,6 +9639,7 @@ window.Surface = (function () {
       planet: { r: 330, from: [-300, -153, 560], to: [-300, -153, 440] }, // so nah, dass die schräge Ring-Ebene genau durch die Flugbahn geht
       puff: { inner: "rgba(255,255,255,1)", outer: "rgba(200,225,255,0.8)", size: [0.25, 0.8], opacity: 0.9, from: 0 },
       rocks: { count: 18, size: [0.7, 2.0], color: 0xdfeefc, glow: false },
+      tasks: [{ kind: "collect", n: 10, glow: "rgba(200,230,255,0.95)" }, { kind: "gap" }, { kind: "photo", target: "sechseck" }],
       instr: (f) => ["🛰️", `${fmtInt(lerp(180000, 75000, f) / 1000) } Tsd. km bis Saturn`],
       update() {}
     },
@@ -9441,6 +9648,7 @@ window.Surface = (function () {
       planet: { r: 300, from: [400, 30, 950], to: [330, 30, 640] },
       puff: { inner: "rgba(210,250,255,1)", outer: "rgba(150,225,235,0.7)", size: [0.4, 1.4], opacity: 0.55, from: 0 },
       wind: (t) => 2 * Math.sin(t * 0.5),
+      tasks: [{ kind: "photo", target: "gekippt" }, { kind: "collect", n: 8, glow: "rgba(150,240,255,0.95)" }, { kind: "hold", color: 0x7dd3fc, r: 3.2, dur: 4, amp: [7, 3.5], speed: 0.42 }],
       instr: (f) => ["🌡️", `−${Math.round(lerp(180, 224, f))} °C`],
       update(w, p, f, dt) { w.planet.rotation.x += dt * 0.02; }
     },
@@ -9449,6 +9657,7 @@ window.Surface = (function () {
       planet: { r: 300, from: [-380, -50, 900], to: [-300, -80, 560] },
       puff: { inner: "rgba(235,245,255,1)", outer: "rgba(120,160,255,0.75)", size: [1.5, 6], opacity: 0.5, from: 0 },
       wind: (t, f) => (9 * Math.sin(t * 0.5) + 5 * Math.sin(t * 1.3 + 1)) * (0.4 + 0.6 * f),
+      tasks: [{ kind: "hold", color: 0x93c5fd, r: 3.6, dur: 4.5, amp: [2, 1], speed: 0.3 }, { kind: "photo", target: "weit" }, { kind: "photo", target: "rechnen" }],
       instr: (f) => ["💨", `Wind: ${fmtInt(Math.round(lerp(400, 2100, f) / 50) * 50)} km/h`],
       update() {}
     },
@@ -9457,6 +9666,7 @@ window.Surface = (function () {
       planet: { r: 760, from: [0, -60, 1700], to: [0, -60, 1080] },
       puff: { inner: "rgba(255,240,180,1)", outer: "rgba(255,140,30,0.8)", size: [0.3, 1.0], opacity: 0.9, from: 0 },
       rocks: { count: 12, size: [1.2, 2.4], glow: true },
+      tasks: [{ kind: "hold", color: 0xffd27a, r: 3.4, dur: 4, amp: [6, 3], speed: 0.45 }, { kind: "collect", n: 8, glow: "rgba(255,230,140,0.95)" }, { kind: "photo", target: "flecken" }],
       instr: (f) => ["🌡️", `Hitzeschild: ${fmtInt(Math.round(lerp(300, 1400, f) / 50) * 50)} °C`],
       update(w, p, f, dt) { w.planet.rotation.y += dt * 0.01; }
     }
@@ -9489,8 +9699,10 @@ window.Surface = (function () {
 
     const craft = C.craft ? C.craft() : makeSpaceProbe(C.shield); scene.add(craft);
     if (C.craft) craft.scale.setScalar(0.68); // kleiner, damit die große Schüssel das nächste Tor nicht verdeckt
-    const extra = C.scenery ? C.scenery(scene, far) : null;
-    const gates = cfg.discoveries.map((d) => { const g = makeGate(d); scene.add(g); return g; });
+    const tg = {}, extra = C.scenery ? C.scenery(scene, far, planet, tg, C) : null; // tg: Foto-Ziele, die der Hintergrund anlegt
+    const collectDef = C.tasks.find((d) => d.kind === "collect");
+    const sparks = collectDef ? makeSparks(scene, collectDef) : [], zone = C.tasks.some((d) => d.kind === "hold") ? makeZone(scene) : null;
+    const gap = C.tasks.some((d) => d.kind === "gap") ? makeGapWall(scene) : null, jets = makeJets(scene);
 
     // Teilchen, die vorbeiziehen (Wolkenfetzen, Eiskristalle, Funken)
     const puffMat = new THREE.SpriteMaterial({ map: glowTexture(C.puff.inner, C.puff.outer), transparent: true, opacity: C.puff.opacity, depthWrite: false });
@@ -9505,23 +9717,105 @@ window.Surface = (function () {
         : new THREE.Mesh(iceGeos[i % 4], iceMat);
       m.userData = { z: -1e9, r: 1 }; scene.add(m); rocks.push(m);
     }
-    return { scene, camera, ambient, sun, far, planet, craft, gates, puffs, rocks, extra, stations: {} };
+    return { scene, camera, ambient, sun, far, planet, craft, tg, sparks, zone, gap, jets, puffs, rocks, extra, stations: {} };
   }
 
-  // Tore der Reihe nach vor die Sonde legen (seitlich versetzt, damit man lenken muss)
-  function placeGate(g, i, z, nearX = 0, nearY = 0) {
-    const u = g.userData;
-    u.z = z; u.passed = false;
-    g.position.set(nearX + (hash2(i + 1, z * 0.01) - 0.5) * 17, nearY + (hash2(i + 7, z * 0.013) - 0.5) * 9, z);
-    g.position.x = Math.max(-9, Math.min(9, g.position.x)); g.position.y = Math.max(-4.5, Math.min(4.5, g.position.y));
-    g.visible = true;
+  // ---------- Ablauf der Aufgaben: immer die erste noch nicht entdeckte; Anzeige oben (#chalHud), beim Foto der Sucher ----------
+  function taskVisualsOff() {
+    const w = world; finderShow(false); Sound.loop("measure", 0);
+    for (const sp of w.sparks) sp.visible = false;
+    if (w.zone) w.zone.visible = false;
+    if (w.gap) w.gap.show(false);
   }
-  function refreshGates() {
-    for (const g of world.gates) {
-      const u = g.userData, done = !!foundMap()[u.key], c = done ? 0x4ade80 : 0x7dd3fc;
-      u.mat.color.set(c); u.halo.color.set(c);
-      u.icon.visible = done; u.mystery.visible = !done; // was hinter einem Tor steckt, sieht man erst nach der Entdeckung
+  function probeTaskStart() {
+    const w = world, p = probe, C = PROBES[bodyId], found = foundMap(), i = cfg.discoveries.findIndex((d) => !found[d.key]);
+    taskVisualsOff();
+    if (i < 0) { p.task = null; p.taskWait = Infinity; $("chalHud").classList.add("hidden"); return; }
+    const d = cfg.discoveries[i], def = C.tasks[i], t = p.task = { i, key: d.key, title: (cfg.course.targets && cfg.course.targets[i]) || d.icon + " " + d.title, def, kind: def.kind, label: cfg.course.tasks[i], prog: 0, t: 0, done: false, ready: false };
+    // Erst erklärt Nora die Aufgabe – losgehen darf es, wenn sie fertig ist (ohne Vorlesen: Zeit zum Lesen je nach Länge)
+    const say = (cfg.flight && cfg.flight.gates[i]) || "";
+    if (say) { radio(say, null, cfg.flight.who); t.voiceId = radioVoice; }
+    t.readyAt = p.t + (Voice.enabled ? 0.6 : Math.min(7, Math.max(2.5, say.length / 15)));
+  }
+  // Die Aufgabe geht los: Sucher, Funken, Messfeld oder Ring-Wand erscheinen
+  function probeTaskBegin(t) {
+    const w = world, p = probe, def = t.def;
+    t.ready = true;
+    if (t.kind === "photo") { // der Sucher startet auf der anderen Seite des Bildes – das Kind muss ihn erst zum Ziel schieben
+      world.tg[def.target].getWorldPosition(tmp); tmp.project(w.camera);
+      t.fx = tmp.z < 1 && tmp.x > 0 ? -0.55 : 0.55; t.fy = tmp.z < 1 && tmp.y > 0 ? -0.45 : 0.45; t.hold = 0; $("probeTargetLabel").textContent = t.title; finderShow(true);
     }
+    if (t.kind === "collect") { t.got = 0; w.sparks.forEach((sp, k) => spawnSpark(sp, p, 45 + k * 15)); }
+    if (t.kind === "hold") { t.ph = Math.random() * 6; w.zone.visible = true; w.zone.userData.mat.color.set(def.color); w.zone.userData.ringMat.color.set(def.color); }
+    if (t.kind === "gap") w.gap.set(p.z + 130, (Math.random() - 0.5) * 6);
+  }
+  function probeTaskDone(t) {
+    t.done = true; t.wait = 0.8;
+    taskVisualsOff(); $("chalHud").classList.add("hidden");
+    discover(t.key);
+  }
+  function finderShow(on) { $("probeFinder").classList.toggle("hidden", !on); $("probeTarget").classList.toggle("hidden", !on); }
+  function probeFlash() { const f = $("probeFlash"); f.classList.add("on"); setTimeout(() => f.classList.remove("on"), 70); }
+  function probeTaskUpdate(dt, mx, my) {
+    const p = probe, w = world, t = p.task, def = t.def, T = D.probeHud;
+    if (!t.ready) { // Nora erklärt noch
+      chalHud(t.label, 0, T.listen, false, true);
+      if (p.t >= t.readyAt && !Voice.busy() && !Voice.speaking(t.voiceId)) probeTaskBegin(t);
+      return;
+    }
+    t.t += dt;
+    if (t.kind === "photo") { // Sucher mit der Steuerung bewegen, aufs Ziel halten, bis der Ring voll ist
+      t.fx = Math.max(-0.9, Math.min(0.9, t.fx + mx * dt * 0.95)); t.fy = Math.max(-0.85, Math.min(0.85, t.fy + my * dt * 0.85));
+      w.tg[def.target].getWorldPosition(tmp); tmp.project(w.camera);
+      const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1, W2 = innerWidth / 2, H2 = innerHeight / 2;
+      const on = vis && Math.hypot((tmp.x - t.fx) * W2, (tmp.y - t.fy) * H2) < FINDER_PX * 0.8;
+      t.sx = tmp.x; t.sy = tmp.y;
+      t.hold = on ? t.hold + dt : Math.max(0, t.hold - dt * 0.6);
+      const fd = $("probeFinder"), tgt = $("probeTarget");
+      fd.style.left = ((t.fx * 0.5 + 0.5) * 100).toFixed(2) + "%"; fd.style.top = ((-t.fy * 0.5 + 0.5) * 100).toFixed(2) + "%";
+      fd.classList.toggle("on", on); fd.style.setProperty("--p", Math.min(1, t.hold / PHOTO_HOLD).toFixed(2));
+      tgt.classList.toggle("hidden", !vis);
+      if (vis) { tgt.style.left = ((tmp.x * 0.5 + 0.5) * 100).toFixed(2) + "%"; tgt.style.top = ((-tmp.y * 0.5 + 0.5) * 100).toFixed(2) + "%"; }
+      chalHud(t.label, t.hold / PHOTO_HOLD, on ? T.photoHold : T.photo, false, true);
+      if (t.hold >= PHOTO_HOLD) { Sound.shutter(); probeFlash(); probeTaskDone(t); }
+    } else if (t.kind === "collect") {
+      for (const sp of w.sparks) {
+        if (!sp.visible) continue;
+        const u = sp.userData; sp.position.y = u.y + Math.sin(t.t * 2.2 + u.ph) * 0.35; sp.material.rotation = t.t * 0.8 + u.ph;
+        if (u.z < p.z - 4) { spawnSpark(sp, p, 125 + Math.random() * 30); continue; }
+        if (Math.abs(u.z - p.z) < 2.4 && Math.hypot(sp.position.x - p.x, sp.position.y - p.y) < 2.4) {
+          t.got++; Sound.sparkle(t.got - 1);
+          if (t.got >= def.n) { probeTaskDone(t); return; }
+          spawnSpark(sp, p, 125 + Math.random() * 30);
+        }
+      }
+      chalHud(t.label, t.got / def.n, fmtVars(T.collect, { n: t.got, max: def.n }), false, true);
+    } else if (t.kind === "hold") { // im Messfeld bleiben: drinnen füllt sich die Messung, draußen geht sie langsam zurück
+      t.ph += dt * def.speed;
+      const zx = Math.sin(t.ph) * def.amp[0], zy = Math.sin(t.ph * 1.37 + 1) * def.amp[1], z = w.zone, inside = Math.hypot(p.x - zx, p.y - zy) < def.r;
+      t.zx = zx; t.zy = zy;
+      z.position.set(zx, zy, p.z + 26); z.scale.set(def.r, def.r, 1); z.userData.tex.offset.y -= dt * 0.7;
+      t.prog = Math.max(0, Math.min(1, t.prog + (inside ? dt / def.dur : -dt * 0.12)));
+      z.userData.mat.opacity = inside ? 0.4 : 0.2; z.userData.ringMat.opacity = inside ? 0.95 : 0.5;
+      Sound.loop("measure", inside ? 1 : 0, t.prog);
+      chalHud(t.label, t.prog, inside ? T.inside : T.outside, !inside && t.prog > 0.05, true);
+      if (t.prog >= 1) probeTaskDone(t);
+    } else if (t.kind === "gap") { // durch die Lücke im Ring: auf die Höhe der Leuchtlinien steuern
+      const g = w.gap; g.pulse(t.t); t.prog = 1 - Math.max(0, Math.min(1, (g.z - p.z) / 130));
+      chalHud(t.label, t.prog, T.gap, false, true);
+      if (p.z >= g.z) {
+        if (Math.abs(p.y - g.y) < GAP_H) { Sound.whoosh(); probeTaskDone(t); }
+        else { p.shake = 0.9; Sound.thud(1); UI.toast(cfg.course.miss); g.set(p.z + 100, (Math.random() - 0.5) * 6); }
+      }
+    }
+  }
+  // für Tests: wohin muss man steuern? (x: rechts +, y: oben +)
+  function probeAim() {
+    const p = probe, t = p && p.task; if (!t || t.done || !t.ready) return { kind: "", x: 0, y: 0 };
+    if (t.kind === "photo") return { kind: "photo", x: (t.sx || 0) - t.fx, y: (t.sy || 0) - t.fy };
+    if (t.kind === "collect") { const sp = world.sparks.filter((x) => x.visible && x.userData.z > p.z + 1).sort((a, b) => a.userData.z - b.userData.z)[0]; return sp ? { kind: "collect", x: -(sp.position.x - p.x), y: sp.position.y - p.y } : { kind: "collect", x: 0, y: 0 }; }
+    if (t.kind === "hold") return { kind: "hold", x: -((t.zx || 0) - p.x), y: (t.zy || 0) - p.y };
+    return { kind: "gap", x: 0, y: world.gap.y - p.y };
   }
   function enterProbe() {
     if (!worlds[bodyId]) worlds[bodyId] = buildProbeWorld();
@@ -9529,8 +9823,9 @@ window.Surface = (function () {
     S.scene = world.scene; S.camera = world.camera;
     W.renderer.shadowMap.enabled = false;
     setupInput(); S.resize(); resetJoy();
-    probe = { x: 0, y: 0, z: 0, vx: 0, vy: 0, t: 0, f: 0, shake: 0, bumpAt: -9, missAt: -9 };
-    world.gates.forEach((g, i) => { placeGate(g, i, 150 + i * GATE_GAP); g.userData.told = false; });
+    probe = { x: 0, y: 0, z: 0, vx: 0, vy: 0, t: 0, f: foundCount() / cfg.discoveries.length, shake: 0, bumpAt: -9, task: null, taskWait: 2.6 };
+    taskVisualsOff(); $("chalHud").classList.add("hidden");
+    for (const sp of world.jets.list) sp.visible = false;
     for (const s of world.puffs) s.userData.z = -1e9;
     for (const r of world.rocks) r.userData.z = -1e9;
     world.camera.position.set(0, 2.4, -9.5);
@@ -9555,33 +9850,20 @@ window.Surface = (function () {
     jumpPressed = actionPressed = false;
     if (!UI.modalOpen()) {
       p.t += dt;
-      const passed = w.gates.filter((g) => g.userData.passed).length;
-      p.f += (passed / w.gates.length - p.f) * Math.min(1, dt * 0.6); // Fortschritt des Flugs (0 … 1), weich nachgeführt
-      // Steuern: rechts auf dem Bildschirm ist −X (die Kamera schaut nach +Z). Dazu schiebt der Wind.
+      p.f += (foundCount() / cfg.discoveries.length - p.f) * Math.min(1, dt * 0.6); // Fortschritt des Flugs (0 … 1), weich nachgeführt
+      const t = p.task, photo = !!(t && !t.done && t.ready && t.kind === "photo");
+      // Steuern: rechts auf dem Bildschirm ist −X (die Kamera schaut nach +Z). Dazu schiebt der Wind. Beim Fotografieren lenkt man den Sucher.
       const wind = C.wind ? C.wind(p.t, p.f) : 0;
-      p.vx += (-mx * 13 + wind - p.vx) * Math.min(1, dt * 4);
-      p.vy += (my * 10 - p.vy) * Math.min(1, dt * 4);
+      p.vx += ((photo ? 0 : -mx * 13) + wind * (photo ? 0.3 : 1) - p.vx) * Math.min(1, dt * 4);
+      p.vy += ((photo ? 0 : my * 10) - p.vy) * Math.min(1, dt * 4);
       p.x = Math.max(-LANE_X, Math.min(LANE_X, p.x + p.vx * dt));
       p.y = Math.max(-LANE_Y, Math.min(LANE_Y, p.y + p.vy * dt));
-      p.z += PROBE_SPEED * dt;
-
-      // Mess-Tore: durchgeflogen → Entdeckung; verfehlt → das Tor kommt ein Stück weiter vorn noch einmal
-      w.gates.forEach((g, i) => {
-        const u = g.userData;
-        if (u.passed || p.z < u.z) return;
-        if (Math.hypot(p.x - g.position.x, p.y - g.position.y) < GATE_R + 0.5) {
-          u.passed = true; g.visible = false;
-          const d = cfg.discoveries[i];
-          if (foundMap()[u.key]) { Sound.correct(); UI.toast(`✓ ${d.icon} ${d.title}`, "gold"); }
-          else discover(u.key);
-        } else {
-          placeGate(g, i, p.z + 80, p.x * 0.5, p.y * 0.5);
-          if (elapsed - p.missAt > 5) { p.missAt = elapsed; UI.toast(cfg.course.miss); }
-        }
-      });
-
-      // Flugleiterin kündigt das nächste Tor an
-      if (cfg.flight) { const g = w.gates.filter((x) => !x.userData.passed).sort((x, y) => x.userData.z - y.userData.z)[0]; if (g && g.userData.z - p.z < 75 && !g.userData.told && !foundMap()[g.userData.key]) { /* schon Entdecktes nicht nochmal ankündigen */ g.userData.told = true; radio(cfg.flight.gates[w.gates.indexOf(g)], null, cfg.flight.who); } }
+      p.z += PROBE_SPEED * (photo ? 0.55 : 1) * dt;
+      const jx = photo ? 0 : mx, jy = photo ? 0 : my; jetsUpdate(w.jets, p, dt, jx, jy); Sound.loop("thrust", Math.min(1, Math.hypot(jx, jy)));
+      // Aufgaben: nach einer kurzen Pause kommt die nächste
+      if (!t) { if (p.taskWait > 0 && (p.taskWait -= dt) <= 0) probeTaskStart(); }
+      else if (t.done) { if ((t.wait -= dt) <= 0) { p.task = null; p.taskWait = 1.2; } }
+      else probeTaskUpdate(dt, mx, my);
       // Teilchen: was hinter der Sonde verschwindet, taucht vorn wieder auf
       const showPuffs = p.f >= C.puff.from;
       for (const s of w.puffs) {
@@ -9599,7 +9881,7 @@ window.Surface = (function () {
         const u = r.userData;
         if (u.z < p.z - 12) {
           u.z = p.z + 90 + Math.random() * 160;
-          if (w.gates.some((g) => !g.userData.passed && Math.abs(g.userData.z - u.z) < 14)) u.z += 28; // nicht direkt vor ein Tor
+          if (w.gap && Math.abs(w.gap.z - u.z) < 16) u.z += 30; // nicht direkt vor die Ring-Wand
           u.r = lerp(C.rocks.size[0], C.rocks.size[1], Math.random());
           r.position.set((Math.random() - 0.5) * 2 * LANE_X, (Math.random() - 0.5) * 2 * LANE_Y, u.z);
           r.scale.setScalar(C.rocks.glow ? u.r * 2.6 : u.r);
@@ -9626,6 +9908,8 @@ window.Surface = (function () {
 
     w.craft.position.set(p.x, p.y, p.z);
     w.craft.rotation.set(-p.vy * 0.03, 0, p.vx * 0.035);
+    if (w.craft.userData.blink) w.craft.userData.blink.forEach((m, i) => { m.visible = ((p.t * 1.1 + i * 0.5) % 1) < 0.16; });
+    if (w.craft.userData.chute) w.craft.userData.chute.rotation.z = Math.sin(p.t * 0.9) * 0.08; // Fallschirm pendelt
     w.far.position.set(p.x * 0.75, p.y * 0.75, p.z);
     const sh = p.shake * 0.5;
     // Kamera etwas oberhalb: die Sonde sitzt im unteren Bilddrittel und verdeckt das nächste Tor nicht
@@ -9735,6 +10019,6 @@ window.Surface = (function () {
     }
   };
 
-  if (/[?&]test/.test(location.search)) S._test = { navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, get experiment() { return experiment; }, KIT, dropFall, discover, startAction, showFound, POSE, setBone, setArm, poseRig, HATCH, setJoy: (x, y) => { joy.x = x; joy.y = y; } };
+  if (/[?&]test/.test(location.search)) S._test = { probeAim, navPath, navLine, navGrid, ast, view, get world() { return world; }, get boarding() { return boarding; }, get scope() { return view.special; }, get probe() { return probe; }, get guide() { return guide; }, get experiment() { return experiment; }, KIT, dropFall, discover, startAction, showFound, POSE, setBone, setArm, poseRig, HATCH, setJoy: (x, y) => { joy.x = x; joy.y = y; } };
   return S;
 })();

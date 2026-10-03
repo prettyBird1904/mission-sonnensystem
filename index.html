@@ -147,6 +147,10 @@
     <button id="guideBtn" class="guide-btn glass hidden"></button>
     <!-- Anzeige für Spielaufgaben (z. B. Anzug-Hitze, Batterie, Kühlung, Fotos) -->
     <div id="chalHud" class="chal-hud glass hidden"><div id="chalLabel"></div><div class="chal-bar"><i id="chalFill"></i></div><div id="chalInfo"></div></div>
+    <!-- Sonden: Sucher fürs Foto, Markierung am Ziel, Blitz beim Auslösen -->
+    <div id="probeTarget" class="probe-target hidden"><span id="probeTargetLabel"></span></div>
+    <div id="probeFinder" class="probe-finder hidden"><b></b></div>
+    <div id="probeFlash" class="probe-flash"></div>
     <div id="radio" class="radio glass hidden">
       <div class="radio-head" id="radioHead">📻 Bodenstation</div>
       <div id="radioText"></div>
@@ -161,7 +165,7 @@
       <small id="suitState"></small>
       <small class="suit-note">Dein Raumanzug schützt dich</small>
     </div>
-    <div class="surf-keys probe-keys glass"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Sonde steuern · flieg durch die leuchtenden Mess-Tore</div>
+    <div class="surf-keys probe-keys glass"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Sonde steuern · beim Foto den Sucher bewegen</div>
     <div class="surf-keys walk-keys glass"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> laufen · <kbd>Leertaste</kbd> springen · <kbd>E</kbd> benutzen · Maus ziehen = umschauen</div>
     <button id="surfAction" class="btn primary explore hidden"></button>
     <div class="touch">

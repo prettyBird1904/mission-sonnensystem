@@ -290,7 +290,10 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "46",
+  version: "47",
+
+  // Anzeige der Sonden-Aufgaben (oben, unter der Überschrift aus course.tasks)
+  probeHud: { listen: "🎧 Hör zu, was Nora sagt …", photo: "🎯 Schieb den Sucher auf das Ziel", photoHold: "📸 Stillhalten …", collect: "{n} von {max}", inside: "📈 Messung läuft – bleib drin!", outside: "↩️ Zurück ins Messfeld!", gap: "↕️ Flieg zwischen die Leuchtlinien" },
 
   // Ergebnis der Funk-Fragen ({r} von {n} richtig)
   quizEnd: { all: "Alle {n} Fragen richtig – ich bin beeindruckt! Bodenstation Ende – guten Flug!", some: "{r} von {n} richtig – gut gemacht! Bodenstation Ende – guten Flug!", none: "Diesmal hat's nicht geklappt – macht nichts, entdeckt hast du trotzdem alles! Bodenstation Ende – guten Flug!" },
@@ -984,12 +987,13 @@ window.SPACE_DATA = {
       ]
     },
 
-    /* ---------- Sonden (probe: true): Hier kann man nicht landen. Das Kind steuert eine Sonde durch Mess-Tore;
-       jedes Tor ist eine Entdeckung (in dieser Reihenfolge). course = Texte für den Flug. ---------- */
+    /* ---------- Sonden (probe: true): Hier kann man nicht landen. Das Kind steuert eine Sonde und erledigt drei Aufgaben
+       (Foto mit dem Sucher, Einsammeln, im Messfeld bleiben, Lücke im Ring – siehe PROBES in surface.js); jede Aufgabe ist eine
+       Entdeckung (in dieser Reihenfolge). course = Texte für den Flug, course.tasks = Anzeige oben, flight.gates = Noras Ansage. ---------- */
     jupiter: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Erstes Tor voraus: Es misst, wie groß der Jupiter ist.", "Schau nach unten – das nächste Tor liegt über einem riesigen roten Wirbel!", "Letztes Tor! Wir sinken tiefer – gibt es hier einen Boden?"] },
-      course: { note: "🪂 Kapsel wie „Galileo“ – Abstieg in die Wolken", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Nora hier! Jupiter ist riesig. Fang die Erden ein und zähl mit: Wie viele passen nebeneinander?", "Schau nach vorn – da unten dreht sich ein riesiger roter Wirbel! Schieb den Sucher drauf und mach ein Foto!", "Wir sinken tiefer! Bleib in der Messwolke, bis die Messung voll ist. Gibt es hier einen Boden?"] },
+      course: { note: "🪂 Kapsel wie „Galileo“ – Abstieg in die Wolken", tasks: ["🌍 Fang 11 Erden ein", "📸 Fotografiere den Roten Fleck", "☁️ Miss in der Messwolke"], targets: ["", "🌀 Roter Fleck", ""] },
       discoveries: [
         { key: "groesse", icon: "🟠", title: "Der größte Planet", photo: "jupiter.jpg",
           text: "Jupiter ist der größte Planet: 11-mal so breit wie die Erde! Mehr als 1.300 Erden würden hineinpassen." },
@@ -999,9 +1003,9 @@ window.SPACE_DATA = {
           text: "Kein Boden! Jupiter ist ein Gasriese. Nach unten wird das Gas nur immer dichter und heißer – landen kann man hier nicht." }
       ],
       radio: {
-        start: "{name}, auf dem Jupiter kann man nicht landen – er hat keinen festen Boden. Steuere deine Kapsel durch die {anzahl} leuchtenden Mess-Tore!",
+        start: "{name}, auf dem Jupiter kann man nicht landen – er hat keinen festen Boden. Deine Kapsel hat {anzahl} Aufgaben – ich sag dir, was zu tun ist!",
         quizIntro: "Hallo {name}, hier ist die Bodenstation! Deine Kapsel hat alle Messungen geschickt: der Riese, der Rote Fleck – und kein Boden in Sicht. Ich hab drei Fragen dazu. Bist du bereit?",
-        back: "Deine Kapsel ist wieder beim Jupiter, {name}! Noch {rest} Mess-Tore.",
+        back: "Deine Kapsel ist wieder beim Jupiter, {name}! Noch {rest} Aufgaben.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -1013,8 +1017,8 @@ window.SPACE_DATA = {
 
     saturn: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Achtung, Eisbrocken! Das erste Tor misst, woraus die Ringe bestehen.", "Nächstes Tor: Es prüft, wie schwer der Saturn ist – rate mal!", "Letztes Tor über dem Nordpol – dort dreht sich ein seltsamer Sturm!"] },
-      course: { note: "🛰️ Sonde „Cassini“ – Flug durch die Ringe", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Achtung, Eisbrocken! Sammle zehn kleine Eiskristalle aus den Ringen – und weich den großen Brocken aus!", "Jetzt wird's spannend: Flieg durch die Lücke im Ring! So hat Cassini gemessen, wie schwer der Saturn ist.", "Schau zum Nordpol – dort dreht sich ein seltsamer Sturm! Schieb den Sucher drauf und mach ein Foto!"] },
+      course: { note: "🛰️ Sonde „Cassini“ – Flug durch die Ringe", tasks: ["🧊 Sammle 10 Eiskristalle", "🕳️ Flieg durch die Lücke im Ring", "📸 Fotografiere den Sturm am Nordpol"], targets: ["", "", "⬡ Sechseck-Sturm"], miss: "Daneben! Gleich kommt die nächste Lücke – flieg genau zwischen die Leuchtlinien!", bump: "Rumms! Ein Eisbrocken – weich lieber aus!" },
       discoveries: [
         { key: "ringe", icon: "🧊", title: "Ringe aus Eis", photo: "saturn-1.jpg",
           text: "Die Ringe sind gar nicht fest! Sie bestehen aus unzähligen Brocken aus Eis und Gestein – manche klein wie Sandkörner, manche groß wie ein Haus." },
@@ -1024,9 +1028,9 @@ window.SPACE_DATA = {
           text: "Am Nordpol des Saturn tobt ein Sturm in Form eines Sechsecks! Jede Seite ist länger, als die Erde breit ist." }
       ],
       radio: {
-        start: "{name}, deine Sonde fliegt mitten durch die Ringe des Saturn. Flieg durch die {anzahl} Mess-Tore und weich den Eisbrocken aus!",
+        start: "{name}, deine Sonde fliegt mitten durch die Ringe des Saturn. Du hast {anzahl} Aufgaben – und weich den Eisbrocken aus!",
         quizIntro: "Hallo {name}, hier ist die Bodenstation! Deine Sonde ist heil durch die Ringe gekommen – Glückwunsch! Ich hab drei Fragen dazu. Bist du bereit?",
-        back: "Deine Sonde ist wieder beim Saturn, {name}! Noch {rest} Mess-Tore.",
+        back: "Deine Sonde ist wieder beim Saturn, {name}! Noch {rest} Aufgaben.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -1038,8 +1042,8 @@ window.SPACE_DATA = {
 
     uranus: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Siehst du's? Der Uranus liegt auf der Seite! Das erste Tor schaut genau hin.", "Das nächste Tor misst, woraus der Uranus besteht.", "Letztes Tor! Brr – es misst die Temperatur."] },
-      course: { note: "🛰️ Uranus-Sonde – eiskalt hier draußen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Siehst du's? Der Uranus liegt auf der Seite! Schieb den Sucher auf ihn und mach ein Foto!", "Fang acht Eiskristalle ein – sie zeigen, woraus der Uranus besteht.", "Brr! Flieg in den eisigen Strom und bleib drin, bis das Thermometer fertig gemessen hat."] },
+      course: { note: "🛰️ Uranus-Sonde – eiskalt hier draußen!", tasks: ["📸 Fotografiere den gekippten Uranus", "🧊 Fang 8 Eiskristalle", "🥶 Miss im eisigen Strom"], targets: ["🙃 Uranus", "", ""] },
       discoveries: [
         { key: "gekippt", icon: "🙃", title: "Auf der Seite", gallery: ["uranus.jpg", "uranus-1.jpg"],
           text: "Uranus liegt auf der Seite und rollt wie eine Kugel um die Sonne! Vielleicht hat ihn vor langer Zeit ein riesiger Brocken umgestoßen." },
@@ -1049,9 +1053,9 @@ window.SPACE_DATA = {
           text: "Bis zu −224 °C: Uranus ist der kälteste Planet – sogar kälter als Neptun!" }
       ],
       radio: {
-        start: "{name}, Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Steuere deine Sonde durch die {anzahl} Mess-Tore!",
+        start: "{name}, Uranus ist ein Riese aus eisigen Gasen – landen geht nicht. Deine Sonde hat {anzahl} Aufgaben – ich sag dir, was zu tun ist!",
         quizIntro: "Hallo {name}, hier ist die Bodenstation! Brr, die Messwerte vom Uranus sind eisig! Ich hab drei Fragen dazu. Bist du bereit?",
-        back: "Deine Sonde ist wieder beim Uranus, {name}! Noch {rest} Mess-Tore.",
+        back: "Deine Sonde ist wieder beim Uranus, {name}! Noch {rest} Aufgaben.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -1063,8 +1067,8 @@ window.SPACE_DATA = {
 
     neptun: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Spürst du den Wind? Erstes Tor voraus – lenk dagegen!", "Nächstes Tor: Wie weit sind wir von der Sonne weg?", "Letztes Tor! Es erzählt, wie der Neptun gefunden wurde – zuerst nur durch Rechnen!"] },
-      course: { note: "🛰️ „Voyager 2“ – der Wind schiebt dich, lenk dagegen!", miss: "Tor verpasst – es kommt gleich noch einmal!" },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Spürst du den Wind? Halte die Sonde im leuchtenden Messfeld – lenk gegen den Sturm!", "Siehst du den hellen Stern? Das ist unsere Sonne! Mach ein Foto – so klein ist sie von hier draußen.", "Neptun wurde zuerst ausgerechnet! Der Kreis zeigt die berechnete Stelle – mach dort ein Foto vom Neptun!"] },
+      course: { note: "🛰️ „Voyager 2“ – der Wind schiebt dich, lenk dagegen!", tasks: ["💨 Bleib im Messfeld", "📸 Fotografiere die Sonne", "📸 Fotografiere Neptun an der berechneten Stelle"], targets: ["", "☀️ die Sonne", "🧮 berechnete Stelle"] },
       discoveries: [
         { key: "wind", icon: "💨", title: "Die stärksten Winde",
           text: "Merkst du, wie es dich zur Seite drückt? Auf Neptun wehen die stärksten Winde im Sonnensystem: über 2.000 km/h!" },
@@ -1074,9 +1078,9 @@ window.SPACE_DATA = {
           text: "Neptun wurde zuerst berechnet und dann entdeckt! 1846 fand man ihn in einer Sternwarte in Berlin – genau dort, wo Forscher es ausgerechnet hatten." }
       ],
       radio: {
-        start: "{name}, du bist am äußersten Planeten. Steuere Voyager 2 durch die {anzahl} Mess-Tore – der Sturm drückt dich zur Seite!",
+        start: "{name}, du bist am äußersten Planeten. Voyager 2 hat {anzahl} Aufgaben – und der Sturm drückt dich zur Seite!",
         quizIntro: "Hallo {name}, hier ist die Bodenstation! Trotz Sturm hat Voyager 2 alle Tore geschafft – super gesteuert! Ich hab drei Fragen dazu. Bist du bereit?",
-        back: "Deine Sonde ist wieder beim Neptun, {name}! Noch {rest} Mess-Tore.",
+        back: "Deine Sonde ist wieder beim Neptun, {name}! Noch {rest} Aufgaben.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [
@@ -1088,8 +1092,8 @@ window.SPACE_DATA = {
 
     sonne: {
       probe: true,
-      flight: { who: "🎧 Flugleiterin Nora", gates: ["Hitzeschild bereit? Erstes Tor voraus!", "Das nächste Tor stoppt die Zeit, die das Licht bis zur Erde braucht.", "Letztes Tor! Es schaut auf dunkle Flecken."] },
-      course: { note: "🛡️ „Parker Solar Probe“ – Anflug auf die Sonne", miss: "Tor verpasst – es kommt gleich noch einmal!", bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
+      flight: { who: "🎧 Flugleiterin Nora", gates: ["Hitzeschild bereit? Vor dir strömt der Sonnenwind – flieg hinein und bleib im Strom, bis die Messung voll ist!", "Jetzt wird's hell! Fang acht Lichtfunken ein – so viele Minuten braucht das Licht bis zur Erde.", "Siehst du die dunklen Flecken auf der Sonne? Schieb den Sucher drauf und mach ein Foto!"] },
+      course: { note: "🛡️ „Parker Solar Probe“ – Anflug auf die Sonne", tasks: ["☀️ Bleib im Sonnenwind-Strom", "💡 Fang 8 Lichtfunken", "📸 Fotografiere die Sonnenflecken"], targets: ["", "", "⚫ Sonnenflecken"], bump: "Heiß! Ein Glutball – dein Hitzeschild hält, aber weich lieber aus!" },
       discoveries: [
         { key: "stern", icon: "⭐", title: "Ein Stern", gallery: ["sonne-1.jpg", "sonne-2.jpg"],
           text: "Die Sonne ist ein Stern – eine riesige, glühende Kugel aus Gas. 1,3 Millionen Erden würden in sie hineinpassen!" },
@@ -1099,9 +1103,9 @@ window.SPACE_DATA = {
           text: "Die dunklen Punkte heißen Sonnenflecken. Dort ist die Sonne etwas kühler als ringsum. Viele sind größer als die ganze Erde!" }
       ],
       radio: {
-        start: "{name}, auf der Sonne kann niemand landen – sie ist glühendes Gas. Flieg mit deiner Hitzeschild-Sonde durch die {anzahl} Mess-Tore!",
+        start: "{name}, auf der Sonne kann niemand landen – sie ist glühendes Gas. Deine Hitzeschild-Sonde hat {anzahl} Aufgaben – ich sag dir, was zu tun ist!",
         quizIntro: "Hallo {name}, hier ist die Bodenstation! Dein Hitzeschild hat gehalten – und alle Messungen sind da! Ich hab drei Fragen dazu. Bist du bereit?",
-        back: "Deine Sonde ist wieder bei der Sonne, {name}! Noch {rest} Mess-Tore.",
+        back: "Deine Sonde ist wieder bei der Sonne, {name}! Noch {rest} Aufgaben.",
         quizDone: "Hier hast du schon alles entdeckt! Tippe oben auf „Zurück zur Rakete“ – oder flieg noch ein bisschen."
       },
       quiz: [

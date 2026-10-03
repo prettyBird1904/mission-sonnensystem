@@ -67,7 +67,7 @@ vm.createContext(box);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "js/data.js"), "utf8"), box);
 vm.runInContext(fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8"), box);
 const D = box.window.SPACE_DATA, V = box.window.Voice;
-const fill = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung").replace(/\bNoch 1 Mess-Tore\b/g, "Noch 1 Mess-Tor"); // Einzahl wie fmtVars() in surface.js
+const fill = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)).replace(/\bNoch 1 Entdeckungen\b/g, "Noch 1 Entdeckung").replace(/\bNoch 1 Mess-Tore\b/g, "Noch 1 Mess-Tor").replace(/\bNoch 1 Aufgaben\b/g, "Noch 1 Aufgabe"); // Einzahl wie fmtVars() in surface.js
 
 // ---------- Alle Sätze sammeln (genau so zusammengesetzt wie im Spiel) ----------
 const lines = new Map(); // Schlüssel → { said, voice, tags }

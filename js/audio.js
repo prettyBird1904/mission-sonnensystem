@@ -35,6 +35,41 @@ window.Sound = (function () {
     } catch (e) { return false; }
   }
 
+  // kurzes, gefiltertes Rauschen (Atemstoß, Knirschen, Klacken)
+  function noiseBurst(dur, type, freq, q, vol, delay = 0) {
+    if (!enabled || !ensure()) return;
+    const t = ctx.currentTime + delay, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    n.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    n.connect(f).connect(g).connect(master); n.start(t, Math.random() * 1.5); n.stop(t + dur + 0.05);
+  }
+  // ---------- Dauergeräusche: loop(name, Lautstärke 0 … 1, Tonhöhe 0 … 1) jedes Bild aufrufen; 0 = still ----------
+  const loops = {};
+  function makeLoop(name) {
+    const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
+    const noise = (rate = 1) => { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.playbackRate.value = rate; n.start(0, Math.random() * 1.5); return n; };
+    const filt = (type, freq, q) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = freq; b.Q.value = q; return b; };
+    const L = { out, last: -1, lastP: -1, set: null }, to = (pr, v, t, k) => { pr.cancelScheduledValues(t); pr.setTargetAtTime(v, t, k); };
+    if (name === "rover") { // Elektromotor mit Getriebe: zwei verstimmte Sägezähne hinter einem Tiefpass, dazu helles Getriebe-Surren
+      const f = filt("lowpass", 600, 3); f.connect(out);
+      const oscs = [0, 9].map((d) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.detune.value = d; o.frequency.value = 80; o.connect(f); o.start(); return o; });
+      const ng = ctx.createGain(); ng.gain.value = 0.35; noise().connect(filt("bandpass", 2200, 2)).connect(ng).connect(out);
+      L.set = (v, p, t) => { for (const o of oscs) to(o.frequency, 60 + 170 * p, t, 0.12); to(f.frequency, 350 + 1100 * p, t, 0.15); to(ng.gain, 0.1 + 0.4 * p, t, 0.15); to(out.gain, v * 0.075, t, 0.1); };
+    } else if (name === "slide") { // Stein auf Eis: weiches Rauschen und ein tiefes Grummeln – wird dunkler, wenn er langsamer wird
+      const f = filt("lowpass", 900, 0.8); noise(0.8).connect(f).connect(out);
+      const o = ctx.createOscillator(), og = ctx.createGain(); o.type = "sine"; o.frequency.value = 52; og.gain.value = 0.6; o.connect(og).connect(out); o.start();
+      L.set = (v, p, t) => { to(f.frequency, 250 + 1100 * p, t, 0.12); to(o.frequency, 40 + 30 * p, t, 0.2); to(out.gain, v * 0.17, t, 0.08); };
+    } else if (name === "thrust") { // Steuerdüsen der Sonde: helles Zischen
+      noise(1.2).connect(filt("highpass", 1800, 0.7)).connect(out);
+      L.set = (v, p, t) => to(out.gain, v * 0.05, t, 0.05);
+    } else if (name === "measure") { // Messgerät: sanfter Ton, der mit dem Fortschritt höher wird, leicht pulsierend
+      const o = ctx.createOscillator(), am = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+      o.type = "sine"; o.frequency.value = 440; am.gain.value = 0.6; lfo.frequency.value = 5; lg.gain.value = 0.4;
+      lfo.connect(lg).connect(am.gain); o.connect(am).connect(out); o.start(); lfo.start();
+      L.set = (v, p, t) => { to(o.frequency, 380 + 500 * p, t, 0.1); to(lfo.frequency, 4 + 8 * p, t, 0.2); to(out.gain, v * 0.045, t, 0.1); };
+    }
+    return L;
+  }
   function tone(freq, dur, type = "sine", vol = 0.25, delay = 0, slideTo = null) {
     if (!enabled || !ensure()) return;
     const t = ctx.currentTime + delay;
@@ -57,6 +92,7 @@ window.Sound = (function () {
       enabled = !enabled;
       if (!enabled && engineGain) { engineGain.gain.cancelScheduledValues(0); engineGain.gain.value = 0; engineLevel = -1; }
       if (!enabled && windGain) { windGain.gain.cancelScheduledValues(0); windGain.gain.value = 0; windLevel = -1; }
+      if (!enabled) this.loopsOff();
       return enabled;
     },
     engine(level) {
@@ -131,6 +167,32 @@ window.Sound = (function () {
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09 * vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
       o.connect(g).connect(master); o.start(t); o.stop(t + 0.2);
     },
+    loop(name, level, pitch = level) {
+      if (!ctx || ctx.state !== "running") return;
+      const v = enabled ? Math.max(0, Math.min(1, level)) : 0, p = Math.max(0, Math.min(1, pitch));
+      let L = loops[name]; if (!L) { if (v <= 0) return; L = loops[name] = makeLoop(name); }
+      if (Math.abs(v - L.last) < 0.02 && Math.abs(p - L.lastP) < 0.02) return; // nicht jedes Bild neue Befehle planen
+      L.last = v; L.lastP = p; const t = ctx.currentTime;
+      L.out.gain.cancelScheduledValues(t); L.set(v, p, t);
+    },
+    loopsOff() { if (!ctx) return; const t = ctx.currentTime; for (const L of Object.values(loops)) { L.out.gain.cancelScheduledValues(t); L.out.gain.setTargetAtTime(0, t, 0.06); L.last = 0; } },
+    // Absprung: kurzer Atemstoß und ein weiches „Hupp“ nach oben (bei wenig Schwerkraft länger und tiefer)
+    hop(low = false) { noiseBurst(low ? 0.22 : 0.13, "bandpass", 1100, 0.9, 0.09); tone(low ? 190 : 260, low ? 0.32 : 0.18, "sine", 0.12, 0.01, low ? 380 : 470); },
+    // Landung: dumpfer Aufprall und Knirschen von Sand und Geröll (k = Stärke)
+    thud(k = 1) { tone(95, 0.26, "sine", 0.22 * k, 0, 44); noiseBurst(0.16, "lowpass", 800, 0.7, 0.16 * k); noiseBurst(0.1, "bandpass", 2600, 1.4, 0.05 * k, 0.015); },
+    // harter Stein auf Stein (Curling)
+    clack() { noiseBurst(0.06, "bandpass", 1900, 2.2, 0.32); tone(640, 0.09, "triangle", 0.11); tone(320, 0.2, "sine", 0.1); },
+    // Anschubsen: kurzes Schaben
+    push() { noiseBurst(0.35, "lowpass", 1200, 0.6, 0.12); },
+    // Servomotor des Roboterarms
+    servo() { tone(360, 0.4, "square", 0.02, 0, 640); tone(372, 0.4, "square", 0.012, 0, 652); },
+    // Donnergrollen (Blitze im Jupiter)
+    thunder(vol = 1) {
+      if (!enabled || !ensure()) return;
+      tone(70, 1.6, "sine", 0.16 * vol, 0, 28); noiseBurst(1.8, "lowpass", 380, 0.6, 0.22 * vol); noiseBurst(0.5, "lowpass", 900, 0.6, 0.12 * vol, 0.05);
+    },
+    // Funkeln beim Einsammeln: jeder weitere Fund einen Ton höher
+    sparkle(i = 0) { const fr = 880 * Math.pow(2, (i % 12) / 12); tone(fr, 0.12, "sine", 0.15); tone(fr * 1.5, 0.2, "sine", 0.09, 0.05); },
     click() { tone(660, 0.08, "triangle", 0.15); },
     ping(f = 880) { tone(f, 0.11, "sine", 0.16); }, // Radar-Piepen
     // Kamera-Auslöser: zwei kurze, helle Rauschklicks
