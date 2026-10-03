@@ -290,7 +290,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "51",
+  version: "52",
 
   // Anzeige oben, solange ein Spiel noch erklärt wird (es beginnt erst danach)
   chalListen: "🎧 Hör erst zu – gleich geht's los!",
@@ -363,6 +363,7 @@ window.SPACE_DATA = {
           wand: "An der Wand der Mondbasis siehst du alles, was du entdeckt hast.",
           rakete: "Steig über die Leiter ein – ich komme mit!"
         },
+        finale: { say: "Bevor sich die Bodenstation meldet, zeig ich dir noch unsere Mondbasis. Komm mit!", arrive: "Das ist unsere Mondbasis! In den Kuppeln wohnen und forschen wir, im Gewächshaus wächst Salat, und der 3D-Drucker baut gerade eine neue Kuppel aus Mondstaub. Psst – hörst du's knacken? Die Bodenstation meldet sich." },
         quiz: "Das war die letzte Entdeckung! Psst – hörst du's knacken? Die Bodenstation meldet sich.",
         home: "Ab zur Rakete, {name} – der Mond war toll!",
         board: "Einsteigen bitte – ich klettere voraus!",

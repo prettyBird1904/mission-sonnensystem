@@ -2582,10 +2582,12 @@ window.Surface = (function () {
   }
 
   // Alles entdeckt: Nora reagiert und kündigt die Bodenstation an – erst wenn sie ausgeredet hat, meldet sich die Bodenstation
+  // Mit finale (z. B. Mond): erst zeigt Nora noch die Basis und führt zur „Wusstest du?“-Wand – dort meldet sich die Bodenstation
   function quizSoon() {
     if (guide && guide.on && guide.n.obj.visible) {
-      const r = guide.justFound && cfg.guide.react && cfg.guide.react[guide.justFound]; guide.justFound = null;
-      guideSay([r, cfg.guide.quiz]);
+      const GC = cfg.guide, r = guide.justFound && GC.react && GC.react[guide.justFound]; guide.justFound = null;
+      if (GC.finale && !guide.finale) { guide.finale = "walk"; guideSay([r, GC.finale.say]); return; }
+      guideSay([r, guide.finale === "done" ? GC.finale.arrive : GC.quiz]);
       quizScene = performance.now();
       whenQuiet(() => startQuiz(true), 12000);
     } else { quizScene = performance.now(); setTimeout(() => startQuiz(true), 900); }
@@ -4204,6 +4206,7 @@ window.Surface = (function () {
   }
   // Wohin die Person als Nächstes führt: erste offene Entdeckung der Reihenfolge, dann die Funk-Fragen an der Wand, zum Schluss die Rakete
   function guideNextKey() {
+    if (guide && guide.finale === "walk") return "wand";
     const f = foundMap();
     for (const k of cfg.guide.order) if (!f[k]) return k;
     return "rakete";
@@ -4342,17 +4345,18 @@ window.Surface = (function () {
       return;
     }
     // Im Gespräch: freie Person, die man ansprechen kann
+    if (guide.finale === "walk" && !guide.on) { guide.finale = "done"; quizSoon(); } // Führung verlassen: Fragen gleich per Funk
     if (!guide.on) return;
     n.moving = false;
     if (busy || view.special || experiment || boarding || UI.modalOpen()) return;
-    if (!quizDone && foundCount() >= cfg.discoveries.length) { n.heading = angleLerp(n.heading, Math.atan2(ast.pos.x - p.x, ast.pos.z - p.z), 1 - Math.exp(-dt * 5)); return; } // wartet mit dem Kind auf die Bodenstation
+    if (!quizDone && foundCount() >= cfg.discoveries.length && guide.finale !== "walk") { n.heading = angleLerp(n.heading, Math.atan2(ast.pos.x - p.x, ast.pos.z - p.z), 1 - Math.exp(-dt * 5)); return; } // wartet mit dem Kind auf die Bodenstation
     const dAst = Math.hypot(ast.pos.x - p.x, ast.pos.z - p.z);
     const key = guideNextKey();
     if (guide.met && key !== guide.key) { // neues Ziel: Bescheid sagen und losgehen
       const first = guide.key === undefined;
       guide.key = key; guide.pts = guideRoute(key); guide.said[key] = false;
       if (key === "rakete") { if (quizDone) guideSay(GC.home); }
-      else if (key !== "sprung" && !first) {
+      else if (key !== "sprung" && key !== "wand" && !first) {
         const r = guide.justFound && GC.react && GC.react[guide.justFound]; guide.justFound = null;
         guideSay([r, typeof GC.next === "object" ? GC.next[key] : GC.next], { ziel: cfg.stations[key].label });
       }
@@ -4398,6 +4402,7 @@ window.Surface = (function () {
     }
     // angekommen
     face(ast.pos.x, ast.pos.z);
+    if (guide.finale === "walk" && guide.key === "wand") { if (dAst < 7) { guide.finale = "done"; quizSoon(); } return; } // Basis-Besuch zu Ende: jetzt die Funk-Fragen
     if (dAst < 7 && !guide.said[guide.key] && guide.waitCd <= 0) {
       guide.said[guide.key] = true; guide.waitCd = 4;
       if (!foundMap()[guide.key]) guideSay(guide.key === "sprung" ? GC.jump : (GC.arrive && GC.arrive[guide.key]) || ""); // schon entdeckt (Kind war schneller): nichts erklären

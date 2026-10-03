@@ -107,7 +107,8 @@ for (const [id, S] of Object.entries(D.surfaces)) {
     for (const k of ["hello", "welcome", "wait", "quiz", "home", "alone", "board"]) add(f(G[k]), "nora", id);
     for (const k of Object.keys(G.arrive)) add(f(G.arrive[k]), "nora", id);
     for (const k of G.order) add(f(typeof G.next === "object" ? G.next[k] : G.next, { ziel: S.stations[k].label }), "nora", id); // Überleitung zur nächsten Station
-    for (const t of Object.values(G.react || {})) add(f(t), "nora", id);                                                      // Reaktion auf das gerade Entdeckte
+    for (const t of Object.values(G.react || {})) add(f(t), "nora", id);
+    if (G.finale) { add(f(G.finale.say), "nora", id); add(f(G.finale.arrive), "nora", id); } // Basis-Besuch vor den Funk-Fragen (siehe quizSoon)                                                      // Reaktion auf das gerade Entdeckte
   }
   for (const t of S.talks || []) for (const [who, text] of t) { // Gespräche der Crew (siehe updateTalks in surface.js)
     const c = S.crew.find((x) => x.short === who); add(f(text), c.f ? "npcF" : "npcM", id, c.name);
