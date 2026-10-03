@@ -49,7 +49,7 @@ window.Sound = (function () {
   }
 
   return {
-    unlock() { if (ensure() && ctx.state === "suspended") ctx.resume(); },
+    unlock() { if (ensure() && ctx.state !== "running" && ctx.state !== "closed") { const p = ctx.resume(); if (p && p.catch) p.catch(() => {}); } }, // auch „interrupted“
     context() { return ensure() ? ctx : null; }, // für die Sprachaufnahmen (js/voice.js)
     get _amb() { return amb; }, // für Tests (Lautstärke messen)
     get enabled() { return enabled; },

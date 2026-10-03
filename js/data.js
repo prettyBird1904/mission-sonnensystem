@@ -280,7 +280,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "37",
+  version: "38",
 
   // Ergebnis der Funk-Fragen ({r} von {n} richtig)
   quizEnd: { all: "{r} von {n} richtig! Die Bodenstation ist beeindruckt!", some: "{r} von {n} richtig! Gut gemacht!", none: "0 von {n} richtig. Macht nichts – beim nächsten Mal klappt's!" },

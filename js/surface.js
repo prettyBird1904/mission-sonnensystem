@@ -5769,7 +5769,7 @@ window.Surface = (function () {
   // =========================================================
   // =========================================================
   //  Venus: Kein Mensch könnte hier wohnen (465 °C, 90-facher Druck). Unten steht darum nur ein gepanzerter Roboter-Außenposten
-  //  aus dicken Druckkugeln – wie bei den echten Venera-Sonden. Die Menschen wohnen hoch oben in den Wolken in einem Luftschiff
+  //  aus dicken Druckkugeln – wie bei den echten Venera-Sonden. Die Menschen wohnen 50 km hoch in den Wolken in einem Luftschiff (vom Boden aus unsichtbar)
   //  (so plant es die NASA-Idee „HAVOC“): Dort, 50 Kilometer hoch, ist es angenehm warm. Ein Wind-Rover (NASA-Idee „AREE“) fährt herum.
   // =========================================================
   // Dunkles Metall mit Nietenreihen
@@ -5812,21 +5812,6 @@ window.Surface = (function () {
     const g = new THREE.Group(), hot = new THREE.MeshStandardMaterial({ color: srgb(0x3a1a0a), emissive: srgb(0xff5a1a), emissiveIntensity: 0.35, roughness: 0.6 });
     for (let i = 0; i < 5; i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.4, 2.4), hot), (i - 2) * 0.55, 1.4, 0);
     put(g, new THREE.Mesh(new THREE.BoxGeometry(3, 0.25, 0.3), venusMetal(M, 2, 1)), 0, 0.2, 0);
-    return g;
-  }
-  // Luftschiff (Wolkenstation): langer Rumpf, Gondel, Leitwerk, Propeller
-  function venusAirship(M) {
-    const g = new THREE.Group(), skin = M.std({ color: srgb(0xe7e0d2), roughness: 0.6 });
-    const hull = put(g, new THREE.Mesh(new THREE.SphereGeometry(10, 36, 18), skin), 0, 0, 0, false); hull.scale.set(1, 1, 4);
-    for (const [x, y, rz] of [[0, 6.5, 0], [0, -6.5, 0], [6.5, 0, Math.PI / 2], [-6.5, 0, Math.PI / 2]]) {
-      const fin = put(g, new THREE.Mesh(new THREE.BoxGeometry(0.4, 7, 9), M.orange), x, y, -32, false); fin.rotation.z = rz;
-    }
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(4, 3, 12), M.hull(2, 2)), 0, -11, 4, false);
-    for (let i = 0; i < 5; i++) put(g, new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1), M.glow), 2.02, -10.8, -0.5 + i * 2.2, false).rotation.y = Math.PI / 2;
-    const props = [];
-    for (const x of [-7, 7]) { const p = put(g, new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.2, 0.3), M.metal), x, -5, -20, false); props.push(p); }
-    for (let i = 0; i < 7; i++) { const z = -27 + i * 9; put(g, new THREE.Mesh(new THREE.TorusGeometry(10.05 * Math.sqrt(1 - (z / 40) ** 2), 0.25, 6, 40), M.teal), 0, 0, z, false); }
-    g.userData.props = props;
     return g;
   }
   // Wind-Rover (NASA-Idee AREE): ohne Elektronik, angetrieben von einem Windrad – der Wind auf der Venus ist langsam, aber kräftig
@@ -6029,20 +6014,14 @@ window.Surface = (function () {
     const lavaGlow = new THREE.PointLight(0xff6a1a, 1.2, 12, 1.5); lavaGlow.position.set(L.lava[0], height(...L.lava) + 1, L.lava[1]); scene.add(lavaGlow);
     const board2 = on(makeInfoBoard(M, "VENUS-AUSSENPOSTEN", ["☀️ Sonne: 108 Mio. km", "🌍 Erde: 38 – 261 Mio. km", "🌡️ 465 °C · 92-facher Druck"]), ...L.wegweiser);
     board2.rotation.y = Math.atan2(L.spawn[0] - L.wegweiser[0], L.spawn[1] - L.wegweiser[1]);
-    // Wolkenstation: Luftschiff hoch oben im Dunst – und ein Wind-Rover, der langsam seine Runden dreht
-    const ship = venusAirship(M); ship.scale.setScalar(2.2); scene.add(ship);
-    // im dichten Dunst sieht man nur einen dunklen Umriss mit leuchtenden Fenstern
-    const ghost = new THREE.MeshBasicMaterial({ color: 0x8a5a24, transparent: true, opacity: 0.45, fog: false, depthWrite: false });
-    ship.traverse((o) => { if (o.isMesh) o.material = o.material === M.glow ? new THREE.MeshBasicMaterial({ color: 0xffd28a, transparent: true, opacity: 0.8, fog: false }) : ghost; });
+    // Wind-Rover, der langsam seine Runden dreht. (Saras Wolkenstation – ein Luftschiff – schwebt 50 km hoch in den Wolken:
+    // vom Boden aus sieht man sie durch den dichten Dunst nicht, darum steht sie nicht in der Szene.)
     const windRover = on(venusWindRover(M), 44, -8);
     drawTour(B, L, [120, 96, 70], 1.8);
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2c, roughness: 0.95, vertexColors: true }); rockMat.userData.natural = true;
     const clusters = [[-30, 10, 5], [46, 34, 5], [-12, -24, 4], [30, -24, 4], [-40, 32, 5]];
     clusters.forEach(([x, z, n], i) => rockCluster(B, x, z, n, rockMat, i * 23 + 7));
-    const anim = [(dt, t) => { // Luftschiff zieht einen großen Kreis, Propeller drehen sich
-      const a = t * 0.015 + 1.2; ship.position.set(Math.cos(a) * 130, 52, 40 + Math.sin(a) * 130); ship.rotation.y = -a + Math.PI;
-      for (const p of ship.userData.props) p.rotation.z += dt * 6;
-    }, (dt, t) => { // Wind-Rover fährt langsam im Kreis, sein Windrad dreht sich; die Lava flackert
+    const anim = [(dt, t) => { // Wind-Rover fährt langsam im Kreis, sein Windrad dreht sich; die Lava flackert
       const a = t * 0.03, x = 44 + Math.cos(a) * 9, z = -8 + Math.sin(a) * 7;
       beacons.forEach((b, i) => { b.scale.setScalar(0.8 + 0.4 * Math.max(0, Math.sin(t * 3 - i * 0.6))); }); // Lauflicht zeigt die Richtung
       windRover.position.set(x, height(x, z), z); windRover.rotation.y = Math.atan2(-Math.sin(a) * 9, Math.cos(a) * 7);

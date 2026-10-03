@@ -2,8 +2,10 @@
    Vorlesen mit echter Stimme
    1. Aufnahmen: Alle festen Texte sind vorab mit natürlichen, neuronalen Stimmen aufgenommen (audio/v/*.mp3,
       Liste in js/stimmen.js, erzeugt mit tools/stimmen.js). So klingt es auf jedem Gerät gleich – wie ein echter Mensch.
-      Nur rein deutsche Stimmen: Nora = Katja, Bodenstation und Erzähler = Conrad, die Bewohner = Amala bzw. Killian (je eigene Stimmhöhe).
-   2. Fehlt eine Aufnahme (oder ist sie offline noch nicht geladen), liest die Stimme des Geräts vor (Web Speech API).
+      Nur rein deutschsprachige Stimmen: Nora = Katja, Bodenstation und Erzähler = Conrad, die Bewohner haben je eine eigene Stimme
+      (aus Deutschland, Österreich und der Schweiz – siehe tools/stimmen.js).
+   2. Abgespielt wird über Web Audio; ist der Ton dort angehalten (z. B. vom Browser), über ein Audio-Element.
+   3. Nur wenn eine Aufnahme fehlt oder gar nicht lädt, liest die Stimme des Geräts vor (Web Speech API).
    Den Namen des Kindes kennen die Aufnahmen nicht: Er steht im Text, wird aber nicht mitgesprochen.
    ========================================================= */
 window.Voice = (function () {
@@ -51,8 +53,8 @@ window.Voice = (function () {
   const spoken = (text, name) => dropName(speakable(text), name);
 
   // ---------- Aufnahmen: wer spricht mit welcher Stimme (siehe tools/stimmen.js) ----------
-  const NPC_VOICE = { "Kommandantin Lea": "lea", "Ingenieur Tom": "tom", "Forscherin Mara": "mara", "Techniker Bennett": "bennett",
-    "Forscher Kofi": "kofi", "Pilotin Sara": "sara", "Astronautin Jana": "jana" };
+  const NPC_VOICE = { "Kommandantin Lea": "lea", "Ingenieur Tom": "tomJonas", "Forscherin Mara": "maraIngrid", "Techniker Bennett": "bennettJan",
+    "Forscher Kofi": "kofi", "Pilotin Sara": "saraIngrid", "Astronautin Jana": "jana" };
   function voiceOf(role, who) {
     if (role === "radio") return "radio";
     if (role === "narrator") return "erzaehler";
@@ -69,6 +71,8 @@ window.Voice = (function () {
     if (!ac && window.Sound && Sound.context) { ac = Sound.context(); if (ac) { out = ac.createGain(); out.gain.value = 1; out.connect(ac.destination); } }
     return ac;
   }
+  const live = () => !!(ac && ac.state === "running");
+  function wake() { const ctx = audio(); if (ctx && ctx.state !== "running" && ctx.state !== "closed") { try { const p = ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* egal */ } } }
   const buffers = new Map(); // die zuletzt gebrauchten Aufnahmen, fertig entpackt
   function load(h) {
     if (buffers.has(h)) { const p = buffers.get(h); buffers.delete(h); buffers.set(h, p); return p; }
@@ -171,27 +175,53 @@ window.Voice = (function () {
   }
   function start(job) {
     cur = job; job.until = performance.now() + (job.text.length / 9 + 6) * 1000; // spätestens dann gilt der Text als fertig
-    if (job.clips && audio() && ac.state === "running") playClips(job, 0); else speakTTS(job); // Ton noch gesperrt (kein Tippen bisher): Gerätestimme
+    if (!job.clips) { speakTTS(job); return; }
+    if (!audio()) { playElement(job, 0); return; }
+    if (live()) { playClips(job, 0); return; }
+    // Ton angehalten: aufwecken und kurz warten – klappt das nicht, die Aufnahme über ein Audio-Element abspielen
+    wake();
+    const t0 = performance.now();
+    const check = () => { if (cur !== job) return; if (live()) playClips(job, 0); else if (performance.now() - t0 > 600) playElement(job, 0); else setTimeout(check, 50); };
+    check();
   }
   function done(job) {
     if (cur !== job) return; cur = null;
     let next; while ((next = queue.shift()) && next.expire && performance.now() > next.expire); // zu lange gewartet: nicht mehr passend
     if (next) start(next);
   }
-  function playClips(job, i) {
+  function playClips(job, i, retry) {
     if (cur !== job) return;
     if (i >= job.clips.length) { done(job); return; }
+    if (!live()) { wake(); playElement(job, i); return; } // Ton zwischendurch angehalten
     load(job.clips[i]).then((buf) => {
       if (cur !== job) return;
-      if (ac.state === "suspended") ac.resume();
       const s = ac.createBufferSource(); s.buffer = buf; s.connect(out);
       s.onended = () => { if (job.src === s) { job.src = null; playClips(job, i + 1); } };
       job.src = s; s.start();
-    }).catch(() => { if (cur === job) speakTTS(job); }); // Aufnahme fehlt (z. B. offline noch nicht geladen): Gerätestimme
+    }).catch(() => { // nicht geladen: noch einmal versuchen, dann über das Audio-Element (das holt die Datei selbst)
+      if (cur !== job) return;
+      if (!retry) setTimeout(() => playClips(job, i, true), 400); else playElement(job, i);
+    });
+  }
+  // Ersatzweg: <audio> spielt die Aufnahme auch, wenn Web Audio nicht läuft. Erst wenn auch das scheitert: Gerätestimme.
+  function playElement(job, i) {
+    if (cur !== job) return;
+    if (i >= job.clips.length) { done(job); return; }
+    let el;
+    try { el = new Audio(CLIP_DIR + job.clips[i] + ".mp3"); } catch (e) { el = null; }
+    if (!el) { speakTTS(job); return; }
+    let over = false;
+    const fail = () => { if (over || cur !== job || job.el !== el) return; over = true; job.el = null; speakTTS(job); };
+    el.onended = () => { if (over || job.el !== el) return; over = true; job.el = null; playClips(job, i + 1); };
+    el.onerror = fail;
+    job.el = el;
+    const p = el.play(); if (p && p.catch) p.catch(fail);
+    if (TEST) window.__voiceElement = (window.__voiceElement || 0) + 1;
   }
   function halt() { // alles verstummen lassen
     queue = [];
     if (cur && cur.src) { const s = cur.src; cur.src = null; try { s.stop(); } catch (e) { /* schon zu Ende */ } }
+    if (cur && cur.el) { const el = cur.el; cur.el = null; try { el.pause(); } catch (e) { /* egal */ } }
     cur = null;
     if (TTS && (synth.speaking || synth.pending)) { synth.cancel(); lastCancel = performance.now(); }
   }
@@ -216,14 +246,16 @@ window.Voice = (function () {
   // Auf dem iPad darf erst nach einer Berührung gesprochen werden: einmal leise „freischalten“
   let unlocked = false;
   function unlock() {
-    const ctx = audio(); if (ctx && ctx.state === "suspended") ctx.resume();
+    wake();
     if (!TTS || unlocked) return; unlocked = true;
     try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch (e) { /* egal */ }
   }
   function toggle() { enabled = !enabled; set("ms-vorlesen", enabled ? "1" : "0"); if (!enabled) halt(); return enabled; }
   function list() { choose(); return voices.map((v) => ({ name: v.name, lang: v.lang, q: quality(v), nora: v === devNora })).sort((a, b) => b.q - a.q); }
   function setVoice(name) { set("ms-stimme", name || ""); choose(); }
-  document.addEventListener("visibilitychange", () => { if (document.hidden) halt(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) halt(); else wake(); });
+  // Jede Berührung, jeder Klick, jede Taste weckt den Ton wieder auf (Browser halten ihn manchmal an, z. B. nach dem Sperren oder Kopfhörer-Wechsel)
+  if (typeof window !== "undefined" && window.addEventListener) for (const ev of ["pointerdown", "touchend", "keydown", "click"]) window.addEventListener(ev, wake, { capture: true, passive: true });
 
   return {
     say, stop, speaking, busy, stopModal, prefetch, unlock, toggle, list, setVoice, speakable,

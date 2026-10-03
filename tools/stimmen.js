@@ -15,18 +15,19 @@ const NAME = "Xaverine"; // Platzhalter für den Namen des Kindes (die Aufnahmen
 // Stimmen: wer spricht wie (rate/pitch = Grundtempo und -höhe in %)
 // Nur rein deutsche Stimmen: Die „Multilingual“-Stimmen (Seraphina, Florian) sprechen manche Wörter englisch aus („Zerquetscht“).
 // Neue Stimme = neuer Schlüssel (Schlüssel + Text ergeben den Dateinamen; Tablets speichern Aufnahmen nach Namen).
-// Jeder Bewohner hat einen eigenen Schlüssel (siehe NPC_VOICE in js/voice.js) – mit eigener Stimmhöhe, damit sie verschieden klingen.
+// Jeder Bewohner hat einen eigenen Schlüssel (siehe NPC_VOICE in js/voice.js) und möglichst eine eigene Stimme:
+// neben den vier deutschen gibt es zwei österreichische (Ingrid, Jonas) und zwei Schweizer (Leni, Jan) – alle sprechen Hochdeutsch.
 const VOICES = {
   noraKatja: { name: "de-DE-KatjaNeural", rate: 4, pitch: 2 },     // Flugleiterin Nora, Entdeckungen, Versuche
   radio: { name: "de-DE-ConradNeural", rate: 0 },             // Bodenstation, Funk-Fragen
   erzaehler: { name: "de-DE-ConradNeural", rate: -8, pitch: -6 },  // Erzähler im Intro und im Abschluss-Kino
   lea: { name: "de-DE-AmalaNeural", rate: 0, pitch: -4 },     // Kommandantin Lea (Mond)
-  mara: { name: "de-DE-AmalaNeural", rate: 2 },               // Forscherin Mara (Mars)
-  sara: { name: "de-DE-AmalaNeural", rate: 2, pitch: 5 },     // Pilotin Sara (Venus)
-  jana: { name: "de-DE-AmalaNeural", rate: 4, pitch: 3 },     // Astronautin Jana (Erde)
-  tom: { name: "de-DE-KillianNeural", rate: 2 },              // Ingenieur Tom (Mond)
-  bennett: { name: "de-DE-KillianNeural", rate: 2, pitch: -4 }, // Techniker Bennett (Mars)
+  tomJonas: { name: "de-AT-JonasNeural", rate: 2 },           // Ingenieur Tom (Mond)
+  maraIngrid: { name: "de-AT-IngridNeural", rate: 0, pitch: -4 }, // Forscherin Mara (Mars) – die Schweizer Leni war schwer zu verstehen
+  bennettJan: { name: "de-CH-JanNeural", rate: 0 },           // Techniker Bennett (Mars)
   kofi: { name: "de-DE-KillianNeural", rate: -2, pitch: -8 }, // Forscher Kofi (Merkur)
+  saraIngrid: { name: "de-AT-IngridNeural", rate: 2 },        // Pilotin Sara (Venus)
+  jana: { name: "de-DE-AmalaNeural", rate: 4, pitch: 3 },     // Astronautin Jana (Erde)
   amala: { name: "de-DE-AmalaNeural", rate: 2 },              // weitere Bewohnerinnen
   killian: { name: "de-DE-KillianNeural", rate: 2 }           // weitere Bewohner
 };
