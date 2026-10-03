@@ -1,9 +1,8 @@
 /* =========================================================
    Vorlesen mit echter Stimme
-   1. Aufnahmen: Alle festen Texte sind vorab mit natürlichen, neuronalen Stimmen aufgenommen (audio/v/*.mp3,
-      Liste in js/stimmen.js, erzeugt mit tools/stimmen.js). So klingt es auf jedem Gerät gleich – wie ein echter Mensch.
-      Nur rein deutschsprachige Stimmen: Nora = Katja, Bodenstation und Erzähler = Conrad, die Bewohner haben je eine eigene Stimme
-      (aus Deutschland, Österreich und der Schweiz – siehe tools/stimmen.js).
+   1. Aufnahmen: Alle festen Texte sind vorab aufgenommen (audio/v/*.mp3, Liste in js/stimmen.js, erzeugt mit tools/stimmen.js) –
+      mit deutschen ElevenLabs-Sprechern (mit Gefühl): jede Figur hat ihre eigene Stimme (siehe VOICES in tools/stimmen.js).
+      So klingt es auf jedem Gerät gleich – wie ein echter Mensch.
    2. Abgespielt wird über Web Audio; ist der Ton dort angehalten (z. B. vom Browser), über ein Audio-Element.
    3. Nur wenn eine Aufnahme fehlt oder gar nicht lädt, liest die Stimme des Geräts vor (Web Speech API).
    Den Namen des Kindes kennen die Aufnahmen nicht: Er steht im Text, wird aber nicht mitgesprochen.
@@ -53,13 +52,14 @@ window.Voice = (function () {
   const spoken = (text, name) => dropName(speakable(text), name);
 
   // ---------- Aufnahmen: wer spricht mit welcher Stimme (siehe tools/stimmen.js) ----------
-  const NPC_VOICE = { "Kommandantin Lea": "lea", "Ingenieur Tom": "tomJonas", "Forscherin Mara": "maraIngrid", "Techniker Bennett": "bennettJan",
-    "Forscher Kofi": "kofi", "Pilotin Sara": "saraIngrid", "Astronautin Jana": "jana" };
+  // Neuer Schlüssel = neue Dateinamen (Tablets speichern Aufnahmen nach Namen) – darum bei jedem Stimmenwechsel ändern
+  const NPC_VOICE = { "Kommandantin Lea": "leaEL", "Ingenieur Tom": "tomEL", "Forscherin Mara": "maraEL", "Techniker Bennett": "bennettEL",
+    "Forscher Kofi": "kofiEL", "Pilotin Sara": "saraEL", "Astronautin Jana": "janaEL" };
   function voiceOf(role, who) {
-    if (role === "radio") return "radio";
-    if (role === "narrator") return "erzaehler";
+    if (role === "radio") return "radioEL";
+    if (role === "narrator") return "erzaehlerEL";
     if (role === "npcF" || role === "npcM") return NPC_VOICE[who] || (role === "npcF" ? "amala" : "killian");
-    return "noraKatja"; // Nora, Entdeckungskarten, Versuche (neuer Schlüssel = neue Dateinamen, damit Tablets nicht die alten Aufnahmen aus dem Speicher nehmen)
+    return "noraEL"; // Nora, Entdeckungskarten, Versuche
   }
   const keyOf = (text, role, who, name) => voiceOf(role, who) + "|" + spoken(text, name).toLowerCase().replace(/[^a-z0-9äöüß]+/g, " ").trim();
   function hashOf(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ("0000000" + h.toString(16)).slice(-8); }

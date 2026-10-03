@@ -1,6 +1,10 @@
 /* =========================================================
-   Sprachaufnahmen erzeugen: alle festen Texte des Spiels, gesprochen von natürlichen (neuronalen) Microsoft-Stimmen.
-   Benutzt den kostenlosen Vorlese-Dienst von Microsoft Edge (Paket „msedge-tts“, kein Konto nötig).
+   Sprachaufnahmen erzeugen: alle festen Texte des Spiels.
+   - Hauptweg: ElevenLabs (echt klingende deutsche Sprecher mit Gefühl, Modell „eleven_v4_turbo“). Braucht einen
+     Zugangsschlüssel in der Datei  %USERPROFILE%\.elevenlabs-key  (NIE in den Projektordner legen – das Projekt ist öffentlich!).
+   - Ohne Schlüssel (oder wenn ElevenLabs scheitert): die kostenlosen Microsoft-Stimmen von Edge (Paket „msedge-tts“).
+     Neue Sätze bekommen dann die Ersatzstimme der Figur (Feld „ms“ unten).
+   Aufruf mit  --kosten  zeigt nur, wie viele ElevenLabs-Zeichen die neuen Sätze verbrauchen würden.
 
    Aufruf im Ordner tools:   npm install   und dann   node stimmen.js
    - schreibt audio/v/<schlüssel>.mp3 und js/stimmen.js (Liste aller Aufnahmen; das Spiel spielt sie ab)
@@ -29,8 +33,22 @@ const VOICES = {
   saraIngrid: { name: "de-AT-IngridNeural", rate: 2 },        // Pilotin Sara (Venus)
   jana: { name: "de-DE-AmalaNeural", rate: 4, pitch: 3 },     // Astronautin Jana (Erde)
   amala: { name: "de-DE-AmalaNeural", rate: 2 },              // weitere Bewohnerinnen
-  killian: { name: "de-DE-KillianNeural", rate: 2 }           // weitere Bewohner
+  killian: { name: "de-DE-KillianNeural", rate: 2 },          // weitere Bewohner
+  // ElevenLabs: deutsche Sprecher aus der Stimmen-Bibliothek (el = Stimmen-ID im Konto, ms = Microsoft-Ersatz von oben)
+  noraEL: { el: "AnvlJBAqSLDzEevYr9Ap", ms: "noraKatja" },      // Ava – Flugleiterin Nora, Entdeckungen, Versuche
+  radioEL: { el: "Rwqd9wksd18jej9ZWfbo", ms: "radio" },         // Christian (lebendig) – Bodenstation, Funk-Fragen
+  erzaehlerEL: { el: "kkJxCnlRCckmfFvzDW5Q", ms: "erzaehler", calm: true }, // Alexander – Erzähler im Intro und Abschluss-Kino
+  leaEL: { el: "ViKqgJNeCiWZlYgHiAOO", ms: "lea" },             // Annika – Kommandantin Lea (Mond)
+  tomEL: { el: "aTTiK3YzK3dXETpuDE2h", ms: "tomJonas" },        // Ben – Ingenieur Tom (Mond)
+  maraEL: { el: "dCnu06FiOZma2KVNUoPZ", ms: "maraIngrid" },     // Mila – Forscherin Mara (Mars)
+  bennettEL: { el: "FTNCalFNG5bRnkkaP5Ug", ms: "bennettJan" },  // Otto – Techniker Bennett (Mars)
+  kofiEL: { el: "qvgnHZ5ufqbaFzs9RP51", ms: "kofi" },           // Christian (warm) – Forscher Kofi (Merkur)
+  saraEL: { el: "WHaUUVTDq47Yqc9aDbkH", ms: "saraIngrid" },     // Enniah – Pilotin Sara (Venus)
+  janaEL: { el: "uvysWDLbKpA4XvpD3GI6", ms: "jana" }            // Leonie – Astronautin Jana (Erde)
 };
+const EL_MODEL = "eleven_v4_turbo", EL_FORMAT = "mp3_44100_64";
+const EL_KEY = (() => { try { return fs.readFileSync(path.join(require("os").homedir(), ".elevenlabs-key"), "utf8").trim(); } catch (e) { return ""; } })();
+const msOf = (k) => (VOICES[k].el ? VOICES[k].ms : k); // Microsoft-Stimme einer Figur
 
 // ---------- Spiel-Daten und Vorlese-Regeln laden ----------
 const box = { window: {}, document: { addEventListener() {} }, performance: { now: () => 0 }, localStorage: { getItem: () => null, setItem() {} } };
@@ -149,9 +167,33 @@ for (const [, , t] of arrO("OUTRO_NORA")) add(t, "nora", "intro");
 for (const e of lines.values()) e.tag = e.tags.size > 1 ? "common" : [...e.tags][0];
 
 // ---------- Aufnehmen ----------
-// etwas Gefühl: begeisterte Sätze schneller und heller, „Psst“ leiser und langsamer
+// ElevenLabs: kurze Regieanweisungen vor passenden Sätzen – das Modell spricht sie nicht mit, sondern spielt sie
+// (getestet: [excited] [whispers] [sighs] [curious] [surprised] [happy] [sympathetic] werden befolgt, nicht vorgelesen)
+function emotion(said, voice) {
+  if (VOICES[voice].calm) return said; // der Erzähler bleibt ruhig
+  return (said.match(/[^.!?]+[.!?]*\s*/g) || [said]).map((s) => {
+    const t = s.trim();
+    let tag = null;
+    if (/^(Psst|Pst)\b/i.test(t)) tag = "whispers";
+    else if (/^(Wow|Juhu|Hurra|Super|Toll|Klasse|Prima|Spitze|Fantastisch|Geschafft|Volltreffer|Gefunden|Bravo|Perfekt|Wahnsinn|Hui|Richtig)\b/.test(t)) tag = "excited";
+    else if (/^(Oh nein|Oje|Hoppla|Puh|Schade|Mist)\b/.test(t)) tag = "sighs";
+    else if (/^Nicht ganz\b/.test(t)) tag = "sympathetic";
+    else if (/^(Weißt du|Was glaubst du|Was meinst du|Was denkst du|Rate mal|Schau mal|Sieh mal)\b/.test(t)) tag = "curious";
+    else if (/^(Ein Reh|Ein Fuchs|Huch)\b/.test(t)) tag = "surprised";
+    else if (/^(Hallo|Hi)\b/.test(t) && /^(lea|tom|mara|bennett|kofi|sara|jana)EL$/.test(voice)) tag = "happy"; // Bewohner begrüßen dich fröhlich
+    return tag ? `[${tag}] ${s}` : s;
+  }).join("").trim();
+}
+async function elRecord(e) {
+  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICES[e.voice].el}?output_format=${EL_FORMAT}`, {
+    method: "POST", headers: { "xi-api-key": EL_KEY, "Content-Type": "application/json", Accept: "audio/mpeg" },
+    body: JSON.stringify({ text: emotion(e.said, e.voice), model_id: EL_MODEL, language_code: "de" }) });
+  if (!r.ok) { const t = await r.text(); const err = new Error(r.status + " " + t.slice(0, 200)); err.status = r.status; throw err; }
+  return Buffer.from(await r.arrayBuffer());
+}
+// Microsoft: etwas Gefühl über Tempo und Tonhöhe – begeisterte Sätze schneller und heller, „Psst“ leiser und langsamer
 function prosody(e) {
-  const v = VOICES[e.voice], s = e.said;
+  const v = VOICES[msOf(e.voice)], s = e.said;
   let rate = v.rate || 0, pitch = v.pitch || 0, volume = 0;
   if (/^(Wow|Juhu|Super|Toll|Klasse|Prima|Fantastisch|Geschafft|Hurra|Spitze|Volltreffer|Gefunden|Da ist|Da sind|Saubergepustet|Zerquetscht|Eingeschlagen|Verglüht|Angekommen|Richtig)/.test(s) || (s.match(/!/g) || []).length >= 2) { rate += 4; pitch += 3; }
   if (/^(Psst|Pst)/.test(s)) { rate -= 8; volume -= 15; }
@@ -165,14 +207,39 @@ async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   const todo = [...lines].filter(([h]) => !fs.existsSync(path.join(OUT, h + ".mp3")));
   console.log(`${lines.size} Sätze, davon ${todo.length} neu aufzunehmen`);
-  if (todo.length) {
+  const elTodo = EL_KEY ? todo.filter(([, e]) => VOICES[e.voice].el) : [];
+  const elChars = elTodo.reduce((n, [, e]) => n + emotion(e.said, e.voice).length, 0);
+  if (elTodo.length) console.log(`ElevenLabs: ${elTodo.length} Sätze, ${elChars} Zeichen (${EL_MODEL})`);
+  if (process.argv.includes("--kosten")) { if (process.argv.includes("--tags")) for (const [h, e] of elTodo) console.log(h, e.voice, emotion(e.said, e.voice)); return; }
+  // ElevenLabs zuerst (höchstens 3 gleichzeitig); was dort scheitert, nimmt danach die Microsoft-Stimme
+  if (elTodo.length) {
+    let next = 0, doneN = 0, stop = false;
+    await Promise.all(Array.from({ length: 3 }, async () => {
+      while (!stop && next < elTodo.length) {
+        const [h, e] = elTodo[next++];
+        for (let attempt = 1; ; attempt++) {
+          try { const buf = await elRecord(e); if (buf.length < 1500) throw new Error("zu kurz"); fs.writeFileSync(path.join(OUT, h + ".mp3"), buf); break; }
+          catch (err) {
+            if (err.status === 401 || err.status === 402 || /quota|credits/i.test(err.message)) { console.log("  ElevenLabs gestoppt:", err.message); stop = true; break; }
+            if (attempt >= 4) { console.log(`  ElevenLabs-FEHLER bei „${e.said.slice(0, 60)}“: ${err.message}`); break; }
+            await new Promise((r) => setTimeout(r, 2000 * attempt));
+          }
+        }
+        if (++doneN % 25 === 0) console.log(`  ElevenLabs ${doneN}/${elTodo.length}`);
+      }
+    }));
+  }
+  const rest = todo.filter(([h]) => !fs.existsSync(path.join(OUT, h + ".mp3")));
+  if (rest.length) console.log(`Microsoft-Stimmen: ${rest.length} Sätze`);
+  if (rest.length) {
+    const todo = rest;
     const { MsEdgeTTS, OUTPUT_FORMAT } = require("msedge-tts");
     const byVoice = {};
     for (const [h, e] of todo) (byVoice[e.voice] = byVoice[e.voice] || []).push([h, e]);
     let doneN = 0;
     const record = async (voiceKey, list) => {
       let tts = null;
-      const open = async () => { tts = new MsEdgeTTS(); await tts.setMetadata(VOICES[voiceKey].name, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3); };
+      const open = async () => { tts = new MsEdgeTTS(); await tts.setMetadata(VOICES[msOf(voiceKey)].name, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3); };
       for (const [h, e] of list) {
         for (let attempt = 1; ; attempt++) {
           try {
