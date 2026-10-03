@@ -1,6 +1,6 @@
 /* Offline-Speicher: Nach dem ersten Öffnen funktioniert das Spiel ohne Internet.
    Updates kommen automatisch: Beim nächsten Start mit Internet wird die neue Fassung geholt. */
-const VERSION = "sonnensystem-v45"; // gleich wie version in js/data.js
+const VERSION = "sonnensystem-v46"; // gleich wie version in js/data.js
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "css/style.css", "fonts/fonts.css", "fonts/fredoka.woff2", "fonts/nunito.woff2",

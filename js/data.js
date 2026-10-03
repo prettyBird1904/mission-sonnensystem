@@ -290,7 +290,7 @@ window.SPACE_DATA = {
 
   planetOrder: ["merkur", "venus", "erde", "mars", "jupiter", "saturn", "uranus", "neptun"],
   // Versionsnummer (steht in der Hilfe) – bei jeder Veröffentlichung hochzählen, zusammen mit VERSION in sw.js
-  version: "45",
+  version: "46",
 
   // Ergebnis der Funk-Fragen ({r} von {n} richtig)
   quizEnd: { all: "Alle {n} Fragen richtig – ich bin beeindruckt! Bodenstation Ende – guten Flug!", some: "{r} von {n} richtig – gut gemacht! Bodenstation Ende – guten Flug!", none: "Diesmal hat's nicht geklappt – macht nichts, entdeckt hast du trotzdem alles! Bodenstation Ende – guten Flug!" },

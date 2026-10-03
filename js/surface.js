@@ -7410,7 +7410,7 @@ window.Surface = (function () {
     route: {
       wegweiser: [[5.5, 2.5]], venera: [[5.2, 0.2]], waage: [[24, -2], [27.5, 6]], hitze: [[18, 6], [30, 18], [31.5, 26]],
       druck: [[26, 38], [19.5, 43]], lava: [[8, 46], [4, 46.5]], abendstern: [[4, 54], [3.5, 61.5]],
-      tag: [[-6, 62], [-14, 61.5]], groesse: [[-6, 62.5]], wand: [[-11, 69]], rakete: [[4, 60], [4, 46], [12, 30], [4, 8], [-4, 5]]
+      tag: [[-6, 62], [-14, 61.5]], groesse: [[-6, 62.5]], wand: [[8, 46], [4, 46.5], [4, 54], [3.5, 61.5], [-6, 62], [-11, 69]], rakete: [[4, 60], [4, 46], [12, 30], [4, 8], [-4, 5]]
     }
   };
   function venusDome(x, z) { return VENUS_DOME[3] * smooth(VENUS_DOME[2], VENUS_DOME[2] - 8, Math.hypot(x - VENUS_DOME[0], z - VENUS_DOME[1])); }
@@ -7711,23 +7711,123 @@ window.Surface = (function () {
   }
   function wood(M, rx, ry) { const t = woodTex().clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return M.std({ map: t, roughness: 0.8, envMapIntensity: 0.4 }); }
   // Besucherzentrum: langer Holzbau mit Glasfront und Gründach (lokal: Glasfront nach −Z, zum Platz)
+  // Raumfahrt-Besucherzentrum (vorn = −Z): weiße Metallfassade, Glasfront mit schlanken Pfosten und blauem Eingangsrahmen,
+  // umlaufende Attika mit blauem Band, auf dem Dach die Planetariumskuppel (links), die Antenne der Bodenstation (rechts)
+  // und ein großer Leuchtschriftzug
   function earthVisitorCenter(g, M, x, z, w, d, h) {
     const b = new THREE.Group(); b.position.set(x, 0, z); g.add(b);
-    put(b, new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wood(M, w / 4, h / 4)), 0, h / 2, 0).receiveShadow = true;
-    const glass = M.std({ color: srgb(0x9fc9e8), roughness: 0.05, metalness: 0.6, envMapIntensity: 1.4 });
-    for (let i = 0; i < 5; i++) put(b, new THREE.Mesh(new THREE.PlaneGeometry(w / 5 - 0.6, h - 1.1), glass), -w / 2 + (i + 0.5) * (w / 5), h / 2 - 0.1, -d / 2 - 0.02, false).rotation.y = Math.PI;
-    for (let i = 0; i <= 5; i++) put(b, new THREE.Mesh(new THREE.BoxGeometry(0.18, h - 0.9, 0.2), M.metal), -w / 2 + i * (w / 5), h / 2 - 0.1, -d / 2 - 0.08);
-    put(b, new THREE.Mesh(new THREE.BoxGeometry(w + 1.2, 0.35, d + 1.2), M.hull(4, 1)), 0, h + 0.15, 0);
-    const grass = put(b, new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 0.3, d + 0.6), new THREE.MeshStandardMaterial({ color: srgb(0x4f9d3f), roughness: 1 })), 0, h + 0.45, 0, false);
-    for (let i = 0; i < 18; i++) put(b, new THREE.Mesh(new THREE.SphereGeometry(0.35 + hash2(i, 1) * 0.3, 8, 6), new THREE.MeshStandardMaterial({ color: srgb(i % 3 ? 0x3f8f35 : 0x65b04a), roughness: 1 })), (hash2(i, 2) - 0.5) * w, h + 0.6, (hash2(i, 3) - 0.5) * d, false);
-    // Solarzellen auf dem Dach, Vordach am Eingang
-    for (let i = 0; i < 3; i++) { const p = put(b, new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.06, 1.4), marsCellMat(M)), -w / 3 + i * 3, h + 1.1, d / 4); p.rotation.x = -0.5; }
-    put(b, new THREE.Mesh(new THREE.BoxGeometry(5, 0.2, 2.6), M.hull(2, 1)), w / 2 - 3.5, h - 0.4, -d / 2 - 1.3);
-    for (const s of [-1, 1]) put(b, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, h - 0.5, 8), M.steel), w / 2 - 3.5 + s * 2.2, (h - 0.5) / 2, -d / 2 - 2.4);
-    put(b, new THREE.Mesh(new THREE.PlaneGeometry(6, 0.7), signMat("🚀 RAUMFAHRT-BESUCHERZENTRUM", "#2563eb", 1024, 120, 60)), 0, h - 0.2, -d / 2 - 0.12, false).rotation.y = Math.PI;
+    const white = M.std({ color: srgb(0xf4f6f8), roughness: 0.32, metalness: 0.35 }), blue = M.std({ color: srgb(0x1d4ed8), roughness: 0.35, metalness: 0.2 });
+    put(b, new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M.hull(w / 3, h / 2.6)), 0, h / 2, 0).receiveShadow = true;
+    const glass = M.std({ color: srgb(0x8fb9dc), roughness: 0.04, metalness: 0.65, envMapIntensity: 1.5 });
+    const n = 8, gw = w - 2, fw = gw / n;
+    put(b, new THREE.Mesh(new THREE.PlaneGeometry(gw, h - 0.6), glass), 0, h / 2 - 0.05, -d / 2 - 0.02, false).rotation.y = Math.PI;
+    for (let i = 0; i <= n; i++) put(b, new THREE.Mesh(new THREE.BoxGeometry(0.12, h - 0.5, 0.16), white), -gw / 2 + i * fw, h / 2 - 0.05, -d / 2 - 0.08);
+    for (const y of [0.25, 2.8, h - 0.3]) put(b, new THREE.Mesh(new THREE.BoxGeometry(gw, 0.12, 0.16), white), 0, y, -d / 2 - 0.08);
+    put(b, new THREE.Mesh(new THREE.BoxGeometry(2 * fw + 0.4, 0.28, 0.24), blue), 0, 2.72, -d / 2 - 0.13);                       // Eingangsrahmen
+    for (const sx of [-1, 1]) put(b, new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.7, 0.24), blue), sx * (fw + 0.1), 1.35, -d / 2 - 0.13);
+    put(b, new THREE.Mesh(new THREE.BoxGeometry(0.03, 2.4, 0.06), white), 0, 1.25, -d / 2 - 0.12, false);                       // Fuge der Schiebetür
+    // Attika mit blauem Band, Dachfläche
+    put(b, new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.55, d + 0.3), white), 0, h + 0.27, 0);
+    put(b, new THREE.Mesh(new THREE.BoxGeometry(w + 0.34, 0.14, d + 0.34), blue), 0, h + 0.1, 0, false);
+    put(b, new THREE.Mesh(new THREE.BoxGeometry(w - 0.2, 0.05, d - 0.2), M.std({ color: srgb(0x9aa0a6), roughness: 0.95 })), 0, h + 0.5, 0, false);
+    // Planetariumskuppel: Ringsockel, Kuppel aus Platten, Lichtband
+    const DX = -w / 2 + 5.2, DZ = 0.6, DR = 3.5;
+    put(b, new THREE.Mesh(new THREE.CylinderGeometry(DR + 0.15, DR + 0.25, 0.7, 48), blue), DX, h + 0.85, DZ);
+    put(b, new THREE.Mesh(new THREE.SphereGeometry(DR, 64, 24, 0, Math.PI * 2, 0, Math.PI / 2), M.hull(8, 3)), DX, h + 1.2, DZ);
+    put(b, new THREE.Mesh(new THREE.TorusGeometry(DR + 0.02, 0.06, 8, 64), M.glowBlue), DX, h + 1.25, DZ, false).rotation.x = Math.PI / 2;
+    put(b, new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.25, 24), white), DX, h + 1.2 + DR, DZ);
+    // Antenne der Bodenstation auf dem Dach
+    const AX = w / 2 - 4, AZ = 1.6;
+    put(b, new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 1.4, 20), white), AX, h + 1.2, AZ);
+    const dish = put(b, dishCap(M, 1.8, 0.6), AX, h + 2.3, AZ); dish.rotation.set(Math.PI + 0.85, -0.6, 0);
+    // Leuchtschriftzug über der Front
+    const SY = h + 3.3; // so hoch, dass er über dem „Wusstest du?“-Schild vor dem Haus zu sehen ist
+    put(b, new THREE.Mesh(new THREE.BoxGeometry(13.4, 1.7, 0.3), white), 0, SY, -d / 2 + 0.6);
+    put(b, new THREE.Mesh(new THREE.PlaneGeometry(13, 1.35), signMat("🚀 RAUMFAHRTZENTRUM", "#1e3a8a", 1600, 166, 104)), 0, SY, -d / 2 + 0.44, false).rotation.y = Math.PI;
+    for (const sx of [-5, -1.7, 1.7, 5]) { put(b, new THREE.Mesh(new THREE.BoxGeometry(0.14, SY - h - 0.85, 0.14), white), sx, (SY - 0.85 + h + 0.5) / 2, -d / 2 + 0.75); }
+    for (const sx of [-5, 5]) put(b, new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.4), white), sx, h + 1.4, -d / 2 + 1.3, false).rotation.x = -0.9;
     return b;
   }
-  // Fahnenmast mit Fahne, die leicht weht
+  // Nachbau einer Ariane 5 im Maßstab etwa 1 : 2, wie vor echten Raumfahrtzentren: Hauptstufe mit schwarzem Zwischenring und
+  // Nutzlastverkleidung, zwei Feststoff-Booster mit Spitzen, Triebwerksdüsen, Schriftzug und Europa-Flagge; Betonsockel mit Stufe
+  function earthAriane(M) {
+    const g = new THREE.Group(), b = partBuilder(), P = 1.2; // P = Höhe des Sockels
+    const paint = canvasTex(256, 512, (c) => { c.fillStyle = "#f4f4f1"; c.fillRect(0, 0, 256, 512); c.fillStyle = "rgba(0,0,0,0.10)"; for (let y = 40; y < 512; y += 64) c.fillRect(0, y, 256, 2); for (let x = 0; x < 256; x += 64) c.fillRect(x, 0, 2, 512); });
+    paint.wrapS = THREE.RepeatWrapping;
+    const white = M.std({ map: paint, roughness: 0.38, metalness: 0.12 }), black = M.std({ color: srgb(0x1f2328), roughness: 0.5, metalness: 0.3 });
+    const nozzle = M.std({ color: srgb(0x3a3d42), roughness: 0.35, metalness: 0.8, side: THREE.DoubleSide }), copper = M.std({ color: srgb(0xa0522d), roughness: 0.4, metalness: 0.8 });
+    const concrete = M.std({ color: srgb(0xb9b6ae), roughness: 0.95 });
+    const lathe = (pts, seg = 40) => new THREE.LatheGeometry(pts.map(([rr, y]) => new THREE.Vector2(rr, y)), seg);
+    // Sockel: Achteck mit Stufe
+    b.add(new THREE.CylinderGeometry(3.7, 3.9, 0.5, 8), concrete, [0, 0.25, 0], [0, Math.PI / 8, 0]);
+    b.add(new THREE.CylinderGeometry(3.2, 3.3, P - 0.5, 8), concrete, [0, 0.5 + (P - 0.5) / 2, 0], [0, Math.PI / 8, 0]);
+    // Hauptstufe
+    b.add(lathe([[0.95, P + 0.35], [0.86, P + 0.8], [0.66, P + 1.3], [0.45, P + 1.75], [0.38, P + 1.95]]), nozzle);   // Vulcain-Düse
+    b.add(new THREE.TorusGeometry(0.95, 0.04, 8, 40), copper, [0, P + 0.35, 0], [Math.PI / 2, 0, 0]);
+    for (const z of [-1.05, 1.05]) b.add(new THREE.BoxGeometry(0.25, 1.85, 0.25), concrete, [0, P + 0.92, z]);                 // Stützen unter der Hauptstufe
+    b.add(new THREE.CylinderGeometry(1.25, 1.05, 0.5, 40), black, [0, P + 2.05, 0]);
+    b.add(new THREE.CylinderGeometry(1.25, 1.25, 14.5, 48, 1, true), white, [0, P + 9.55, 0]);
+    b.add(new THREE.CylinderGeometry(1.27, 1.27, 0.7, 48), black, [0, P + 17.1, 0]);
+    b.add(lathe([[1.3, P + 17.45], [1.3, P + 19.2], [1.18, P + 20.4], [0.95, P + 21.4], [0.6, P + 22.2], [0.22, P + 22.7], [0.001, P + 22.85]], 48), white);
+    // Booster links und rechts
+    for (const sx of [-1, 1]) {
+      const X = sx * 2.15;
+      b.add(lathe([[0.62, P + 0.3], [0.55, P + 0.8], [0.45, P + 1.25]]), nozzle, [X, 0, 0]);
+      for (const z of [-0.62, 0.62]) b.add(new THREE.BoxGeometry(0.28, 1.2, 0.28), concrete, [X + sx * 0.5, P + 0.6, z]);   // Stützen unter dem Booster
+      b.add(new THREE.CylinderGeometry(0.82, 0.7, 0.5, 32), black, [X, P + 1.45, 0]);
+      b.add(new THREE.CylinderGeometry(0.82, 0.82, 12.6, 40, 1, true), white, [X, P + 8.0, 0]);
+      for (const y of [P + 4.6, P + 9.4]) b.add(new THREE.CylinderGeometry(0.835, 0.835, 0.12, 40), black, [X, y, 0]);
+      b.add(lathe([[0.82, P + 14.3], [0.7, P + 15.3], [0.42, P + 16.1], [0.12, P + 16.6], [0.001, P + 16.7]], 40), white, [X, 0, 0]);
+      for (const y of [P + 3.2, P + 13.6]) b.add(new THREE.BoxGeometry(0.75, 0.16, 0.22), black, [sx * 1.6, y, 0]);   // Halterungen
+    }
+    g.add(b.group(true));
+    // Schriftzug senkrecht auf der Hauptstufe (vorn = −Z) und Europa-Flagge
+    const label = (text, w, h, draw, y, r, a0, a1) => { const t = canvasTex(w, h, draw); const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, y[1] - y[0], 24, 1, true, a0, a1 - a0), new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.4 })); m.position.y = (y[0] + y[1]) / 2; g.add(m); return m; };
+    label("ARIANE", 128, 1024, (c) => { c.translate(64, 512); c.rotate(Math.PI / 2); c.fillStyle = "#1e3a8a"; c.font = "bold 92px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("ARIANE 5", 0, 0); }, [P + 5.5, P + 15.5], 1.262, Math.PI - 0.3, Math.PI + 0.3);
+    label("EU", 192, 128, (c) => { c.fillStyle = "#003399"; c.fillRect(0, 0, 192, 128); c.fillStyle = "#ffcc00"; for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; c.beginPath(); c.arc(96 + Math.cos(a) * 38, 64 + Math.sin(a) * 38, 6, 0, 7); c.fill(); } }, [P + 15.9, P + 16.5], 1.262, Math.PI + 0.35, Math.PI + 1.05);
+    return g;
+  }
+  // Startturm daneben: rot-weißer Gitterturm mit zwei Versorgungsarmen zur Rakete (Arme zeigen nach −Z), Blitzableiter oben
+  function earthLaunchTower(M, H = 25) {
+    const b = partBuilder(), red = M.std({ color: srgb(0xc81e1e), roughness: 0.45, metalness: 0.3 }), white = M.std({ color: srgb(0xf4f4f1), roughness: 0.4, metalness: 0.3 }), up = new V(0, 1, 0), S = 1.2;
+    const bar = (a, c, rr, mat) => { const d = c.clone().sub(a); b.addM(new THREE.CylinderGeometry(rr, rr, 1, 6), mat, new THREE.Matrix4().compose(a.clone().addScaledVector(d, 0.5), new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize()), new V(1, d.length(), 1))); };
+    const C = [[-S, -S], [S, -S], [S, S], [-S, S]];
+    for (const [x, z] of C) b.add(new THREE.BoxGeometry(0.2, H, 0.2), red, [x, H / 2, z]);
+    for (let y = 0, k = 0; y < H - 0.5; y += 2.5, k++) {
+      const mat = k % 2 ? white : red;
+      for (let i = 0; i < 4; i++) { const [x0, z0] = C[i], [x1, z1] = C[(i + 1) % 4]; bar(new V(x0, y + 2.5, z0), new V(x1, y + 2.5, z1), 0.06, mat); bar(new V(x0, y, z0), new V(x1, y + 2.5, z1), 0.045, mat); }
+    }
+    for (const y of [12, 19]) { // Versorgungsarme mit Geländer
+      b.add(new THREE.BoxGeometry(0.9, 0.3, 3.0), white, [0, y, -S - 1.5]);
+      for (const sx of [-0.4, 0.4]) { bar(new V(sx, y + 0.15, -S), new V(sx, y + 1.0, -S), 0.03, red); bar(new V(sx, y + 1.0, -S), new V(sx, y + 1.0, -S - 2.9), 0.03, red); bar(new V(sx, y + 0.15, -S - 2.9), new V(sx, y + 1.0, -S - 2.9), 0.03, red); }
+      bar(new V(0, y - 2.2, -S), new V(0, y - 0.15, -S - 2.2), 0.08, red);
+    }
+    b.add(new THREE.BoxGeometry(2.8, 0.25, 2.8), white, [0, H + 0.1, 0]);
+    b.add(new THREE.CylinderGeometry(0.04, 0.08, 4, 8), M.steel, [0, H + 2.2, 0]);
+    const g = b.group(true); blinkLamp(g, 0xff3b30, 0, H + 4.25, 0).scale.setScalar(0.6);
+    return g;
+  }
+  // Apollo-Kapsel als Ausstellungsstück: Hitzeschild (unten, braun verkohlt), Kegel mit Folienplatten, Fenster, Luke,
+  // Steuerdüsen, oben der Andockstutzen; auf einem runden Sockel mit Schild
+  function earthCapsule(M) {
+    const g = new THREE.Group(), b = partBuilder(), Y = 0.55;
+    const foil = M.std({ map: canvasTex(256, 128, (c) => { c.fillStyle = "#c9ccd1"; c.fillRect(0, 0, 256, 128); for (let i = 0; i < 16; i++) { c.fillStyle = "rgba(255,255,255," + (0.15 + hash2(i, 3) * 0.25) + ")"; c.fillRect(i * 16, 0, 15, 128); } c.fillStyle = "rgba(0,0,0,0.25)"; for (let y = 0; y < 128; y += 32) c.fillRect(0, y, 256, 2); }), roughness: 0.25, metalness: 0.85 });
+    const shield = M.std({ color: srgb(0x5b3a24), roughness: 0.9 }), dark = M.metal;
+    b.add(new THREE.CylinderGeometry(2.1, 2.3, Y, 40), M.std({ color: srgb(0x9ca3af), roughness: 0.8 }), [0, Y / 2, 0]);
+    b.add(new THREE.LatheGeometry([[0.001, Y + 0.05], [1.2, Y + 0.12], [1.62, Y + 0.32], [1.66, Y + 0.45]].map(([a, c]) => new THREE.Vector2(a, c)), 48), shield);
+    b.add(new THREE.LatheGeometry([[1.66, Y + 0.45], [1.6, Y + 0.55], [0.42, Y + 2.55], [0.38, Y + 2.62]].map(([a, c]) => new THREE.Vector2(a, c)), 48), foil);
+    b.add(new THREE.CylinderGeometry(0.34, 0.38, 0.35, 24), foil, [0, Y + 2.8, 0]);
+    b.add(new THREE.ConeGeometry(0.1, 0.35, 12), dark, [0, Y + 3.12, 0]);
+    // Fenster und Luke vorn (−Z)
+    const sl = Math.atan2(2.0, 1.22); // Neigung der Kegelwand
+    for (const [a, y, rr] of [[Math.PI - 0.55, Y + 1.7, 0.14], [Math.PI + 0.55, Y + 1.7, 0.14]]) { const rad = 1.6 - (y - Y - 0.55) * (1.22 / 2.0); b.add(new THREE.CircleGeometry(rr, 20), M.std({ color: srgb(0x0b1d33), roughness: 0.05, metalness: 0.8 }), [Math.sin(a) * (rad + 0.02), y, Math.cos(a) * (rad + 0.02)], [-(Math.PI / 2 - sl), a, 0], 1, null, "YXZ"); }
+    { const a = Math.PI, y = Y + 1.25, rad = 1.6 - (y - Y - 0.55) * (1.22 / 2.0); b.add(new THREE.BoxGeometry(0.62, 0.75, 0.04), dark, [Math.sin(a) * (rad + 0.02), y, Math.cos(a) * (rad + 0.02)], [-(Math.PI / 2 - sl), a, 0], 1, null, "YXZ"); }
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + Math.PI / 4, y = Y + 1.0, rad = 1.6 - (y - Y - 0.55) * (1.22 / 2.0); b.add(new THREE.BoxGeometry(0.18, 0.18, 0.12), dark, [Math.sin(a) * (rad + 0.05), y, Math.cos(a) * (rad + 0.05)], [0, a, 0]); }
+    g.add(b.group(true));
+    const sign = makeSignBoard(M, "🛰️ APOLLO-KAPSEL – FLOG ZUM MOND", "#1e3a8a", 3.2); sign.position.set(0, 0, -2.9); g.add(sign);
+    return g;
+  }
+  // Fahnenmast mit Fahne, die leicht weht  // Fahnenmast mit Fahne, die leicht weht
   // Fahnen am Besucherzentrum (Seitenverhältnis 5 : 3): Deutschland, Stadt Hannover, NASA
   function flagTex(kind) {
     return canvasTex(500, 300, (c) => {
@@ -7763,7 +7863,7 @@ window.Surface = (function () {
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 6, 8), M.steel), 0, 3, 0);
     put(g, new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), M.steel), 0, 6.02, 0, false); // Knauf
     const tex = flagTex(kind), back = tex.clone(); back.needsUpdate = true; back.wrapS = THREE.RepeatWrapping; back.repeat.x = -1; back.offset.x = 1; // Rückseite nicht spiegelverkehrt
-    const geo = new THREE.PlaneGeometry(1.8, 1.08, 10, 1);
+    const geo = new THREE.PlaneGeometry(1.8, 1.08, 18, 8);
     const cloth = put(g, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.FrontSide, roughness: 0.8 })), 0.92, 5.4, 0, false);
     cloth.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: back, side: THREE.BackSide, roughness: 0.8 })));
     g.userData.cloth = cloth;
@@ -7830,8 +7930,13 @@ window.Surface = (function () {
     for (const sz of [-1, 1]) { const r = put(g, new THREE.Mesh(new THREE.BoxGeometry(HW + 0.24, 0.035, HD / 2 + 0.2), white), 0, Y0 + HH + 0.16, sz * (HD / 4 + 0.08)); r.rotation.x = sz * 0.32; } // äußeres Satteldach
     for (const x of [-0.38, 0.38]) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.04), white), x, Y0 + HH + 0.08, 0);       // Abstandshalter (Luft zwischen den Dächern)
     // Windmast mit Querarm: Schalenkreuz (dreht sich im Wind) und Windfahne
-    const MX = -1.7, MZ = 0.5, MH = 4.6;
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, MH, 10), M.steel), MX, MH / 2, MZ);
+    const MX = -1.7, MZ = 0.5, MH = 6.4;
+    { // Dreiecks-Gittermast mit Zickzack-Streben und drei Abspannseilen
+      const leg = (k) => { const a = (k / 3) * Math.PI * 2; return [MX + Math.cos(a) * 0.17, MZ + Math.sin(a) * 0.17]; };
+      for (let k = 0; k < 3; k++) { const [x, z] = leg(k); rod(g, new V(x, 0, z), new V(x, MH, z), 0.018, M.steel, 6); }
+      for (let y = 0, i = 0; y < MH - 0.3; y += 0.4, i++) for (let k = 0; k < 3; k++) { const [x0, z0] = leg(k), [x1, z1] = leg(k + 1); rod(g, new V(x0, y + (i % 2 ? 0.4 : 0), z0), new V(x1, y + (i % 2 ? 0 : 0.4), z1), 0.008, M.steel, 4, false); }
+      for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2 + 0.5; rod(g, new V(MX, MH * 0.72, MZ), new V(MX + Math.cos(a) * 2.5, 0.02, MZ + Math.sin(a) * 2.5), 0.006, M.metal, 4, false); put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.08, 8), M.metal), MX + Math.cos(a) * 2.5, 0.04, MZ + Math.sin(a) * 2.5, false); }
+    }
     put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.12, 12), M.metal), MX, 0.06, MZ);
     put(g, new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.05), M.steel), MX, MH, MZ);
     const cups = new THREE.Group(); cups.position.set(MX - 0.45, MH + 0.28, MZ); g.add(cups);
@@ -7879,9 +7984,35 @@ window.Surface = (function () {
     const chute = put(g, new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.14, 12, 1, true), M.std({ color: srgb(0xf97316), roughness: 0.6, side: THREE.DoubleSide })), 0, 0, 0, false);
     const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0], 3));
     const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xe5e7eb })); line.frustumCulled = false; g.add(line);
-    // Schild am eigenen Pfosten, vorn
-    const sg = makeSignBoard(M, "🌦️ WETTERSTATION", "#2563eb", 2.2); sg.position.set(-1.6, 0, -1.7); sg.rotation.y = Math.PI + 0.35; g.add(sg);
-    g.userData = { cups, vane, balloon, body, sonde, chute, line, launch: [PX, PZ], rest: [PX + 0.55, PZ - 0.45] };
+    // Sonnenschein-Autograph: Glaskugel auf einer weißen Säule bündelt das Sonnenlicht und brennt eine Spur in einen Papierstreifen
+    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.3, 16), M.std({ color: srgb(0xf7f7f4), roughness: 0.6 })), 2.6, 0.65, -2.4);
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.04, 0.34), M.metal), 2.6, 1.32, -2.4);
+    const bowl = put(g, new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.025, 8, 24, Math.PI * 1.1), M.std({ color: srgb(0xc9a227), roughness: 0.3, metalness: 0.85 })), 2.6, 1.5, -2.4); bowl.rotation.set(0, Math.PI / 2, Math.PI + 0.25);
+    put(g, new THREE.Mesh(new THREE.SphereGeometry(0.11, 24, 16), M.std({ color: srgb(0xe0f2fe), roughness: 0.02, metalness: 0.1, transparent: true, opacity: 0.55, envMapIntensity: 2 })), 2.6, 1.5, -2.4, false);
+    // Strahlungsmesser: Ausleger mit zwei Glaskuppeln
+    rod(g, new V(-3.4, 0, -1.2), new V(-3.4, 1.5, -1.2), 0.03, M.steel);
+    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.06), M.steel), -3.4, 1.5, -1.2);
+    for (const x of [-3.75, -3.05]) { put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 16), M.std({ color: srgb(0xf7f7f4), roughness: 0.5 })), x, 1.55, -1.2); put(g, new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.std({ color: srgb(0xe0f2fe), roughness: 0.02, transparent: true, opacity: 0.6 })), x, 1.58, -1.2, false); }
+    // Erdbodenthermometer: kleine weiße Messfühler in einer Reihe
+    for (let k = 0; k < 5; k++) { put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.35 + k * 0.05, 8), M.std({ color: srgb(0xf7f7f4), roughness: 0.5 })), 0.4 + k * 0.4, 0.17, -3.3); put(g, new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.02), M.metal), 0.4 + k * 0.4, 0.38 + k * 0.025, -3.3, false); }
+    // Messfeld: gemähter Rasen mit Streifen, weißer Zaun mit Maschendraht, Tor vorn und hinten
+    const FX = 4.6, FZ = 4.2, lawn = new THREE.Mesh(new THREE.PlaneGeometry(2 * FX, 2 * FZ), new THREE.MeshStandardMaterial({ map: canvasTex(256, 64, (c) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? "rgba(140,200,110,0.35)" : "rgba(60,120,50,0.25)"; c.fillRect(i * 32, 0, 32, 64); } }), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, roughness: 1 }));
+    lawn.rotation.x = -Math.PI / 2; lawn.position.y = 0.02; lawn.receiveShadow = true; g.add(lawn);
+    const mesh = canvasTex(64, 64, (c) => { c.strokeStyle = "rgba(190,196,204,1)"; c.lineWidth = 2; for (let k = -64; k < 128; k += 12) { c.beginPath(); c.moveTo(k, 0); c.lineTo(k + 64, 64); c.stroke(); c.beginPath(); c.moveTo(k + 64, 0); c.lineTo(k, 64); c.stroke(); } });
+    mesh.wrapS = mesh.wrapT = THREE.RepeatWrapping;
+    const wire = new THREE.MeshStandardMaterial({ map: mesh, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.4 }), postM = M.std({ color: srgb(0xf7f7f4), roughness: 0.5 }), fence = [];
+    const side = (ax, az, bx, bz) => { // Zaunstück von a nach b: Pfosten, zwei Holme, Maschendraht
+      const len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(len / 1.2)), ry = Math.atan2(bz - az, bx - ax);
+      for (let k = 0; k <= n; k++) { const x = ax + ((bx - ax) * k) / n, z = az + ((bz - az) * k) / n; put(g, new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.15, 0.07), postM), x, 0.575, z); }
+      for (let k = 0; k <= Math.round(len / 0.45); k++) fence.push([ax + ((bx - ax) * k) / Math.round(len / 0.45), az + ((bz - az) * k) / Math.round(len / 0.45)]);
+      for (const y of [1.1, 0.12]) put(g, new THREE.Mesh(new THREE.BoxGeometry(len, 0.05, 0.04), postM), (ax + bx) / 2, y, (az + bz) / 2, false).rotation.y = -ry;
+      const t = mesh.clone(); t.needsUpdate = true; t.repeat.set(len / 0.6, 1.6); const wm = wire.clone(); wm.map = t;
+      put(g, new THREE.Mesh(new THREE.PlaneGeometry(len, 0.95), wm), (ax + bx) / 2, 0.61, (az + bz) / 2, false).rotation.y = -ry;
+    };
+    side(-FX, -FZ, -1.2, -FZ); side(1.2, -FZ, FX, -FZ); side(FX, -FZ, FX, FZ); side(FX, FZ, 0.4, FZ); side(-2.4, FZ, -FX, FZ); side(-FX, FZ, -FX, -FZ);
+    // Schild vor dem Tor
+    const sg = makeSignBoard(M, "🌦️ WETTERSTATION", "#2563eb", 2.2); sg.position.set(-2.5, 0, -4.9); sg.rotation.y = Math.PI; g.add(sg);
+    g.userData = { cups, vane, balloon, body, sonde, chute, line, launch: [PX, PZ], rest: [PX + 0.55, PZ - 0.45], fence };
     return mergeStatic(g, [cups, vane, balloon, sonde, chute]);
   }
   // Meteoriten-Vitrine: Glaskasten auf einem Sockel, darin ein echter Brocken aus dem All
@@ -8500,15 +8631,27 @@ window.Surface = (function () {
     const M = colonyMats("erde");
     earthVisitorCenter(g, M, 0, 12, 26, 9, 5.2);
     { // Die „Wusstest du?“-Wand steht unter einer Holz-Pergola, die vom Besucherzentrum nach vorn reicht – so gehört sie sichtbar zum Haus
-      const beam = wood(M, 3, 0.3), post = wood(M, 0.3, 2), Z0 = -1.3, Z1 = 7.5, Y = 7.3, X = 8.7;
-      for (const x of [-X, X]) { put(g, new THREE.Mesh(new THREE.BoxGeometry(0.34, Y, 0.34), post), x, Y / 2, Z0); put(g, new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.5), M.std({ color: srgb(0x8d8a83), roughness: 0.9 })), x, 0.12, Z0); }
-      put(g, new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.8, 0.4, 0.34), beam), 0, Y, Z0);           // Querbalken vorn
-      put(g, new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.8, 0.4, 0.34), beam), 0, Y, Z1 - 0.2);     // am Haus
-      for (let i = 0; i <= 10; i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.3, Z1 - Z0 + 0.9), beam), -X + i * (2 * X / 10), Y + 0.33, (Z0 + Z1) / 2 - 0.2); // Sparren
-      for (let i = 0; i < 9; i++) put(g, new THREE.Mesh(new THREE.BoxGeometry(2 * X + 0.4, 0.08, 0.12), beam), 0, Y + 0.53, Z0 + 0.3 + i * ((Z1 - Z0 - 0.6) / 8)); // Latten
-      // Kletterpflanzen an den Pfosten und Kübel mit Blumen daneben
-      const vine = pkBush(0.62, 0.8, 0.58, 1, 40);
-      for (const x of [-X, X]) for (let k = 0; k < 7; k++) { const v = vine.clone(); v.position.set(x + Math.sin(k * 2.1) * 0.2, 0.25 + k * 0.95, Z0 + Math.cos(k * 2.1) * 0.2); v.rotation.y = k * 1.7 + x; v.scale.setScalar(0.9 + hash2(k, x) * 0.35); g.add(v); }
+      // Raumfahrt-Vordach: zwei weiße Säulen mit blauen Ringen, vorn ein Fachwerkträger aus drei Gurten, darüber ein gewölbtes
+      // Glasdach, das zur Glasfront des Hauses hin abfällt (Rippen aus weißem Stahl)
+      const Z0 = -1.3, Z1 = 7.5, Y = 7.3, X = 8.7, HY = 5.0, cb = partBuilder(), up = new V(0, 1, 0);
+      const white = M.std({ color: srgb(0xf4f6f8), roughness: 0.3, metalness: 0.4 }), ring = M.std({ color: srgb(0x1d4ed8), roughness: 0.35 });
+      const tube = (a, c, rr) => { const d = c.clone().sub(a); cb.addM(new THREE.CylinderGeometry(rr, rr, 1, 8), white, new THREE.Matrix4().compose(a.clone().addScaledVector(d, 0.5), new THREE.Quaternion().setFromUnitVectors(up, d.clone().normalize()), new V(1, d.length(), 1))); };
+      for (const x of [-X, X]) {
+        cb.add(new THREE.CylinderGeometry(0.2, 0.24, Y, 24), white, [x, Y / 2, Z0]);
+        for (const y of [0.45, Y - 0.45]) cb.add(new THREE.CylinderGeometry(0.27, 0.27, 0.12, 24), ring, [x, y, Z0]);
+        cb.add(new THREE.CylinderGeometry(0.42, 0.48, 0.25, 24), M.std({ color: srgb(0x8d8a83), roughness: 0.9 }), [x, 0.12, Z0]);
+      }
+      const ch = [[0, 0], [0, 0.9], [0.8, 0.45]], L0 = -X - 0.5, L1 = X + 0.5, NS = 18; // Gurte: (dz, dy) über der Säulenoberkante
+      for (const [dz, dy] of ch) tube(new V(L0, Y + dy, Z0 + dz), new V(L1, Y + dy, Z0 + dz), 0.07);
+      for (let i = 0; i < NS; i++) { const xa = L0 + (i * (L1 - L0)) / NS, xb = L0 + ((i + 1) * (L1 - L0)) / NS, P = (k, x) => new V(x, Y + ch[k][1], Z0 + ch[k][0]); tube(P(0, xa), P(1, xb), 0.03); tube(P(0, xa), P(2, xb), 0.03); tube(P(1, xa), P(2, xb), 0.03); }
+      const curve = (x) => new THREE.QuadraticBezierCurve3(new V(x, Y + 0.9, Z0 + 0.4), new V(x, Y + 0.6, (Z0 + Z1) / 2 + 1), new V(x, HY, Z1));
+      for (let i = 0; i <= 8; i++) { const x = L0 + 0.2 + (i * (L1 - L0 - 0.4)) / 8; cb.add(new THREE.TubeGeometry(curve(x), 16, 0.06, 6), white); }
+      g.add(cb.group(true));
+      const gl = new THREE.PlaneGeometry(1, 1, 1, 16), gp = gl.attributes.position; // Glasfläche entlang der Rippen
+      for (let i = 0; i < gp.count; i++) { const u = gp.getX(i) + 0.5, t = 0.5 - gp.getY(i), p = curve(L0 + 0.2 + u * (L1 - L0 - 0.4)).getPoint(t); gp.setXYZ(i, p.x, p.y + 0.07, p.z); }
+      gl.computeVertexNormals();
+      const glassRoof = new THREE.Mesh(gl, new THREE.MeshStandardMaterial({ color: srgb(0xbfdbfe), transparent: true, opacity: 0.32, roughness: 0.05, metalness: 0.3, side: THREE.DoubleSide, depthWrite: false }));
+      glassRoof.raycast = () => {}; glassRoof.userData.noCam = true; g.add(glassRoof);
       // Steinsockel unter dem Besucherzentrum (es steht am Hang – so schwebt keine Kante über dem Boden)
       put(g, new THREE.Mesh(new THREE.BoxGeometry(26.6, 2.6, 9.6), M.std({ color: srgb(0x9a958c), roughness: 0.95 })), 0, -1.1, 12).receiveShadow = true;
       // Rückseite und Seiten mit Fenstern (vom Dorf aus sichtbar)
@@ -8519,13 +8662,26 @@ window.Surface = (function () {
     for (const [x, c] of [[-15, "de"], [-17, "hannover"], [-19, "nasa"]]) { const f = earthFlag(M, c); f.position.set(x, 0, 4); g.add(f); (g.userData.flags = g.userData.flags || []).push(f.userData.cloth); }
     for (const [x, z] of [[-9.5, 3], [9.5, 3]]) colonyLamp(g, M, x, z);
     for (const [x, z, r] of [[-12, 2, 0.3], [12, 1.5, -0.3]]) { const b = earthBench(M); b.position.set(x, 0, z); b.rotation.y = Math.PI + r; g.add(b); }
-    // Blumenbeete vor dem Haus
-    const petal = [0xf472b6, 0xfacc15, 0xef4444, 0xa78bfa, 0xffffff].map((c) => new THREE.MeshStandardMaterial({ color: srgb(c), roughness: 0.7 }));
-    for (let i = 0; i < 40; i++) put(g, new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), petal[i % 5]), (i < 20 ? -12 : 7) + (i % 20) * 0.28, 0.2, 6.6 + (i % 3) * 0.25, false);
+    // Raketengarten: Ariane 5 mit Startturm rechts neben dem Haus, davor die Apollo-Kapsel
+    const ariane = earthAriane(M); ariane.position.set(17.5, 0, 11); g.add(ariane);
+    const tower = earthLaunchTower(M); tower.position.set(17.5, 0, 16.4); g.add(tower);
+    const capsule = earthCapsule(M); capsule.position.set(15.6, 0, 3.4); capsule.rotation.y = 0.35; g.add(capsule);
+    // Hochbeete vor der Glasfront: Einfassung aus Stein, Erde, gemischte Blumen und kleine Büsche (ein Netz je Material)
+    const beds = new THREE.Group(), stone = M.std({ color: srgb(0xb9b6ae), roughness: 0.9 }), soil = M.std({ color: srgb(0x4a3322), roughness: 1 });
+    const kinds = ['tulpe', 'mohn', 'hahnenfuss', 'kornblume', 'lavendel', 'loewenzahn'], flowers = kinds.map((k) => pkFlower(k, 0.2)), bush = pkBush(0.5, 0.36, 0.45, 2, 40);
+    for (const [cx, w] of [[-9.2, 5.6], [9.65, 5.3]]) {
+      for (const [dx, dz, bw, bd] of [[0, -0.55, w + 0.2, 0.1], [0, 0.55, w + 0.2, 0.1], [-w / 2, 0, 0.1, 1.2], [w / 2, 0, 0.1, 1.2]]) put(beds, new THREE.Mesh(new THREE.BoxGeometry(bw, 0.42, bd), stone), cx + dx, 0.21, 6.95 + dz);
+      put(beds, new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, 1.0), soil), cx, 0.38, 6.95, false);
+      for (let i = 0; i < 26; i++) { const fl = flowers[(i * 5 + Math.floor(i / 6)) % flowers.length].clone(); fl.scale.setScalar(2.2 + hash2(i, cx) * 0.9); fl.rotation.y = hash2(i, cx + 1) * 6.3; fl.position.set(cx - w / 2 + 0.25 + ((i * 0.618) % 1) * (w - 0.5), 0.4, 6.55 + hash2(i, cx + 2) * 0.8); beds.add(fl); }
+      for (const k of [-0.36, 0, 0.36]) { const b = bush.clone(); b.scale.setScalar(1.6); b.position.set(cx + k * w, 0.4, 7.1); beds.add(b); }
+    }
+    g.add(mergeStatic(beds));
   }
   function earthCampColliders([sx, sz]) {
     const c = [[sx - 15, sz + 4, 0.2], [sx - 17, sz + 4, 0.2], [sx - 19, sz + 4, 0.2], [sx - 9.5, sz + 3, 0.3], [sx + 9.5, sz + 3, 0.3], [sx - 12, sz + 2, 0.9], [sx + 12, sz + 1.5, 0.9],
-      [sx - 8.7, sz - 1.3, 0.35], [sx + 8.7, sz - 1.3, 0.35]]; // Pfosten der Pergola
+      [sx - 8.7, sz - 1.3, 0.45], [sx + 8.7, sz - 1.3, 0.45], // Säulen des Vordachs
+      [sx + 17.5, sz + 11, 3.8], [sx + 17.5, sz + 16.4, 1.9], [sx + 15.6, sz + 3.4, 2.3], [sx + 16.6, sz + 0.7, 0.25]]; // Ariane, Startturm, Kapsel mit Schild
+    for (const [cx, w] of [[-9.2, 5.6], [9.65, 5.3]]) for (let x = cx - w / 2 + 0.6; x <= cx + w / 2 - 0.59; x += 1.05) c.push([sx + x, sz + 6.95, 0.6]); // Hochbeete
     for (let x = -12; x <= 12.1; x += 3) c.push([sx + x, sz + 10, 2.4], [sx + x, sz + 14, 2.4]);
     for (let x = -6.6; x <= 6.61; x += 2.2) c.push([sx + x, sz + 0.1, 1]); // Tafelwand
     return c;
@@ -8534,12 +8690,12 @@ window.Surface = (function () {
   // Erde: Die Rakete landet auf einer Wiese am See. Ein Rundweg führt links herum am Ufer entlang durch den Wald,
   // hinauf zur Sternwarte auf dem Hügel, zum Besucherzentrum und rechts am Ufer zurück.
   const ERDE_LAYOUT = {
-    spawn: [-6.9, 4], waage: [-14, 14], luft: [18, 18], stern: [24, 40], mond: [-30, 68],
+    spawn: [-6.9, 4], waage: [-10, -4], luft: [18, 18], stern: [27.4, 39], mond: [-30, 68], // waage: neben der Rakete, weit weg vom Weg · stern: Vitrine neben der Wegkreuzung bei [24, 40]
     see: [0, 40], wasser: [-17, 38], wald: [-38, 44], wegweiser: [6, 5],
     road: [[-18, 101], [-36, 106], [-60, 107], [-84, 104], [-106, 98], [-142, 90]], // Dorfstraße hinter dem Besucherzentrum
     station: [0, 84], tag: [24, 70], groesse: [0, 77], meet: [16, 26],
     route: {
-      wegweiser: [[4, 2.5]], waage: [[-6, 8], [-11, 9]], wasser: [[-18, 24], [-20, 34]], wald: [[-26, 42], [-30, 46]],
+      wegweiser: [[4, 2.5]], waage: [[-7, 1]], wasser: [[-18, 24], [-20, 34]], wald: [[-26, 42], [-30, 46]],
       mond: [[-32, 54], [-26.5, 60.5]], groesse: [[-18, 70], [-6, 72], [-3, 73]], tag: [[-30, 56], [-18, 70], [6, 73], [19, 67.5]],
       stern: [[24, 58], [27, 46]], luft: [[24, 30], [21.5, 23.5]], wand: [[24, 40], [20, 62], [4, 78]], rakete: [[14, 62], [24, 40], [16, 10], [-4, 5]]
     }
@@ -8661,7 +8817,8 @@ window.Surface = (function () {
     const SL = makeHeight(craters, [], 200, null, hills)(...L.station), [stx, stz] = L.station;
     const flats = [];
     for (let i = 0; i < L.road.length - 1; i++) { const [ax, az] = L.road[i], [bx, bz] = L.road[i + 1], n = Math.ceil(Math.hypot(bx - ax, bz - az) / 8); for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; flats.push([x, z, 12, Math.hypot(x - stx, z - stz) < 34 ? SL : "auto", 12]); } } // Dorf eben (zuerst – der Platz am Zentrum hat Vorrang)
-    flats.push([0, 0, 11], [stx, stz, 20, SL, 14], [stx, stz + 12, 20, SL, 14], [stx - 15, stz + 12, 11, SL, 12], [stx + 15, stz + 12, 11, SL, 12], [...L.waage, 4], [...L.luft, 5], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 10, "auto"], rackFlat(L));
+    flats.push([0, 0, 11], [stx, stz, 20, SL, 14], [stx, stz + 12, 20, SL, 14], [stx - 15, stz + 12, 11, SL, 12], [stx + 15, stz + 12, 11, SL, 12], [...L.waage, 4], [...L.luft, 6.6], [...L.stern, 4], [...L.mond, 6.5, "auto", 9], [L.mond[0] + 5, L.mond[1] + 2, 5, "auto", 7], [...L.wald, 9, "auto"], [...L.tag, 10, "auto"], rackFlat(L),
+      [stx + 11, stz + 1.5, 7.5, SL, 6]); // rechts vor dem Haus eben halten (der Park daneben zog den Boden bis zu 1 m nach unten – Bank, Laterne und Kapsel schwebten)
     const hgt = makeHeight(craters, flats, 200, null, hills);
     const G0 = new THREE.Color(0x4f9440), mul = (hex) => { const c = new THREE.Color(hex); return [c.r / G0.r, c.g / G0.g, c.b / G0.b]; };
     const SAND = mul(0xcfbf8e), MUD = mul(0x8a7a52), MEADOW = [mul(0x5a9e3c), mul(0x6aa83f), mul(0x4a8a3a), mul(0x7cae46)];
@@ -8690,7 +8847,7 @@ window.Surface = (function () {
     const WATER = -0.7, lite = W.fast || W.lite;
     const water = earthWater(B, L.see, WATER);
     earthShore(B, L.see, WATER, lite);
-    B.wet = (x, z) => Math.hypot(x - L.see[0], z - L.see[1]) < 24 && height(x, z) < WATER + 0.08; // im Wasser (Kind und Nora laufen außen herum)
+    B.wet = (x, z) => Math.hypot(x - L.see[0], z - L.see[1]) < 18 && height(x, z) < WATER + 0.08; // im Wasser (Kind und Nora laufen außen herum) – nur so weit, wie die Wasserfläche reicht (sonst sperrt eine trockene Mulde neben dem Weg)
     // Landschaft: Wälder am Rand, Baumgruppen, Büsche, Blumenflecken und Grasbüschel – nicht auf Wegen, Plätzen und im See
     const tourPts = [[L.spawn[0] + 2, L.spawn[1] + 2]];
     for (const k of [...cfg.guide.order, "wand"]) for (const p of (L.route[k] || [])) tourPts.push(p);
@@ -8865,7 +9022,7 @@ window.Surface = (function () {
     const frogAt = [L.wasser[0] + 1.6, L.wasser[1] + 0.8], frog = new THREE.Group(), frogY = Math.max(height(...frogAt), -0.62);
     frog.add(earthFrog(M)); frog.position.set(frogAt[0], frogY, frogAt[1]); frog.rotation.y = Math.atan2(-frogAt[0], -frogAt[1]) + Math.PI; scene.add(frog);
     if (height(...frogAt) < -0.62) { const pad = put(frog, new THREE.Mesh(new THREE.CircleGeometry(0.42, 18, 0.3, 5.9), M.std({ color: srgb(0x3f8f35), side: THREE.DoubleSide, roughness: 0.6 })), 0, 0.01, 0, false); pad.rotation.x = -Math.PI / 2; } // Seerosenblatt
-    const postAt = [MC[0] + 2.5, MC[1] + 6.5], post = on(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1.25, 8), wood(M, 0.3, 1)), ...postAt, 0.62);
+    const postAt = [MC[0] - 1.5, MC[1] + 6.5], post = on(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1.25, 8), wood(M, 0.3, 1)), ...postAt, 0.62);
     post.castShadow = true;
     const robin = earthRobin(M); robin.position.set(postAt[0], post.position.y + 0.63, postAt[1]); robin.rotation.y = Math.atan2(-postAt[0], -postAt[1]); scene.add(robin);
     // Windräder am Horizont, Vögel am Himmel
@@ -8932,7 +9089,8 @@ window.Surface = (function () {
       { const u = frog.children[0].userData, ph = (t / 6 + u.seed) % 1; frog.children[0].position.y = ph < 0.08 ? Math.sin((ph / 0.08) * Math.PI) * 0.35 : 0; } // Frosch hüpft
       { const u = robin.userData, ph = (t / 4 + u.seed) % 1; u.head.rotation.y = Math.sin(t * 1.3 + u.seed) * 0.8 * (ph > 0.3 ? 1 : 0); robin.position.y = post.position.y + 0.63 + (ph < 0.06 ? Math.sin((ph / 0.06) * Math.PI) * 0.12 : 0); }
       for (const b of birds.userData.birds) { const a = t * 0.18 + b.o; b.b.position.set(Math.cos(a) * b.r + 10, b.h + Math.sin(t * 2 + b.o) * 0.6, 40 + Math.sin(a) * b.r); b.b.rotation.y = -a; b.b.scale.y = 1.4 * (0.6 + 0.4 * Math.sin(t * 8 + b.o)); }
-      for (const c of common.station.userData.flags) { const p = c.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) + 0.9; p.setZ(i, Math.sin(x * 3 - t * 4) * 0.12 * x); } p.needsUpdate = true; }
+      { const gust = 0.8 + 0.25 * Math.sin(t * 0.45) + 0.12 * Math.sin(t * 1.9); // Fahnen flattern im böigen Wind: zwei Wellen, nach außen stärker
+        common.station.userData.flags.forEach((c, k) => { const p = c.geometry.attributes.position, ph = k * 1.7; for (let i = 0; i < p.count; i++) { const x = p.getX(i) + 0.9, y = p.getY(i); p.setZ(i, (Math.sin(x * 2.6 - t * 6 + ph + y * 0.9) * 0.24 + Math.sin(x * 5.5 - t * 10.5 + ph) * 0.06) * Math.min(1, x * 0.9 + 0.05) * gust); } p.needsUpdate = true; c.geometry.computeVertexNormals(); }); }
     }];
     const { rack, cols: rackCols, spot: rackSpot } = placeSizeRack(B, ["merkur", "mars", "venus", "erde"], L.station);
 
@@ -8941,7 +9099,7 @@ window.Surface = (function () {
       wasser: L.wasser, wald: L.wald, wegweiser: L.wegweiser, rakete: [HATCH.x * 3.6, HATCH.z * 3.6] },
       { mond: MARS_SCOPE_DOOR(L.mond), tag: [ERDE_SOUTH.x * 2.6, ERDE_SOUTH.z * 2.6] }); // vor der Sonnenuhr (Süden), nicht auf ihr
     const npcs = addNpcs(B);
-    const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 1.4],
+    const colliders = [...common.colliders, ...npcs.map((n) => n.col), [...L.luft, 0.9], [L.luft[0] - 1.4, L.luft[1], 0.2], ...(() => { weather.updateMatrixWorld(true); return weather.userData.fence.map(([x, z]) => { const v = weather.localToWorld(new V(x, 0, z)); return [v.x, v.z, 0.22]; }); })(), [...L.stern, 0.9], [...L.mond, 3.2], [...L.wegweiser, 0.3], [...L.tag, 1.4],
       ...rackCols, ...parkCols, ...treeCols, ...bushCols, ...townCols];
 
     // Lebewesen: Art, Objekt, Höhe der Bildmitte, Größe (für das Teleobjektiv), größte Foto-Entfernung
