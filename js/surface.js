@@ -6630,10 +6630,11 @@ window.Surface = (function () {
     });
     const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.18, metalness: 0.1, emissive: srgb(0x7cc8f5), emissiveMap: tex, emissiveIntensity: 0.16, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
     scene.add(groundDecal(height, cx, cz, 3.4, mat, 0.06));
-    const chunk = new THREE.MeshStandardMaterial({ color: srgb(0xd4f0ff), emissive: srgb(0x38bdf8), emissiveIntensity: 0.3, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.88, flatShading: true });
+    const { normalMap, normalScale } = rockTex(1, 1, 0.5), iceGeos = [0, 1, 2, 3].map((k) => sphereUV(naturalRockGeo(140 + k, 3)));
+    const chunk = new THREE.MeshStandardMaterial({ color: srgb(0xdff4ff), emissive: srgb(0x38bdf8), emissiveIntensity: 0.18, roughness: 0.12, metalness: 0.05, transparent: true, opacity: 0.9, normalMap, normalScale, envMapIntensity: 1.2 });
     for (let i = 0; i < 9; i++) {
       const a = hash2(i, 85) * 6.3, r = Math.sqrt(hash2(i, 86)) * 2.4, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r, k = 0.12 + hash2(i, 87) * 0.22;
-      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), chunk); m.scale.set(k * 1.3, k * 0.7, k); m.position.set(x, height(x, z) + k * 0.15, z); m.rotation.set(hash2(i, 88), a, hash2(i, 89) * 0.6); m.castShadow = true;
+      const m = new THREE.Mesh(iceGeos[i % 4], chunk); m.scale.set(k * 1.3, k * 0.75, k); m.position.set(x, height(x, z) + k * 0.15, z); m.rotation.set(hash2(i, 88), a, hash2(i, 89) * 0.6); m.castShadow = true;
       scene.add(m);
     }
   }
@@ -6645,16 +6646,45 @@ window.Surface = (function () {
     obj.position.set(x, Math.min(height(x, z), (hx0 + hx1 + hz0 + hz1) / 4), z);
     return obj;
   }
-  // Kleine Eis-Sonde: Kasten auf sechs Rädern, Scheinwerfer, Bohrarm (lokal: vorn = +Z)
+  // Eis-Sonde nach dem NASA-Rover VIPER (sucht Eis in dunklen Polkratern): weißes Gehäuse mit Solarpaneelen an den Seiten,
+  // goldene Isolierfolie, vier Räder an Schwingen, Kameramast mit Stereokameras und Scheinwerfern, Antennenschüssel,
+  // vorn rechts der Bohrturm – der Bohrer steckt im Boden (lokal: vorn = +Z, zum Eis)
   function mercIceProbe(M) {
-    const g = new THREE.Group();
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.8), M.hull(1, 1)), 0, 0.65, 0);
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.12, 1.82), M.orange), 0, 0.92, 0, false);
-    for (const x of [-0.7, 0.7]) for (const z of [-0.65, 0, 0.65]) put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.18, 14), M.metal), x, 0.25, z).rotation.z = Math.PI / 2;
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 6), M.steel), 0.35, 1.35, -0.6);
-    const lamp = put(g, new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.14), new THREE.MeshBasicMaterial({ color: srgb(0xfff1c2), toneMapped: false })), 0.35, 1.8, -0.55, false);
-    const spot = new THREE.SpotLight(0xfff1c2, 1.2, 12, 0.6, 0.5); spot.position.set(0.35, 1.8, -0.5); spot.target.position.set(0, 0, 3); g.add(spot, spot.target);
-    pipeSeg(g, M, new V(0, 0.8, 0.9), new V(0, 0.2, 1.5), 0.05, M.teal);
+    const g = new THREE.Group(), b = partBuilder(), white = M.hull(1, 1), dark = M.metal;
+    const gold = M.std({ map: canvasTex(128, 128, (c) => { c.fillStyle = "#c99a2e"; c.fillRect(0, 0, 128, 128); for (let i = 0; i < 140; i++) { const x = hash2(i, 5) * 128, y = hash2(i, 6) * 128, l = 6 + hash2(i, 7) * 22, a = hash2(i, 8) * 3.1; c.strokeStyle = hash2(i, 9) > 0.5 ? "rgba(255,236,170,0.55)" : "rgba(110,70,10,0.45)"; c.lineWidth = 1 + hash2(i, 10) * 2; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); c.stroke(); } }), roughness: 0.3, metalness: 0.85 });
+    const cells = marsCellMat(M);
+    // Gehäuse mit dunklem Rahmen, Deck, Heizkörper oben
+    b.add(new THREE.BoxGeometry(1.2, 0.62, 1.45), white, [0, 0.9, 0]);
+    for (const [x, z] of [[-0.6, -0.725], [0.6, -0.725], [-0.6, 0.725], [0.6, 0.725]]) b.add(new THREE.BoxGeometry(0.06, 0.66, 0.06), dark, [x, 0.9, z]);
+    b.add(new THREE.BoxGeometry(1.26, 0.05, 1.51), dark, [0, 1.235, 0]);
+    for (let k = 0; k < 7; k++) b.add(new THREE.BoxGeometry(0.9, 0.06, 0.03), white, [0.05, 1.29, -0.55 + k * 0.12]);
+    b.add(new THREE.BoxGeometry(0.42, 0.26, 0.36), gold, [-0.3, 1.39, 0.35]);
+    // Solarpaneele senkrecht an beiden Seiten und hinten (die Sonne steht an den Polen ganz tief)
+    for (const sx of [-1, 1]) b.add(new THREE.BoxGeometry(0.03, 0.5, 1.3), cells, [sx * 0.62, 0.92, 0]);
+    b.add(new THREE.BoxGeometry(1.1, 0.5, 0.03), cells, [0, 0.92, -0.74]);
+    // Schwingen und Räder
+    for (const sx of [-1, 1]) {
+      b.add(new THREE.BoxGeometry(0.08, 0.1, 1.25), dark, [sx * 0.7, 0.5, 0]);
+      b.add(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 14), M.steel, [sx * 0.66, 0.6, 0], [0, 0, Math.PI / 2]);
+    }
+    // Kameramast vorn links mit Schwenkkopf: zwei Kameras, zwei Scheinwerferleisten
+    b.add(new THREE.CylinderGeometry(0.04, 0.05, 1.05, 12), M.steel, [-0.4, 1.78, 0.52]);
+    b.add(new THREE.BoxGeometry(0.42, 0.16, 0.18), white, [-0.4, 2.34, 0.55]);
+    for (const x of [-0.12, 0.12]) { b.add(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 16), dark, [-0.4 + x, 2.34, 0.66], [Math.PI / 2, 0, 0]); b.add(new THREE.CircleGeometry(0.035, 16), M.std({ color: srgb(0x0b2545), roughness: 0.05, metalness: 0.8 }), [-0.4 + x, 2.34, 0.701]); }
+    // Antennenschüssel hinten auf einem Ausleger
+    b.add(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 8), M.steel, [0.35, 1.5, -0.45]);
+    // Bohrturm vorn rechts: zwei Schienen, Antriebskasten, Bohrstange bis in den Boden
+    for (const x of [0.32, 0.5]) b.add(new THREE.BoxGeometry(0.04, 1.1, 0.04), M.steel, [x, 0.75, 0.84]);
+    b.add(new THREE.BoxGeometry(0.28, 0.2, 0.2), M.orange, [0.41, 1.12, 0.86]);
+    b.add(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 10), dark, [0.41, 0.45, 0.86]);
+    b.add(new THREE.TorusGeometry(0.12, 0.05, 8, 20), M.std({ color: srgb(0x5a534b), roughness: 1 }), [0.41, 0.03, 0.86], [Math.PI / 2, 0, 0]); // Bohrklein
+    g.add(b.group(true));
+    const dish = put(g, dishCap(M, 0.28, 0.6), 0.35, 1.8, -0.45); dish.rotation.x = Math.PI + 0.7;
+    const wheel = roverWheel(M, 0.3, 0.2, M.steel);
+    for (const sx of [-1, 1]) for (const z of [-0.6, 0.6]) { const w = wheel.clone(); w.position.set(sx * 0.82, 0.3, z); g.add(w); }
+    // Scheinwerfer: zwei Leuchtleisten am Kamerakopf, ein Spot auf das Eis
+    for (const x of [-0.26, 0.26]) put(g, new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.04), new THREE.MeshBasicMaterial({ color: srgb(0xfff4d6), toneMapped: false })), -0.4 + x, 2.34, 0.65, false);
+    const spot = new THREE.SpotLight(0xfff1c2, 1.4, 14, 0.6, 0.5); spot.position.set(-0.4, 2.34, 0.7); spot.target.position.set(0, 0, 5); g.add(spot, spot.target);
     return g;
   }
 
@@ -7201,15 +7231,73 @@ window.Surface = (function () {
     return g;
   }
   // Wind-Rover (NASA-Idee AREE): ohne Elektronik, angetrieben von einem Windrad – der Wind auf der Venus ist langsam, aber kräftig
+  // Rad für Rover: Felge, Reifen mit schräg gestellten Stollen, Nabe mit Schrauben; Achse = x. Ein Netz je Material, zum Klonen
+  function roverWheel(M, R, W, hubMat) {
+    const wb = partBuilder(), lug = M.std({ color: srgb(0x2b2f36), roughness: 0.7, metalness: 0.4 }), n = Math.round(R * 34);
+    wb.add(new THREE.CylinderGeometry(R * 0.91, R * 0.91, W, 32), M.metal, [0, 0, 0], [0, 0, Math.PI / 2]);
+    for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2; wb.add(new THREE.BoxGeometry(W * 1.1, R * 0.13, R * 0.18), lug, [0, Math.cos(a) * R * 0.95, Math.sin(a) * R * 0.95], [a, 0.35, 0]); }
+    for (const sx of [-1, 1]) {
+      wb.add(new THREE.CylinderGeometry(R * 0.6, R * 0.6, 0.02, 24), hubMat, [sx * (W / 2 + 0.005), 0, 0], [0, 0, Math.PI / 2]);
+      wb.add(new THREE.CylinderGeometry(R * 0.22, R * 0.26, 0.08, 16), M.steel, [sx * (W / 2 + 0.04), 0, 0], [0, 0, Math.PI / 2]);
+      for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; wb.add(new THREE.CylinderGeometry(R * 0.035, R * 0.035, 0.04, 8), M.steel, [sx * (W / 2 + 0.025), Math.cos(a) * R * 0.4, Math.sin(a) * R * 0.4], [0, 0, Math.PI / 2]); }
+    }
+    return wb.group(true);
+  }
+  // Wind-Rover nach dem NASA-Konzept AREE: hitzefestes Fahrgestell mit abgerundeten Kanten, Schwingarme, große Räder mit Stollen,
+  // zweistöckige Savonius-Windturbine aus blankem Metall (Antrieb ohne Batterie), vorn ein Tastfühler gegen Hindernisse,
+  // hinten ein Radar-Reflektor (so „funkt“ der Rover mit dem Orbiter). Lokal: vorn = +Z
   function venusWindRover(M) {
-    const g = new THREE.Group();
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.8, 2.6), venusMetal(M, 2, 1)), 0, 1.1, 0);
-    for (const x of [-1.15, 1.15]) for (const z of [-0.9, 0.9]) { const w = put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.35, 16), M.metal), x, 0.6, z); w.rotation.z = Math.PI / 2; }
-    put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 8), M.steel), 0, 2.2, 0);
-    const turbine = new THREE.Group(); turbine.position.y = 3.3; g.add(turbine);
-    for (let i = 0; i < 3; i++) { const b = put(turbine, new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.6, 16, 1, true, 0, Math.PI), M.std({ color: srgb(0xd4a373), roughness: 0.4, metalness: 0.5, side: THREE.DoubleSide })), 0, 0, 0); b.rotation.y = (i / 3) * Math.PI * 2; b.position.set(Math.sin(b.rotation.y) * 0.3, 0, Math.cos(b.rotation.y) * 0.3); }
-    put(g, new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.6), M.orange), 0, 1.6, 1.1);
-    g.userData = { turbine, wheels: [] };
+    const g = new THREE.Group(), b = partBuilder();
+    const alloy = venusMetal(M, 3, 1), steel = M.steel, dark = M.metal;
+    const bright = M.std({ color: srgb(0xe4e7eb), roughness: 0.22, metalness: 0.9, side: THREE.DoubleSide });
+    // Wanne: abgerundetes Rechteck, nach oben ausgezogen, darauf das Deck
+    const rr = (w, d, rad) => { const sh = new THREE.Shape(), x = w / 2 - rad, z = d / 2 - rad; sh.moveTo(-x, -d / 2); sh.lineTo(x, -d / 2); sh.quadraticCurveTo(w / 2, -d / 2, w / 2, -z); sh.lineTo(w / 2, z); sh.quadraticCurveTo(w / 2, d / 2, x, d / 2); sh.lineTo(-x, d / 2); sh.quadraticCurveTo(-w / 2, d / 2, -w / 2, z); sh.lineTo(-w / 2, -z); sh.quadraticCurveTo(-w / 2, -d / 2, -x, -d / 2); return sh; };
+    const hull = new THREE.ExtrudeGeometry(rr(1.5, 2.5, 0.35), { depth: 0.62, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 3, curveSegments: 6 });
+    hull.rotateX(-Math.PI / 2); b.add(hull, alloy, [0, 0.72, 0]);
+    b.add(new THREE.ExtrudeGeometry(rr(1.3, 2.25, 0.3), { depth: 0.06, bevelEnabled: false, curveSegments: 6 }).rotateX(-Math.PI / 2), dark, [0, 1.42, 0]);
+    for (const sx of [-1, 1]) { b.add(new THREE.BoxGeometry(0.04, 0.12, 2.3), M.orange, [sx * 0.83, 1.12, 0]); b.add(new THREE.BoxGeometry(0.03, 0.42, 0.5), dark, [sx * 0.84, 1.0, -0.55]); } // Zierleiste, Wartungsklappe
+    // Schwingarme mit Drehlager an den Seiten
+    for (const sx of [-1, 1]) {
+      b.add(new THREE.BoxGeometry(0.12, 0.16, 2.05), dark, [sx * 1.0, 0.62, 0], [0.04 * sx, 0, 0]);
+      b.add(new THREE.CylinderGeometry(0.14, 0.14, 0.22, 16), steel, [sx * 0.95, 0.72, 0], [0, 0, Math.PI / 2]);
+      for (const z of [-0.95, 0.95]) b.add(new THREE.CylinderGeometry(0.09, 0.09, 0.3, 12), steel, [sx * 1.1, 0.55, z], [0, 0, Math.PI / 2]);
+    }
+    // Getriebe unter dem Mast, Mast mit Lagern und zwei Streben
+    b.add(new THREE.CylinderGeometry(0.26, 0.3, 0.32, 24), dark, [0, 1.6, 0.1]);
+    b.add(new THREE.CylinderGeometry(0.06, 0.07, 1.25, 14), steel, [0, 2.3, 0.1]);
+    for (const y of [1.82, 2.9]) b.add(new THREE.CylinderGeometry(0.11, 0.11, 0.1, 18), dark, [0, y, 0.1]);
+    for (const sx of [-1, 1]) { const a = new V(sx * 0.55, 1.45, -0.6), c = new V(0, 2.5, 0.1), d = c.clone().sub(a); b.addM(new THREE.CylinderGeometry(0.025, 0.025, 1, 8), steel, new THREE.Matrix4().compose(a.clone().addScaledVector(d, 0.5), new THREE.Quaternion().setFromUnitVectors(new V(0, 1, 0), d.clone().normalize()), new V(1, d.length(), 1))); }
+    // Tastfühler vorn: Bügel mit Kugel – stößt der Rover an, weicht er aus
+    b.add(new THREE.CylinderGeometry(0.025, 0.025, 1.0, 8), steel, [0, 0.945, 1.665], [Math.PI / 2 + 0.24, 0, 0]);
+    b.add(new THREE.SphereGeometry(0.07, 14, 10), M.orange, [0, 0.83, 2.13]);
+    b.add(new THREE.BoxGeometry(0.5, 0.08, 0.08), steel, [0, 1.06, 1.2]);
+    // Radar-Reflektor hinten: drei senkrecht zueinander stehende Platten auf einem kurzen Pfosten
+    b.add(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 8), steel, [0.35, 1.72, -0.85]);
+    for (const [rx, ry, rz] of [[0, 0, 0], [Math.PI / 2, 0, 0], [0, Math.PI / 2, 0]]) b.add(new THREE.PlaneGeometry(0.3, 0.3), bright, [0.35 + 0.075, 2.07, -0.85 + 0.075], [rx, ry, rz]);
+    // kleines Messgerät mit Windfahne an einem Ausleger
+    b.add(new THREE.BoxGeometry(0.06, 0.06, 0.6), steel, [-0.45, 1.75, -0.6], [0, 0.6, 0]);
+    b.add(new THREE.BoxGeometry(0.18, 0.14, 0.14), M.hull ? M.hull(1, 1) : steel, [-0.6, 1.75, -0.85]);
+    g.add(b.group(true));
+    // Schild an beiden Seiten
+    for (const sx of [-1, 1]) { const p = put(g, new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.24), signMat("🌬️ WIND-ROVER", "#7c2d12", 512, 112, 54)), sx * 0.835, 1.31, 0.25, false); p.rotation.y = sx * Math.PI / 2; }
+    // Räder (drehen sich beim Fahren)
+    const wheelSrc = roverWheel(M, 0.55, 0.36, alloy), wheels = [];
+    for (const sx of [-1, 1]) for (const z of [-0.95, 0.95]) { const w = wheelSrc.clone(); w.position.set(sx * 1.32, 0.55, z); g.add(w); wheels.push(w); }
+    // Savonius-Turbine: zwei Stufen aus je zwei Halbschalen (S-förmig), Endscheiben, die obere Stufe um 90° versetzt
+    const turbine = new THREE.Group(); turbine.position.set(0, 3.0, 0.1); g.add(turbine);
+    const disc = M.std({ color: srgb(0x9a3412), roughness: 0.45, metalness: 0.5 }), tb = partBuilder();
+    for (let st = 0; st < 2; st++) {
+      const y0 = st * 0.82, rot = st * Math.PI / 2;
+      for (const sgn of [-1, 1]) {
+        const blade = new THREE.CylinderGeometry(0.36, 0.36, 0.78, 24, 1, true, sgn > 0 ? 0 : Math.PI, Math.PI);
+        tb.add(blade, bright, [Math.cos(rot) * sgn * 0.17, y0 + 0.4, -Math.sin(rot) * sgn * 0.17], [0, rot + Math.PI / 2, 0]);
+      }
+      for (const yy of [0, 0.8]) tb.add(new THREE.CylinderGeometry(0.62, 0.62, 0.03, 32), disc, [0, y0 + yy, 0]);
+    }
+    tb.add(new THREE.CylinderGeometry(0.035, 0.035, 1.75, 10), steel, [0, 0.85, 0]);
+    tb.add(new THREE.SphereGeometry(0.07, 14, 10), disc, [0, 1.68, 0]);
+    turbine.add(tb.group(true));
+    g.userData = { turbine, wheels };
     return g;
   }
   // Venera 13: Landering mit Zacken, Druckkugel, Bremsscheibe und Antenne obendrauf
@@ -7496,6 +7584,7 @@ window.Surface = (function () {
       beacons.forEach((b, i) => { b.material.color.setRGB(1, 0.82, 0.54).multiplyScalar(0.45 + 0.9 * Math.max(0, Math.sin(t * 3 - i * 0.6))); }); // Lauflicht zeigt die Richtung
       windRover.position.set(x, height(x, z), z); windRover.rotation.y = Math.atan2(-Math.sin(a) * 9, Math.cos(a) * 7);
       windRover.userData.turbine.rotation.y += dt * 1.6;
+      const spd = 0.03 * Math.hypot(Math.sin(a) * 9, Math.cos(a) * 7); windRover.userData.wheels.forEach((w) => { w.rotation.x += (dt * spd) / 0.55; });
       if (hitzeTower.userData.cups) hitzeTower.userData.cups.rotation.y += dt * 0.9; // Windmesser am Klima-Messturm (der Wind ist langsam)
       lavaGlow.intensity = 1 + 0.4 * Math.sin(t * 3.1) * Math.sin(t * 1.7);
       lavaTex.offset.y = -t * 0.035; // die Lava fließt langsam
