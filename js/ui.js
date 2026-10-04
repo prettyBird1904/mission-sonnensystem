@@ -784,12 +784,11 @@ window.UI = (function () {
       </div>
       ${Voice.supported ? `<div class="box" style="margin-top:18px">
         <h3>🗣️ Vorlesen (für Lehrkräfte)</h3>
-        <p>Nora, die Bodenstation und alle Bewohner sprechen mit <b>echt klingenden Stimmen</b>: Alle Texte sind vorab mit natürlichen Microsoft-Stimmen aufgenommen (Nora: Seraphina, Bodenstation: Conrad) und klingen auf jedem Gerät gleich. Die Aufnahmen werden beim Spielen geladen und danach offline gespeichert.</p>
-        <p style="color:var(--muted);font-size:13px">Nur wenn eine Aufnahme fehlt (z. B. offline beim allerersten Besuch), liest die Stimme des Geräts vor – diese Ersatzstimme kannst du hier wählen.</p>
+        <p>Nora, die Bodenstation und alle Bewohner sprechen mit <b>natürlich klingenden Sprecherstimmen</b>: Alle Texte sind vorab aufgenommen und klingen auf jedem Gerät gleich. Die Aufnahmen werden beim Spielen geladen und danach offline gespeichert.</p>
+        <p style="color:var(--muted);font-size:13px">Lädt eine Aufnahme einmal nicht (z. B. ohne Internet beim allerersten Besuch), bleibt es kurz still – der Text steht immer auch auf dem Bildschirm. Eine Computerstimme gibt es nicht.</p>
         <div class="settings-row">
           <button class="btn ghost small ${Voice.enabled ? "selected" : ""}" id="voiceOn">🗣️ An</button>
           <button class="btn ghost small ${Voice.enabled ? "" : "selected"}" id="voiceOff">🤐 Aus</button>
-          <select class="voice-pick" id="voicePick">${Voice.list().map((v) => `<option value="${escapeHtml(v.name)}" ${v.nora ? "selected" : ""}>${v.q >= 90 ? "⭐ " : ""}${escapeHtml(v.name)}</option>`).join("") || "<option>Keine deutsche Stimme gefunden</option>"}</select>
           <button class="btn ghost small" id="voiceTest">▶ Probe hören</button>
         </div>
       </div>` : ""}
@@ -801,7 +800,7 @@ window.UI = (function () {
           <button class="btn ghost small ${World.fast ? "selected" : ""}" id="gfxFast">⚡ Flüssig</button>
           <button class="btn ghost small ${G.fpsVisible() ? "selected" : ""}" id="gfxFps">📊 Bildrate anzeigen</button>
         </div>
-        <p style="color:var(--muted);font-size:12px">Fotos: NASA u. a. (siehe BILDNACHWEIS.md) · Astronaut: „Rigged Astronaut“ von J-Toastie, CC BY 3.0 (poly.pizza) · Stimmen: neuronale Microsoft-Stimmen (Seraphina, Conrad, Florian, Katja, Amala, Killian)</p>
+        <p style="color:var(--muted);font-size:12px">Fotos: NASA u. a. (siehe BILDNACHWEIS.md) · Astronaut: „Rigged Astronaut“ von J-Toastie, CC BY 3.0 (poly.pizza) · Stimmen: vorab aufgenommen mit ElevenLabs</p>
         <p style="color:var(--muted);font-size:13px">Version ${D.version} · Auflösung ${World.renderer.getPixelRatio().toFixed(2)} · Bilder/s ${Math.round(1 / G.perf.avg)}</p>
       </div>`);
     const setGfx = (mode) => { try { localStorage.setItem("ms-grafik", mode); } catch (e) { /* egal */ } location.reload(); };
@@ -815,7 +814,6 @@ window.UI = (function () {
       const setOn = (on) => { if (Voice.enabled !== on) Voice.toggle(); $("voiceOn").classList.toggle("selected", on); $("voiceOff").classList.toggle("selected", !on); voiceBtns(); };
       $("voiceOn").onclick = () => { setOn(true); sample(); };
       $("voiceOff").onclick = () => setOn(false);
-      $("voicePick").onchange = (e) => { Voice.setVoice(e.target.value); sample(); };
       $("voiceTest").onclick = sample;
     }
     let armed = false;

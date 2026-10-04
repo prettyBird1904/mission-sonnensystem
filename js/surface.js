@@ -4069,9 +4069,10 @@ window.Surface = (function () {
         if (dr) dr.children.forEach((d, i) => { const k = (elapsed * 1.6 + i / 8) % 1; d.position.set(Math.sin(i * 2.3) * 0.02, -k * 0.9, k * 0.08); d.visible = acting; });
       }
       if (acting && n.act === "sport") p.y -= 0.32 * (0.5 - 0.5 * Math.cos((elapsed + n.c.path.length) * 3.4)); // Kniebeugen: der Körper geht mit runter
-      const fast = moving && (n.speedNow || 0) > 1.6; // Nora, wenn sie vorausläuft
-      n.phase += dt * (fast ? 1.4 + n.speedNow * 2.3 : moving ? 5.3 : climbing ? 6 : 1.5); // Bewohner gehen gemütlich (1,1 m/s)
-      poseRig(n.rig, { mode: climbing ? "climb" : fast ? "run" : moving ? "walk" : "stand", speed: fast ? Math.min(1, n.speedNow / 3.8) : moving ? 0.7 : 0, phase: n.phase, t: elapsed + n.c.path.length,
+      const fast = moving && (n.speedNow || 0) > (n.fast ? 1.4 : 1.8); n.fast = fast; // Nora, wenn sie vorausläuft (mit Spielraum – sonst springt sie zwischen Gehen und Laufen hin und her)
+      const slow = moving && !fast && n.isNora, wk = slow ? Math.min(1, n.speedNow / 1.6) : 0.7; // Nora geht langsamer (wartet aufs Kind): Schritte passend zum Tempo
+      n.phase += dt * (fast ? 1.4 + n.speedNow * 2.3 : slow ? Math.PI * (1.4 + 0.4 * wk) : moving ? 5.3 : climbing ? 6 : 1.5); // Bewohner gehen gemütlich (1,1 m/s)
+      poseRig(n.rig, { mode: climbing ? "climb" : fast ? "run" : moving ? "walk" : "stand", speed: fast ? Math.min(1, n.speedNow / 3.8) : moving ? wk : 0, phase: n.phase, t: elapsed + n.c.path.length,
         air: false, airP: 0, contact: 0, wave: n.waveT > 0, act: n.c.crew ? crewAct(n, elapsed, dist) : acting ? n.act : null, seed: n.c.crew ? world.npcs.indexOf(n) : 0,
         work: !n.c.crew && !acting && !moving && n.c.work && dist > 5.5 });
       n.col[0] = p.x; n.col[1] = p.z;
@@ -4124,7 +4125,7 @@ window.Surface = (function () {
     const n = world.npcs.find((x) => x.isNora); if (!n) return;
     navGrid();
     const allDone = foundCount() >= cfg.discoveries.length; // alles entdeckt: freies Herumlaufen, Funk-Fragen freiwillig über die Liste
-    guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0, helloDone: false };
+    guide = { n, on: !guideOff() && !allDone, key: undefined, pts: [], said: {}, waitCd: 0, met: false, sayCd: 0, helloDone: false, v: 0, hold: false, quiet: 0 };
     if (!guide.on) guide.helloDone = true;
     n.guide = guide.on; n.obj.visible = true; n.talk = 0; n.climbY = n.outR = n.standY = null;
     const lx = HATCH.x * 2.05, lz = HATCH.z * 2.05; // Fuß der Leiter
@@ -4308,6 +4309,16 @@ window.Surface = (function () {
     }
     return out;
   }
+  // Punkt, der L Meter weiter vorn auf dem restlichen Weg liegt (dorthin schaut sie beim Gehen)
+  function pathAhead(p, pts, L) {
+    let x = p.x, z = p.z;
+    for (const [tx, tz] of pts) {
+      const d = Math.hypot(tx - x, tz - z);
+      if (d >= L) return [x + ((tx - x) / d) * L, z + ((tz - z) / d) * L];
+      L -= d; x = tx; z = tz;
+    }
+    return [x, z];
+  }
   function guideRoute(key) {
     const r = world.L.route && world.L.route[key], p = guide.n.obj.position;
     let way;
@@ -4326,6 +4337,7 @@ window.Surface = (function () {
     if (!guide) return;
     const n = guide.n, GC = cfg.guide, p = n.obj.position, talking = !!(n.voice && Voice.speaking(n.voice));
     if (!talking) guide.waitCd -= dt; // Pausen zählen erst, wenn sie ausgeredet hat
+    guide.quiet = talking || (!Voice.enabled && n.talk > 0) ? 0 : guide.quiet + dt; // so lange ist sie schon still (ohne Vorlesen: Sprechblase weg)
     if (guide.pending && guide.pending.length && !Voice.busy() && !view.special && !experiment && !UI.modalOpen()) { // wartende Sätze der Reihe nach, wenn niemand mehr spricht (zu alte entfallen)
       const pm = guide.pending.shift(); if (!guide.pending.length) guide.pending = null;
       if (performance.now() - Math.max(pm.at, talkEnd) < 20000) guideShow(pm.msg); // zu alte Sätze entfallen – die Zeit, in der die Crew redet, zählt nicht mit
@@ -4381,7 +4393,17 @@ window.Surface = (function () {
       return;
     }
     if (guide.pts.length) {
-      if (dAst > 11) { // zu weit zurück: stehen bleiben, umdrehen, winken
+      // Abstand halten: Fällt das Kind zurück, geht sie langsamer; ist es zu weit weg, bleibt sie stehen und wartet, bis es aufgeholt hat.
+      // Weich beschleunigen und bremsen, mit Spielraum zwischen Stehenbleiben (12 m) und Weitergehen (8,5 m) –
+      // vorher stand und ging sie an einer einzigen Grenze ständig im Wechsel (sie „zitterte“, vor allem bergauf, wenn das Kind langsamer ist).
+      const [gx, gz] = guide.pts[guide.pts.length - 1]; // Ist das Kind schon vorausgelaufen (näher am Ziel als sie), holt sie auf statt zu warten
+      const ahead = Math.hypot(ast.pos.x - gx, ast.pos.z - gz) < Math.hypot(p.x - gx, p.z - gz) - 2;
+      if (!guide.hold && dAst > 12 && !ahead) guide.hold = true;
+      else if (guide.hold && (dAst < 8.5 || ahead)) guide.hold = false;
+      const want = guide.hold ? 0 : GUIDE_SPEED * (ahead ? 1.15 : Math.min(1.15, Math.max(0.35, (11.5 - dAst) / 6)));
+      guide.v += (want - guide.v) * Math.min(1, dt * 3);
+      if (guide.hold && guide.v < 0.25) { // steht: umdrehen, winken
+        guide.v = 0;
         face(ast.pos.x, ast.pos.z);
         const listening = world.npcs.some((m) => !m.isNora && m.talk > 0 && Math.hypot(m.obj.position.x - ast.pos.x, m.obj.position.z - ast.pos.z) < 9);
         if (listening) guide.waitCd = Math.max(guide.waitCd, 3); // erst ausreden lassen
@@ -4389,22 +4411,26 @@ window.Surface = (function () {
         return;
       }
       // ohne Halt von Wegpunkt zu Wegpunkt (sonst stockt die Laufbewegung an jedem Punkt für einen Moment)
-      let left = GUIDE_SPEED * dt * (dAst < 3 ? 1.2 : 1), moved = 0;
+      let left = guide.v * dt;
       while (left > 1e-4 && guide.pts.length) {
         const [tx, tz] = guide.pts[0], ex = tx - p.x, ez = tz - p.z, d = Math.hypot(ex, ez);
         if (d < 0.05) { guide.pts.shift(); continue; }
         const step = Math.min(d, left);
-        face(tx, tz); // Blickrichtung vor dem Schritt (am Wegpunkt selbst gäbe es keine Richtung)
-        p.x += (ex / d) * step; p.z += (ez / d) * step; left -= step; moved += step;
+        p.x += (ex / d) * step; p.z += (ez / d) * step; left -= step;
       }
-      if (moved > 0) { n.speedNow = moved / Math.max(dt, 1e-3); n.moving = true; }
+      n.speedNow = guide.v; n.moving = true;
+      const [lx, lz] = pathAhead(p, guide.pts, 1.6); // Blick auf einen Punkt etwas voraus: dreht sich in Kurven weich, statt an jedem Wegpunkt zu zucken
+      if (Math.hypot(lx - p.x, lz - p.z) > 0.3) face(lx, lz);
       return;
     }
     // angekommen
+    guide.v = 0; guide.hold = false;
     face(ast.pos.x, ast.pos.z);
     if (guide.finale === "walk" && guide.key === "wand") { if (dAst < 7) { guide.finale = "done"; quizSoon(); } return; } // Basis-Besuch zu Ende: jetzt die Funk-Fragen
-    if (dAst < 7 && !guide.said[guide.key] && guide.waitCd <= 0) {
-      guide.said[guide.key] = true; guide.waitCd = 4;
+    // Erklären, sobald das Kind da ist (bei ihr oder schon am Kreis) und sie gerade nicht spricht – die Pause nach „Hier lang!“ zählt nicht mit
+    const st = world.stations[guide.key], atStation = !!st && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) < st.zone + 3;
+    if ((dAst < 7 || atStation) && !guide.said[guide.key] && guide.quiet > 1.2) {
+      guide.said[guide.key] = true; guide.waitCd = Math.max(guide.waitCd, 4);
       if (!foundMap()[guide.key]) guideSay(guide.key === "sprung" ? GC.jump : (GC.arrive && GC.arrive[guide.key]) || ""); // schon entdeckt (Kind war schneller): nichts erklären
     }
     // Wer nach einer Weile noch nicht gesprungen ist, kennt die Taste vielleicht nicht: Tipp geben
