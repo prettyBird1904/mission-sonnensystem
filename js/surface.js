@@ -2900,7 +2900,7 @@ window.Surface = (function () {
     if (view.special) {
       // Im Fernrohr steuern Joystick/Tasten das Fernrohr, „E“ drückt den leuchtenden Knopf
       view.special.ix = mx; view.special.iy = my;
-      if (actionPressed) { actionPressed = false; const b = $("scopeBtns").querySelector(".primary"); if (b) b.click(); }
+      if (actionPressed) { actionPressed = false; const b = $("driveBtns").querySelector(".primary") || $("scopeBtns").querySelector(".primary"); if (b) b.click(); }
     }
     if (busy || view.special || experiment) { mx = my = 0; jumpPressed = false; }
     const len = Math.hypot(mx, my);
@@ -3518,14 +3518,7 @@ window.Surface = (function () {
   function scopeSay(text, buttons, spoken) { // spoken = stattdessen vorlesen (ein Satz oder mehrere nacheinander)
     $("scopeText").textContent = text;
     if (text) Voice.say(spoken || text, "nora");
-    const host = $("scopeBtns"); host.innerHTML = "";
-    for (const [label, fn, primary] of buttons || []) {
-      const b = document.createElement("button");
-      b.className = "btn " + (primary ? "primary" : "ghost"); b.textContent = label;
-      b.onclick = () => { Sound.click(); fn(); };
-      host.appendChild(b);
-    }
-    host.classList.toggle("hidden", !host.children.length);
+    scopeBtns(buttons || []);
     $("scopeUi").classList.remove("hidden");
   }
   function startScope() {
@@ -6094,9 +6087,12 @@ window.Surface = (function () {
     const h = Math.atan2(s.x - r.position.x, s.z - r.position.z);
     sp.stop = { x: s.x - Math.sin(h) * 1.85, z: s.z - Math.cos(h) * 1.85, h }; // dort hält der Rover, die Nase zum Stein
   }
-  // Knöpfe unter dem Text setzen, ohne etwas vorzulesen
+  // Knöpfe unter dem Text setzen, ohne etwas vorzulesen. Wird gelenkt (Rover, Curling) und bedient man mit den Fingern,
+  // liegen sie unten rechts unter dem Daumen – gegenüber dem Joystick (vorher oben in der Mitte beim Text: schwer zu erreichen)
   function scopeBtns(buttons) {
-    const host = $("scopeBtns"); host.innerHTML = "";
+    const thumb = isTouch() && $("surfaceHud").classList.contains("driving");
+    const host = $(thumb ? "driveBtns" : "scopeBtns"), other = $(thumb ? "scopeBtns" : "driveBtns");
+    host.innerHTML = ""; other.innerHTML = ""; other.classList.add("hidden");
     for (const [label, fn, primary] of buttons) { const b = document.createElement("button"); b.className = "btn " + (primary ? "primary" : "ghost"); b.textContent = label; b.onclick = () => { Sound.click(); fn(); }; host.appendChild(b); }
     host.classList.toggle("hidden", !host.children.length);
   }

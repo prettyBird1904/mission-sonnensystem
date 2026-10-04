@@ -572,6 +572,10 @@ kbd {
 #surfaceHud.driving #chalHud { top: auto; bottom: 18px; }
 .touch-ui #surfaceHud.driving #chalHud { bottom: auto; top: calc(2vh + 150px); }
 #surfaceHud.driving ~ #scopeUi { bottom: auto; top: 2vh; }
+/* Lenken auf Tablet/Handy (Rover, Curling): Knöpfe unten rechts unter dem Daumen, gegenüber dem Joystick – der Text bleibt oben */
+.drive-btns { display: none; }
+.touch-ui #surfaceHud.driving ~ #scopeUi:not(.hidden) ~ .drive-btns:not(.hidden) { display: flex; position: fixed; right: 22px; bottom: 40px; z-index: 12; flex-direction: column; align-items: flex-end; gap: 12px; max-width: 46vw; }
+.drive-btns .btn { min-height: 64px; padding: 12px 24px; font-size: 19px; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
 #fade { position: fixed; inset: 0; z-index: 70; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s; }
 #fade.on { opacity: 1; }
 
