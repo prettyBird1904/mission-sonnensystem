@@ -2726,7 +2726,8 @@ window.Surface = (function () {
       if (view.special) {
         // Fernrohr schwenken: der Himmel wandert mit dem Finger mit
         const k = 0.52 / innerHeight;
-        if (view.special.phase === "aim") { view.special.yaw += (e.clientX - drag.x) * k; view.special.pitch += (e.clientY - drag.y) * k; }
+        if (view.special.key === "curling") { if (view.special.phase === "aim") view.special.aim = Math.max(-0.45, Math.min(0.45, view.special.aim - (e.clientX - drag.x) * 0.004)); } // Curling: auch per Wischen zielen
+        else if (view.special.phase === "aim") { view.special.yaw += (e.clientX - drag.x) * k; view.special.pitch += (e.clientY - drag.y) * k; }
       } else {
         view.yaw -= (e.clientX - drag.x) * 0.006;
         view.height = Math.max(0.8, Math.min(9, view.height + (e.clientY - drag.y) * 0.02));
@@ -7263,7 +7264,8 @@ window.Surface = (function () {
   }
   function startCurling() {
     const ln = world.lane;
-    enterExhibit("curling", { update: updateCurling, phase: "aim", aim: (Math.random() - 0.5) * 0.4, t: 0, left: 3, best: 0, v: 0, power: 0 });
+    // "driving": der Joystick bleibt sichtbar – damit zielt man auf Tablet und Handy (vorher war er ausgeblendet, man konnte nur geradeaus werfen)
+    enterExhibit("curling", { update: updateCurling, phase: "aim", aim: (Math.random() - 0.5) * 0.4, t: 0, left: 3, best: 0, v: 0, power: 0 }, "driving");
     const sp = view.special; sp.x = ln.sx + ln.dx * 1.4; sp.z = ln.sz + ln.dz * 1.4;
     world.curl.stone.visible = world.curl.arrow.visible = true; world.astronaut.visible = false;
     curlAim();

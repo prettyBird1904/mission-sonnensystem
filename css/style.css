@@ -585,6 +585,7 @@ kbd {
 
 .discovery .gallery { margin: 8px 0 4px; text-align: left; }
 #surfaceHud .joy::after { content: "LAUFEN"; }
+#surfaceHud.driving .joy::after { content: "LENKEN"; } /* Rover fahren, beim Curling zielen */
 
 /* ---------- Intro (Kino beim ersten Start) ---------- */
 #intro { position: fixed; inset: 0; z-index: 900; pointer-events: none; overflow: hidden; font-family: var(--font-head); }
