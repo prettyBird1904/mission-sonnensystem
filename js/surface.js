@@ -772,14 +772,17 @@ window.Surface = (function () {
   // Achsen dieses Mixamo-Skeletts (im Browser nachgemessen, Blickrichtung +Z):
   //   Arme senken: +X (beide) · Arme nach vorn: links +Z, rechts −Z · Beine nach vorn: +X
   //   Knie beugen: −X · Ellbogen beugen: links +Z, rechts −Z · Oberkörper vorbeugen: −X
-  // fwd = Arm nach vorn drehen, down = absenken, swing = (bei hängendem Arm) um die Querachse der Schulter vor/zurück schwingen
+  // fwd = Arm nach vorn drehen, down = absenken, swing = (bei hängendem Arm) um die Querachse der Schulter vor/zurück schwingen,
+  // roll = Oberarm um sich selbst drehen (rechts +1,57: der Ellbogen beugt den Unterarm dann nach oben statt nach vorn – zum Winken)
   const ARM_SIDE = { armL: -1, armR: 1 }; // ausgemessen: so schwingt „vor“ wirklich nach vorn
-  function setArm(rig, key, fwd, down, swing = 0) {
+  function setArm(rig, key, fwd, down, swing = 0, roll = 0) {
     const b = rig.bones[key]; if (!b) return;
     b.quaternion.copy(rig.rest[key]).multiply(qa.setFromAxisAngle(AX.z, fwd));
     if (swing) b.quaternion.multiply(qa.setFromAxisAngle(AX.y, swing * ARM_SIDE[key]));
     b.quaternion.multiply(qa.setFromAxisAngle(AX.x, down));
+    if (roll) b.quaternion.multiply(qa.setFromAxisAngle(AX.y, roll));
   }
+  const waveFrom = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
   const POSE = {};
   // Bewegungen nach Vorbild der Apollo-Filme: „Lope“ = gleitender Galopp mit kurzer Schwebephase,
   // Oberkörper leicht vorgebeugt, Arme angewinkelt vor dem Körper (der Anzug ist steif).
@@ -840,9 +843,16 @@ window.Surface = (function () {
     setBone(rig, "foreL", 0, 0, elbowL == null ? elbow : elbowL); setBone(rig, "foreR", 0, 0, -(elbowR == null ? elbow : elbowR));
     setBone(rig, "spine", lean, twist, 0);
     if (st.act && !st.wave) ACT_POSE[st.act](rig, st.t, lean, st.seed);
-    if (st.wave) { // rechten Arm hoch und winken
-      setArm(rig, "armR", -0.35, -1.2);
-      setBone(rig, "foreR", 0, 0, -(0.45 + 0.45 * Math.sin(st.t * 9)));
+    if (st.wave) { // winken wie ein Kind: Oberarm zur Seite, Unterarm senkrecht, die Hand schwingt seitlich hin und her
+      // (nie mit gestrecktem Arm schräg nach vorn-oben – das sah aus wie ein verbotener Gruß). st.wave: 1 = ganz, kleiner = Übergang
+      const k = st.wave === true ? 1 : st.wave, ua = rig.bones.armR, fa = rig.bones.foreR;
+      if (ua && fa && k < 1) { waveFrom[0].copy(ua.quaternion); waveFrom[1].copy(fa.quaternion); }
+      setArm(rig, "armR", -0.35, 0.25, 0, 1.57);
+      setBone(rig, "foreR", 0, 0, -(1.7 + 0.25 * Math.sin(st.t * 8)));
+      if (ua && fa && k < 1) {
+        ua.quaternion.slerpQuaternions(waveFrom[0], waveFrom[2].copy(ua.quaternion), k);
+        fa.quaternion.slerpQuaternions(waveFrom[1], waveFrom[2].copy(fa.quaternion), k);
+      }
     }
   }
   // Tätigkeiten der Bewohner (t = Zeit in Sekunden): Gießkanne, Besen für die Solarzellen, Tablet, Werkzeug, Kniebeugen
@@ -860,7 +870,7 @@ window.Surface = (function () {
       let fR = 0.12, dR = 1.25, eR = 0.35, fL = 0.12, dL = 1.25, eL = 0.35, look = 0, twist = 0.06 * Math.sin(T * 0.9);
       if (g === 0) { fR += 0.65 * e; dR -= (0.28 + 0.1 * w) * e; eR += (0.5 + 0.18 * w2) * e; twist -= 0.08 * e; }                       // erklärt mit der rechten Hand
       else if (g === 1) { fR += 0.5 * e; fL += 0.5 * e; dR -= 0.32 * e; dL -= 0.32 * e; eR += 0.6 * e; eL += 0.6 * e; look = 0.06 * e; } // beide Hände offen: „Stell dir vor …“
-      else if (g === 2) { fR += 0.75 * e; dR -= 1.85 * e; eR -= 0.25 * e; look = 0.25 * e; twist -= 0.15 * e; }                        // zeigt nach oben in den Himmel
+      else if (g === 2) { fR += 0.18 * e; dR -= 2.55 * e; eR -= 0.1 * e; look = 0.3 * e; twist -= 0.1 * e; }                         // zeigt nach oben in den Himmel (Arm senkrecht wie beim Melden – nicht schräg nach vorn, das sah aus wie ein verbotener Gruß)
       else { fL += 0.95 * e; dL -= 0.4 * e; eL += 0.85 * e; fR += 0.85 * e; dR -= 0.3 * e; eR += (0.95 + 0.25 * Math.abs(Math.sin(T * 5))) * e; } // zählt an den Fingern ab
       setArm(rig, "armR", -fR, dR); setBone(rig, "foreR", 0, 0, -eR); setArm(rig, "armL", fL, dL); setBone(rig, "foreL", 0, 0, eL);
       setBone(rig, "spine", lean - 0.03, twist, 0);
@@ -4073,7 +4083,7 @@ window.Surface = (function () {
       const slow = moving && !fast && n.isNora, wk = slow ? Math.min(1, n.speedNow / 1.6) : 0.7; // Nora geht langsamer (wartet aufs Kind): Schritte passend zum Tempo
       n.phase += dt * (fast ? 1.4 + n.speedNow * 2.3 : slow ? Math.PI * (1.4 + 0.4 * wk) : moving ? 5.3 : climbing ? 6 : 1.5); // Bewohner gehen gemütlich (1,1 m/s)
       poseRig(n.rig, { mode: climbing ? "climb" : fast ? "run" : moving ? "walk" : "stand", speed: fast ? Math.min(1, n.speedNow / 3.8) : moving ? wk : 0, phase: n.phase, t: elapsed + n.c.path.length,
-        air: false, airP: 0, contact: 0, wave: n.waveT > 0, act: n.c.crew ? crewAct(n, elapsed, dist) : acting ? n.act : null, seed: n.c.crew ? world.npcs.indexOf(n) : 0,
+        air: false, airP: 0, contact: 0, wave: (n.waveK = n.waveT > 0 ? Math.min(1, (n.waveK || 0) + dt / 0.35, n.waveT / 0.35) : 0), act: n.c.crew ? crewAct(n, elapsed, dist) : acting ? n.act : null, seed: n.c.crew ? world.npcs.indexOf(n) : 0,
         work: !n.c.crew && !acting && !moving && n.c.work && dist > 5.5 });
       n.col[0] = p.x; n.col[1] = p.z;
       // Sprechblase über dem Kopf – immer ganz im Bild (Noras Blase bleibt am Bildrand, auch wenn sie hinter der Kamera ist)
@@ -4162,11 +4172,13 @@ window.Surface = (function () {
   }
   // Spricht Nora noch, wartet der neue Satz, bis sie fertig ist (es wartet nur der neueste) – sie bricht sich nicht selbst ab.
   // mode: "low" = nur sagen, wenn sie gerade still ist (z. B. „Hier lang!“) · "now" = sofort (Rückmeldung im Spiel, „Allein erkunden“)
-  function guideSay(text, vars, mode) {
+  // lead = Reaktion auf den Fund + „Komm mit zum …“ (das Zweite kann entfallen, siehe guideLeadGo)
+  function guideSay(text, vars, mode, lead) {
     if (!guide || !text) return;
     const parts = (Array.isArray(text) ? text : [text]).filter(Boolean).map((t) => fmtVars(t, vars));
     if (!parts.length) return;
     const n = guide.n, msg = parts.length > 1 ? parts : parts[0];
+    if (lead) guide.lead = Array.isArray(msg) ? { msg, id: 0 } : null;
     // Spricht gerade jemand (oder warten schon Sätze), stellt sich der Satz hinten an – die Reihenfolge bleibt („low“ = nur, wenn gerade Ruhe ist)
     if (mode !== "now" && (Voice.busy() || (n.voice && Voice.speaking(n.voice)) || (guide.pending && guide.pending.length))) {
       if (mode !== "low") {
@@ -4182,12 +4194,25 @@ window.Surface = (function () {
   function guideShow(msg) { // msg = Text oder Teile (je Teil eine Aufnahme)
     const n = guide.n, shown = Array.isArray(msg) ? msg.join(" ") : msg;
     n.cool = 20;
-    n.el.textContent = "";
-    const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, shown);
+    guideBubble(shown);
     n.talk = Math.min(12, 3 + shown.split(" ").length * 0.38); // lange Sätze bleiben etwas länger stehen
     n.el.classList.remove("pop"); void n.el.offsetWidth; n.el.classList.add("pop");
-    n.voice = Voice.say(msg, "nora", { polite: true }); // lässt Bewohner ausreden
+    const lead = guide.lead && guide.lead.msg === msg ? guide.lead : null;
+    n.voice = Voice.say(msg, "nora", { polite: true, onPart: lead ? (k) => guideLeadGo(lead, k) : undefined }); // lässt Bewohner ausreden
+    if (lead) lead.id = n.voice;
     Sound.click();
+  }
+  function guideBubble(shown) { const n = guide.n; n.el.textContent = ""; const b = document.createElement("b"); b.textContent = `🎧 ${n.c.name}: `; n.el.append(b, shown); }
+  // Zwischen der Reaktion auf den Fund und „Komm mit zum …“: Ist sie mit dem Kind schon (fast) an der Station, entfällt das „Komm mit“
+  // und sie erklärt gleich die Station (vorher erzählte sie dort noch bis zu 8 Sekunden vom Weg dorthin)
+  function guideLeadGo(lead, k) {
+    if (!guide || guide.lead !== lead || k !== 1) return true;
+    const p = guide.n.obj.position, st = world.stations[guide.key];
+    let left = 0, x = p.x, z = p.z; for (const [tx, tz] of guide.pts) { left += Math.hypot(tx - x, tz - z); x = tx; z = tz; }
+    const near = Math.hypot(ast.pos.x - p.x, ast.pos.z - p.z) < 7 || (!!st && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) < st.zone + 3);
+    if (left > 3 || !near) return true;
+    guide.lead = null; guideBubble(lead.msg[0]);
+    return false;
   }
   function updateGuideBtn() {
     const b = $("guideBtn");
@@ -4366,11 +4391,11 @@ window.Surface = (function () {
     const key = guideNextKey();
     if (guide.met && key !== guide.key) { // neues Ziel: Bescheid sagen und losgehen
       const first = guide.key === undefined;
-      guide.key = key; guide.pts = guideRoute(key); guide.said[key] = false;
+      guide.key = key; guide.pts = guideRoute(key); guide.said[key] = false; guide.lead = null;
       if (key === "rakete") { if (quizDone) guideSay(GC.home); }
       else if (key !== "sprung" && key !== "wand" && !first) {
         const r = guide.justFound && GC.react && GC.react[guide.justFound]; guide.justFound = null;
-        guideSay([r, typeof GC.next === "object" ? GC.next[key] : GC.next], { ziel: cfg.stations[key].label });
+        guideSay([r, typeof GC.next === "object" ? GC.next[key] : GC.next], { ziel: cfg.stations[key].label }, undefined, !!r);
       }
     }
     const face = (x, z) => { n.heading = angleLerp(n.heading, Math.atan2(x - p.x, z - p.z), 1 - Math.exp(-dt * 5)); };
@@ -4429,7 +4454,11 @@ window.Surface = (function () {
     if (guide.finale === "walk" && guide.key === "wand") { if (dAst < 7) { guide.finale = "done"; quizSoon(); } return; } // Basis-Besuch zu Ende: jetzt die Funk-Fragen
     // Erklären, sobald das Kind da ist (bei ihr oder schon am Kreis) und sie gerade nicht spricht – die Pause nach „Hier lang!“ zählt nicht mit
     const st = world.stations[guide.key], atStation = !!st && Math.hypot(ast.pos.x - st.x, ast.pos.z - st.z) < st.zone + 3;
-    if ((dAst < 7 || atStation) && !guide.said[guide.key] && guide.quiet > 1.2) {
+    if ((dAst < 7 || atStation) && guide.lead && !guide.lead.id && guide.pending) { // Reaktion + „Komm mit“ warten noch (jemand anderes spricht) – schon da: nur die Reaktion
+      const L = guide.lead; guide.lead = null;
+      guide.pending.forEach((q) => { if (q.msg === L.msg) q.msg = L.msg[0]; });
+    }
+    if ((dAst < 7 || atStation) && !guide.said[guide.key] && guide.quiet > 0.5) {
       guide.said[guide.key] = true; guide.waitCd = Math.max(guide.waitCd, 4);
       if (!foundMap()[guide.key]) guideSay(guide.key === "sprung" ? GC.jump : (GC.arrive && GC.arrive[guide.key]) || ""); // schon entdeckt (Kind war schneller): nichts erklären
     }

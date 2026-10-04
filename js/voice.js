@@ -102,6 +102,7 @@ window.Voice = (function () {
   // text = ein Text oder mehrere Teile (werden nacheinander gesprochen) · role: nora | radio | card | narrator | npcF | npcM
   // opt.who = Name des Bewohners · opt.queue = hinten anstellen statt unterbrechen · opt.modal = gehört zu einem Fenster
   // opt.polite = wartet, bis ein Bewohner ausgeredet hat (Nora unterwegs, Bodenstation) · Bewohner selbst warten kurz, wenn Wichtigeres läuft
+  // opt.onPart(i) = wird vor jedem weiteren Teil gefragt; false = hier aufhören (nie mitten im Satz – z. B. „Komm mit!“, wenn man schon da ist)
   // Ohne Aufnahme bleibt ein Text stumm (Rückgabe 0 wie bei „Vorlesen aus“) – eine Computerstimme gibt es nicht.
   function say(text, role = "nora", opt = {}) {
     if (!on()) return 0;
@@ -116,7 +117,7 @@ window.Voice = (function () {
     const all = parts.map((t) => clipOf(t, role, opt.who)), clips = all.filter(Boolean);
     if (TEST && clips.length < all.length) (window.__voiceMiss = window.__voiceMiss || []).push(role + (opt.who ? " " + opt.who : "") + ": " + said);
     if (!clips.length) return 0;
-    const job = { id: ++seq, prio, role, who: opt.who, modal: !!opt.modal, text: said, clips, i: 0, gen: 0, fails: 0, deadline: 0 };
+    const job = { id: ++seq, prio, role, who: opt.who, modal: !!opt.modal, text: said, clips, onPart: opt.onPart, i: 0, gen: 0, fails: 0, deadline: 0 };
     last = { text: said, at: now };
     if (opt.queue && cur) { queue.push(job); return job.id; }
     if (talking && npc && cur.prio >= prio) { queue = queue.filter((j) => !j.npcWait); job.npcWait = true; job.expire = now + 6000; queue.push(job); return job.id; } // Bewohner warten kurz, bis das Wichtigere vorbei ist
@@ -150,7 +151,11 @@ window.Voice = (function () {
     const check = () => { if (stale(job, g)) return; if (live()) viaWebAudio(job, i, g); else if (performance.now() - t0 > 700) viaElement(job, i, g); else setTimeout(check, 50); };
     check();
   }
-  function nextClip(job, i) { job.fails = 0; job.stall = 0; playClip(job, i + 1); }
+  function nextClip(job, i) {
+    job.fails = 0; job.stall = 0;
+    if (job.onPart && i + 1 < job.clips.length && job.onPart(i + 1) === false) job.clips = job.clips.slice(0, i + 1);
+    playClip(job, i + 1);
+  }
   function viaWebAudio(job, i, g) {
     load(job.clips[i]).then((buf) => {
       if (stale(job, g)) return;
