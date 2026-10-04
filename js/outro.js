@@ -169,6 +169,7 @@ window.Outro = (function () {
   // ---------- Ablauf ----------
   function play(opts) {
     W = opts.world; T = window.Textures;
+    Voice.stop(); // was gerade noch gesprochen wird (z. B. Noras Missions-Funk), endet – sonst hinkt der Erzähler den Bildern hinterher
     st = { t: 0, name: opts.name, done: opts.onDone, captionOn: -1, noraI: -1, ended: false };
     st.dot = mk(T.dotTexture());
     st.ui = buildOverlay();

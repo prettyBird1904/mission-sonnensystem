@@ -180,6 +180,7 @@ const intro = fs.readFileSync(path.join(ROOT, "js/intro.js"), "utf8");
 const arr = (name) => vm.runInNewContext("(" + intro.match(new RegExp(`const ${name} = (\\[[\\s\\S]*?\\n  \\]);`))[1] + ")");
 for (const [, , t] of arr("CAPTIONS")) add(t, "narrator", "intro");
 for (const [, , t] of arr("NORA")) add(t, "nora", "intro");
+for (const [id] of arr("PLANETS")) add(D.bodies.find((b) => b.id === id).name + ".", "narrator", "intro"); // der Erzähler nennt jeden Planeten
 // Abschluss-Kino – Texte stehen in js/outro.js
 const outro = fs.readFileSync(path.join(ROOT, "js/outro.js"), "utf8");
 const arrO = (name) => vm.runInNewContext("(" + outro.match(new RegExp(`const ${name} = (\\[[\\s\\S]*?\\n  \\]);`))[1] + ")");

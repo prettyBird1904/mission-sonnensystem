@@ -1,7 +1,7 @@
 /* =========================================================
-   Intro: kleines Kino beim ersten Start (knapp eine Minute)
+   Intro: kleines Kino beim ersten Start (gut eine Minute)
    1. Staub und Gas – die Sonne entzündet sich
-   2. Die Planeten entstehen, einer nach dem anderen
+   2. Die Planeten entstehen, einer nach dem anderen – der Erzähler nennt jeden beim Namen
    3. Flug zur Erde – „Du, {name}.“
    4. Nachts an der Startrampe: Flugleiterin Nora erklärt die Mission
    5. Countdown, Start – „Mission Sonnensystem“
@@ -13,29 +13,29 @@ window.Intro = (function () {
 
   // ---------- Zeitplan (Sekunden) ----------
   const T_IGNITE = 7.4;                 // die Sonne entzündet sich
-  const T_PLANETS = 11.4, P_STEP = 0.9; // Planet i erscheint bei T_PLANETS + i·P_STEP
-  const T_WIDE = 18.8;                  // Kamera fährt zurück: alle Planeten im Bild
-  const T_EARTH = 21;                   // Flug zur Erde
-  const T_PAD = 31;                     // Schnitt zur Startrampe
-  const T_COUNT = 45.5;                 // Countdown 3 · 2 · 1
-  const T_LIFT = 48.1;                  // Zündung
-  const T_FLASH = 50.6;                 // weißer Blitz, Titel
-  const T_END = 54.4;
+  const T_PLANETS = 14.2, P_STEP = 1.5; // Planet i erscheint bei T_PLANETS + i·P_STEP (vorher alle 0,9 s – zu schnell, um mitzukommen)
+  const T_WIDE = 25.9;                  // Kamera fährt zurück: alle Planeten im Bild
+  const T_EARTH = 31.4;                 // Flug zur Erde
+  const T_PAD = 41.4;                   // Schnitt zur Startrampe
+  const T_COUNT = 55.9;                 // Countdown 3 · 2 · 1
+  const T_LIFT = 58.5;                  // Zündung
+  const T_FLASH = 61;                   // weißer Blitz, Titel
+  const T_END = 64.8;
 
   const CAPTIONS = [
     [0.6, 3.6, "Vor 4,6 Milliarden Jahren …"],
     [3.9, 7.1, "… gab es hier nur Staub und Gas."],
     [7.9, 11.0, "Dann erwachte ein Stern: unsere Sonne."],
-    [11.8, 15.4, "Um sie herum entstanden die Planeten."],
-    [15.8, 19.6, "Acht Planeten – vom kleinen Merkur bis zum eisigen Neptun."],
-    [21.6, 24.6, "Auf einem kleinen, blauen Planeten …"],
-    [24.9, 28.0, "… schaut jemand zu den Sternen hinauf."],
-    [28.3, 30.5, "Das bist du, {name}!", "big"]
+    [11.4, 14.2, "Um sie herum entstanden die Planeten."],
+    [26.0, 31.0, "Acht Planeten – vom kleinen Merkur bis zum eisigen Neptun."],
+    [32.0, 35.0, "Auf einem kleinen, blauen Planeten …"],
+    [35.3, 38.4, "… schaut jemand zu den Sternen hinauf."],
+    [38.7, 40.9, "Das bist du, {name}!", "big"]
   ];
   const NORA = [
-    [31.4, 34.6, "Hier spricht Flugleiterin Nora. Hallo, {name}!"],
-    [34.8, 42.6, "Deine Mission: Erkunde das Sonnensystem! Lande auf fremden Welten und steuere Sonden durch Stürme."],
-    [42.8, 47.4, "Das Weltall wartet auf dich. Bist du bereit?"]
+    [41.8, 45.0, "Hier spricht Flugleiterin Nora. Hallo, {name}!"],
+    [45.2, 53.0, "Deine Mission: Erkunde das Sonnensystem! Lande auf fremden Welten und steuere Sonden durch Stürme."],
+    [53.2, 57.8, "Das Weltall wartet auf dich. Bist du bereit?"]
   ];
   const PLANETS = [ // id, Position x, Größe im Intro
     ["merkur", 32, 1], ["venus", 44, 1], ["erde", 58, 1], ["mars", 71, 1], ["jupiter", 96, 0.85],
@@ -369,10 +369,11 @@ window.Intro = (function () {
     [81, 86, 89, 93].forEach((n, i) => m.bell(midi(n), T_IGNITE + 0.1 + i * 0.07, 0.07));
     m.pad(ch(34, 41, 46, 50, 53), T_IGNITE - 0.4, 8, 0.04, 1000); // B-Dur: das Licht ist da
     PLANETS.forEach((p, i) => m.bell(midi([77, 79, 81, 84, 86, 89, 91, 93, 96][i]), T_PLANETS + i * P_STEP, 0.09));
-    m.pad(ch(41, 48, 53, 57, 60), 15, 7.2, 0.042, 1300);       // F-Dur: weit und staunend
+    m.pad(ch(41, 48, 53, 57, 60), T_PLANETS + 0.6, 10, 0.042, 1300);                       // F-Dur: weit und staunend
+    m.pad(ch(34, 41, 46, 50, 53), T_PLANETS + 10, T_EARTH + 1.2 - T_PLANETS - 10, 0.042, 1300); // B-Dur: alle acht im Bild
     m.pad(ch(43, 50, 55, 58), T_EARTH + 0.6, 4.8, 0.04, 900);  // g-Moll: ein bisschen Gänsehaut
     m.pad(ch(46, 53, 58, 62), T_EARTH + 4.8, 5.6, 0.045, 1100);
-    m.bell(midi(81), 28.3, 0.08); m.bell(midi(86), 28.5, 0.07); // „Du, {name}.“
+    m.bell(midi(81), 38.7, 0.08); m.bell(midi(86), 38.9, 0.07); // „Das bist du, {name}!“
     m.pad(ch(41, 48, 53, 57), T_PAD, 6, 0.04, 1000);           // an der Startrampe: warm, hoffnungsvoll
     m.pad(ch(34, 46, 50, 53), T_PAD + 5.5, 5.8, 0.042, 1200);
     m.pad(ch(36, 43, 48, 52, 55), T_PAD + 10.8, T_LIFT - T_PAD - 10.6, 0.046, 1700); // C-Dur: Spannung
@@ -387,7 +388,8 @@ window.Intro = (function () {
   // ---------- Ablauf ----------
   function play(opts) {
     W = opts.world; T = window.Textures;
-    st = { t: 0, name: opts.name, done: opts.onDone, captionI: 0, captionOn: -1, noraI: -1, countShown: "", ended: false };
+    Voice.stop(); // was gerade noch gesprochen wird (z. B. Noras Missions-Funk), endet – sonst hinkt der Erzähler den Bildern hinterher
+    st = { t: 0, name: opts.name, done: opts.onDone, captionI: 0, captionOn: -1, noraI: -1, nameI: -1, countShown: "", ended: false };
     st.dot = mk(T.dotTexture());
     st.ui = buildOverlay();
     st.ui.t3.textContent = `Deine Reise beginnt, ${opts.name}!`;
@@ -419,6 +421,10 @@ window.Intro = (function () {
       st.captionOn = cap;
     }
     if (cap >= 0 && t > CAPTIONS[cap][1] - 0.6) hideCaption();
+    // Der Erzähler nennt jeden Planeten, sobald er erscheint (Aufnahmen: tools/stimmen.js, Liste PLANETS)
+    while (t < T_PAD && st.nameI + 1 < PLANETS.length && t >= T_PLANETS + (st.nameI + 1) * P_STEP + 0.2) {
+      st.nameI++; Voice.say(W.bodies[PLANETS[st.nameI][0]].data.name, "narrator", { queue: true });
+    }
     // Nora funkt (Schreibmaschine)
     const ni = NORA.findIndex(([a, b]) => t >= a && t < b);
     ui.radio.classList.toggle("on", t >= NORA[0][0] - 0.3 && t < T_LIFT + 0.3);

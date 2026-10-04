@@ -796,8 +796,8 @@ window.Surface = (function () {
       const s = Math.sin(st.phase);
       legL = 0.75 + 0.4 * s; legR = 0.75 - 0.4 * s;
       kneeL = -(0.95 + 0.45 * s); kneeR = -(0.95 - 0.45 * s);
-      fwd = 1.3; elbow = 0.5; lean -= 0.06;
-      downL = -0.15 - 0.35 * s; downR = -0.15 + 0.35 * s;
+      fwd = 1.3; elbow = 1.0; lean -= 0.06; // Ellbogen angewinkelt: kein gestreckter, erhobener Arm (siehe Winken)
+      downL = 0.1 - 0.3 * s; downR = 0.1 + 0.3 * s;
     } else if (st.mode === "run") {
       // Laufen: Beine weit vor und zurück, das schwingende Bein beugt das Knie, die Arme schwingen gegengleich (angewinkelt)
       const k = Math.max(0.35, Math.min(1, st.speed)), s = Math.sin(st.phase), c = Math.cos(st.phase);
@@ -867,12 +867,13 @@ window.Surface = (function () {
     reden(rig, t, lean, seed = 0) {
       const T = t + seed * 3.7, k = Math.floor(T / 2.6), u = (T % 2.6) / 2.6, g = (k * 5 + seed * 3) % 4;
       const e = Math.min(1, Math.sin(u * Math.PI) * 1.7), w = Math.sin(T * 2.3), w2 = Math.sin(T * 3.1 + 1);
-      let fR = 0.12, dR = 1.25, eR = 0.35, fL = 0.12, dL = 1.25, eL = 0.35, look = 0, twist = 0.06 * Math.sin(T * 0.9);
+      let fR = 0.12, dR = 1.25, eR = 0.35, rR = 0, fL = 0.12, dL = 1.25, eL = 0.35, look = 0, twist = 0.06 * Math.sin(T * 0.9);
       if (g === 0) { fR += 0.65 * e; dR -= (0.28 + 0.1 * w) * e; eR += (0.5 + 0.18 * w2) * e; twist -= 0.08 * e; }                       // erklärt mit der rechten Hand
       else if (g === 1) { fR += 0.5 * e; fL += 0.5 * e; dR -= 0.32 * e; dL -= 0.32 * e; eR += 0.6 * e; eL += 0.6 * e; look = 0.06 * e; } // beide Hände offen: „Stell dir vor …“
-      else if (g === 2) { fR += 0.18 * e; dR -= 2.55 * e; eR -= 0.1 * e; look = 0.3 * e; twist -= 0.1 * e; }                         // zeigt nach oben in den Himmel (Arm senkrecht wie beim Melden – nicht schräg nach vorn, das sah aus wie ein verbotener Gruß)
+      else if (g === 2) { fR += 0.38 * e; dR -= 0.2 * e; eR += 1.55 * e; rR = 1.57 * e; look = 0.15 * e; twist -= 0.08 * e; }          // hebt die Hand: „Moment, ich hab eine Idee!“ (Arm angewinkelt –
+      // NIE ein gestreckter, erhobener Arm: senkrecht oder schräg nach oben sah er aus manchen Blickwinkeln wie ein verbotener Gruß aus)
       else { fL += 0.95 * e; dL -= 0.4 * e; eL += 0.85 * e; fR += 0.85 * e; dR -= 0.3 * e; eR += (0.95 + 0.25 * Math.abs(Math.sin(T * 5))) * e; } // zählt an den Fingern ab
-      setArm(rig, "armR", -fR, dR); setBone(rig, "foreR", 0, 0, -eR); setArm(rig, "armL", fL, dL); setBone(rig, "foreL", 0, 0, eL);
+      setArm(rig, "armR", -fR, dR, 0, rR); setBone(rig, "foreR", 0, 0, -eR); setArm(rig, "armL", fL, dL); setBone(rig, "foreL", 0, 0, eL);
       setBone(rig, "spine", lean - 0.03, twist, 0);
       setBone(rig, "head", look - 0.05 * Math.max(0, Math.sin(T * 4.3)), 0.06 * Math.sin(T * 1.3), 0); // kleine Kopfbewegungen beim Sprechen
     },
@@ -2793,6 +2794,7 @@ window.Surface = (function () {
     updateCounter();
     buildLabels();
     $("surfaceHud").classList.remove("hidden");
+    precompile();
     S.active = true;
     const rest = cfg.discoveries.length - foundCount();
     const first = foundCount() === 0;
@@ -2801,6 +2803,14 @@ window.Surface = (function () {
     // Schon alles entdeckt: Funk-Fragen ploppen NICHT von selbst auf (nur direkt nach der letzten Entdeckung) – ein Funkspruch sagt, wo sie sind
     if (!guide || !guide.on) setTimeout(() => { if (S.active) radio(rest === 0 ? (quizDone ? cfg.radio.quizDone : D.radioQuizOpen) : first ? cfg.radio.start : cfg.radio.back, { rest }); }, 700);
   };
+
+  // Alle Oberflächen dieses Ortes gleich beim Betreten vorbereiten (Shader übersetzen) – auch was erst später sichtbar wird.
+  // Sonst übersetzt der Grafikchip sie erst, wenn sie zum ersten Mal ins Bild kommen: auf Handys jedes Mal ein kurzer Hänger beim Laufen.
+  // (Passiert hinter der Überblendung – da merkt man es nicht.)
+  function precompile() {
+    if (world.compiled) return; world.compiled = true;
+    try { W.renderer.compile(world.scene, world.camera); } catch (e) { /* dann eben beim ersten Anblick */ }
+  }
 
   function exit() {
     $("guideBtn").classList.add("hidden"); guide = null;
@@ -3406,19 +3416,27 @@ window.Surface = (function () {
     want.y = Math.max(want.y, world.height(want.x, want.z) + 0.8);
     const rr = Math.hypot(want.x, want.z); // nicht in die Rakete hineinschauen (sie steht bei 0, 0)
     if (rr < 3.4 && want.y < world.rocketY + 11) { const k = 3.4 / (rr || 0.01); want.x *= k; want.z *= k; } // Rumpf und Flossen
-    c.position.lerp(want, 1 - Math.exp(-dt * 5));
+    // view.camBase = wo die Kamera ohne Hindernisse wäre (weich nachgeführt). Hat jemand anderes die Kamera versetzt
+    // (Landung, Fernrohr, Versuch …), von dort aus weitermachen.
+    if (!view.camBase || !view.camLast || c.position.distanceToSquared(view.camLast) > 1e-6) { view.camBase = c.position.clone(); view.camArm = null; }
+    view.camBase.lerp(want, 1 - Math.exp(-dt * 5));
     // nicht hinter Wände und in Gebäude: von Kopfhöhe zur Kamera schauen und vor dem ersten festen Teil bleiben
     camHead.set(ast.pos.x, ast.pos.y + 1.5, ast.pos.z);
-    camDir.copy(c.position).sub(camHead);
+    camDir.copy(view.camBase).sub(camHead);
     const camLen = camDir.length();
+    let allowed = camLen;
     if (camLen > 1.1) {
       camRay.set(camHead, camDir.divideScalar(camLen)); camRay.far = camLen;
       const hit = camRay.intersectObjects(camBlockers(), false)[0];
-      if (hit) { // näher heran und dafür etwas höher – so schaut man über das Kind hinweg
-        const d = Math.max(1, hit.distance - 0.35);
-        c.position.copy(camHead).addScaledVector(camDir, d); c.position.y += (camLen - d) * 0.25;
-      }
-    }
+      if (hit) allowed = Math.max(1, hit.distance - 0.35);
+    } else camDir.divideScalar(camLen || 1);
+    // Abstand weich anpassen: vor einem Hindernis zügig heran, danach langsam wieder zurück. Vorher sprang die Kamera sofort
+    // heran und im nächsten Bild wieder weg – an Bäumen, Schilf, Zäunen und Felsen viele Male hintereinander: das Bild „zitterte“.
+    const arm = view.camArm == null ? allowed : view.camArm;
+    view.camArm = Math.min(camLen, arm + (allowed - arm) * (1 - Math.exp(-dt * (allowed < arm ? 12 : 2))));
+    c.position.copy(camHead).addScaledVector(camDir, view.camArm);
+    c.position.y += (camLen - view.camArm) * 0.25; // näher heran und dafür etwas höher – so schaut man über das Kind hinweg
+    (view.camLast || (view.camLast = new V())).copy(c.position);
     const lookY = ast.pos.y + 1.3 + Math.max(0, (1.6 - view.height)) * 2.5; // tief = nach oben schauen
     view.look.lerp(tmp2.set(ast.pos.x + Math.sin(view.yaw) * 3, lookY, ast.pos.z + Math.cos(view.yaw) * 3), 1 - Math.exp(-dt * 8));
     c.lookAt(view.look);
@@ -4156,6 +4174,7 @@ window.Surface = (function () {
         radio(cfg.radio.landed); // „Bodenstation an Rakete: Seid ihr gut gelandet?“ – Nora antwortet, wenn der Funkspruch zu Ende ist
         whenQuiet(() => { if (S.active && guide && guide.on) { guideSay(GC.hello); guide.helloDone = true; } }, 7000);
       }, 600);
+      guidePrecalc();
     }
     updateGuideBtn();
   }
@@ -4238,11 +4257,11 @@ window.Surface = (function () {
     return "rakete";
   }
   // Wo sie neben der Station stehen bleibt (Ende des Weges oder 2,5 m seitlich vor der Markierung)
-  function guideStand(key) {
+  function guideStand(key, p = guide.n.obj.position) {
     const r = world.L.route && world.L.route[key];
     if (r) return r[r.length - 1];
     const st = world.stations[key]; if (!st) return null;
-    const p = guide.n.obj.position, dx = st.x - p.x, dz = st.z - p.z, d = Math.hypot(dx, dz) || 1;
+    const dx = st.x - p.x, dz = st.z - p.z, d = Math.hypot(dx, dz) || 1;
     return [st.x - (dx / d) * 2.6 - (dz / d) * 1.4, st.z - (dz / d) * 2.6 + (dx / d) * 1.4];
   }
   // ---------- Wegsuche: Nora läuft nur, wo das Kind auch hinkommt (Hindernisse, Steilwände) ----------
@@ -4272,12 +4291,15 @@ window.Surface = (function () {
   // gerade Linie begehbar? (für das Glätten des Weges)
   function navLine(ax, az, bx, bz) {
     const N = navGrid(), len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(len / 0.2));
+    // nur Hindernisse in der Nähe der Linie prüfen (auf der Erde gibt es fast 500 – das kostete auf dem Handy spürbar Zeit)
+    const lx0 = Math.min(ax, bx), lx1 = Math.max(ax, bx), lz0 = Math.min(az, bz), lz1 = Math.max(az, bz);
+    const cols = N.cols.filter(([cx, cz, r]) => cx + r + 0.5 > lx0 && cx - r - 0.5 < lx1 && cz + r + 0.5 > lz0 && cz - r - 0.5 < lz1);
     let px = ax, pz = az, ph = world.height(ax, az);
     for (let i = 1; i <= n; i++) {
       const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n, hh = world.height(x, z);
       if (hh - ph > (len / n) * MAX_SLOPE * 0.92) return false;
       if (world.wet && world.wet(x, z)) return false; // nicht durchs Wasser
-      for (const [cx, cz, r] of N.cols) { const dx = x - cx, dz = z - cz, rr = r + 0.5; if (dx * dx + dz * dz < rr * rr) return false; }
+      for (const [cx, cz, r] of cols) { const dx = x - cx, dz = z - cz, rr = r + 0.5; if (dx * dx + dz * dz < rr * rr) return false; }
       px = x; pz = z; ph = hh;
     }
     return true;
@@ -4325,12 +4347,16 @@ window.Surface = (function () {
     const lc = cells[cells.length - 1] || [ax, az];
     if (gFree && navLine(lc[0], lc[1], bx, bz)) cells.push([bx, bz]);
     if (!cells.length) return [[bx, bz]];
-    // glätten: so weit wie möglich geradeaus gehen
+    // glätten: so weit wie möglich geradeaus gehen – den weitesten frei erreichbaren Punkt mit Verdoppeln und Halbieren suchen
+    // (vorher wurden alle Punkte von hinten durchprobiert: bei langen Wegen viele lange Linien – auf dem Handy ein spürbarer Hänger beim Losgehen)
     const out = []; let cx = ax, cz = az, i = 0;
+    const ok = (j) => navLine(cx, cz, cells[j][0], cells[j][1]);
     while (i < cells.length) {
-      let j = cells.length - 1;
-      while (j > i && !navLine(cx, cz, cells[j][0], cells[j][1])) j--;
-      out.push(cells[j]); cx = cells[j][0]; cz = cells[j][1]; i = j + 1;
+      let good = i, step = 1, bad = cells.length;
+      while (good + step < cells.length && ok(good + step)) { good += step; step *= 2; }
+      if (good + step < cells.length) bad = good + step;
+      while (bad - good > 1) { const m = (good + bad) >> 1; if (ok(m)) good = m; else bad = m; }
+      out.push(cells[good]); cx = cells[good][0]; cz = cells[good][1]; i = good + 1;
     }
     return out;
   }
@@ -4344,10 +4370,11 @@ window.Surface = (function () {
     }
     return [x, z];
   }
-  function guideRoute(key) {
-    const r = world.L.route && world.L.route[key], p = guide.n.obj.position;
+  // p = von wo aus (sonst da, wo sie gerade steht)
+  function guideRoute(key, p = guide.n.obj.position) {
+    const r = world.L.route && world.L.route[key];
     let way;
-    if (!r) { const st = guideStand(key); way = st ? [st] : []; }
+    if (!r) { const st = guideStand(key, p); way = st ? [st] : []; }
     else { // ab dem Wegpunkt weiterlaufen, der am nächsten liegt (falls die Person schon mittendrin steht)
       let best = 0, bd = Infinity;
       r.forEach(([x, z], i) => { const d = Math.hypot(x - p.x, z - p.z); if (d < bd) { bd = d; best = i; } });
@@ -4357,6 +4384,21 @@ window.Surface = (function () {
     const out = []; let cx = p.x, cz = p.z;
     for (const q of way) { const seg = navPath(cx, cz, q[0], q[1]); out.push(...seg); const e = seg[seg.length - 1] || q; cx = e[0]; cz = e[1]; }
     return out;
+  }
+  // Die Wege der Führung gleich bei der Landung berechnen (hinter der Überblendung): Auf dem Handy dauerte das beim Losgehen
+  // bis zu einigen Zehntelsekunden – das Bild stand kurz still. Unterwegs wird nur noch gerechnet, wenn sie woanders steht als gedacht.
+  function guidePrecalc() {
+    const GC = cfg.guide; guide.routes = {};
+    let from = { x: world.L.spawn[0], z: world.L.spawn[1] };
+    for (const k of [...GC.order, ...(GC.finale ? ["wand"] : []), "rakete"]) {
+      const pts = guideRoute(k, from); guide.routes[k] = { from, pts };
+      const e = pts[pts.length - 1]; if (e) from = { x: e[0], z: e[1] };
+    }
+  }
+  function guideRouteFor(key) {
+    const c = guide.routes && guide.routes[key], p = guide.n.obj.position;
+    if (c && c.pts.length && Math.hypot(c.from.x - p.x, c.from.z - p.z) < 4 && navLine(p.x, p.z, c.pts[0][0], c.pts[0][1])) return c.pts.map((q) => [...q]);
+    return guideRoute(key);
   }
   function updateGuide(dt, busy) {
     if (!guide) return;
@@ -4391,7 +4433,7 @@ window.Surface = (function () {
     const key = guideNextKey();
     if (guide.met && key !== guide.key) { // neues Ziel: Bescheid sagen und losgehen
       const first = guide.key === undefined;
-      guide.key = key; guide.pts = guideRoute(key); guide.said[key] = false; guide.lead = null;
+      guide.key = key; guide.pts = guideRouteFor(key); guide.said[key] = false; guide.lead = null;
       if (key === "rakete") { if (quizDone) guideSay(GC.home); }
       else if (key !== "sprung" && key !== "wand" && !first) {
         const r = guide.justFound && GC.react && GC.react[guide.justFound]; guide.justFound = null;
@@ -10101,6 +10143,7 @@ window.Surface = (function () {
     const hud = $("surfaceHud"); hud.classList.remove("hidden", "scoping", "driving"); hud.classList.add("probing");
     $("suit").classList.remove("cold");
     $("suitState").textContent = cfg.course.note;
+    precompile();
     S.active = true;
     Sound.engine(0.35);
     const rest = cfg.discoveries.length - foundCount();
