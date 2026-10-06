@@ -30,6 +30,26 @@
       document.addEventListener("gestureend", check);
       window.addEventListener("wheel", function (e) { if (e.ctrlKey) block(e); }, { passive: false });
       if (vv) vv.addEventListener("resize", check); else window.addEventListener("resize", check);
+      // Doppeltipp-Zoom auch per Skript sperren – manche Handys übergehen touch-action (gemeldet: Doppeltipp auf den Joystick).
+      // Joystick und runde Knöpfe laufen nur über Zeiger-Ereignisse: dort nie Browser-Gesten.
+      // Sonst nur den zweiten Tipp eines Doppeltipps (gleiche Stelle, < 0,4 s) abfangen – dessen Klick entfällt.
+      var lastEnd = 0, lastX = -99, lastY = -99, eaten = {}; // eaten: abgefangene Finger (je Finger, damit ein Tipp daneben normal klickt)
+      document.addEventListener("touchstart", function (e) {
+        var t = e.changedTouches[0], el = e.target;
+        if (!t || zoomed() || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+        if ((el.closest && el.closest(".joy, .tbtn")) || (Date.now() - lastEnd < 400 && Math.abs(t.clientX - lastX) < 50 && Math.abs(t.clientY - lastY) < 50)) {
+          e.preventDefault(); eaten[t.identifier] = true;
+        }
+      }, { passive: false });
+      function lift(e) {
+        for (var i = 0; i < e.changedTouches.length; i++) {
+          var t = e.changedTouches[i];
+          if (eaten[t.identifier]) { delete eaten[t.identifier]; if (e.cancelable) e.preventDefault(); }
+          if (e.type === "touchend") { lastEnd = Date.now(); lastX = t.clientX; lastY = t.clientY; }
+        }
+      }
+      document.addEventListener("touchend", lift, { passive: false });
+      document.addEventListener("touchcancel", lift);
     })();
   </script>
   <link rel="stylesheet" href="fonts/fonts.css">
