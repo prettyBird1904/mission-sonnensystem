@@ -22,12 +22,14 @@
     // Ist das Bild doch vergrößert (z. B. Bedienungshilfen), bleibt Herauszoomen erlaubt (.zoomed in style.css).
     (function () {
       var vv = window.visualViewport, root = document.documentElement;
-      function zoomed() { return !!vv && vv.scale > 1.01; }
+      function zoomed() { return vv ? vv.scale > 1.01 : root.clientWidth / (window.innerWidth || root.clientWidth) > 1.01; } // ohne visualViewport: iOS 12
       function block(e) { if (!zoomed()) e.preventDefault(); }
+      function check() { root.classList.toggle("zoomed", zoomed()); }
       document.addEventListener("gesturestart", block, { passive: false });
       document.addEventListener("gesturechange", block, { passive: false });
+      document.addEventListener("gestureend", check);
       window.addEventListener("wheel", function (e) { if (e.ctrlKey) block(e); }, { passive: false });
-      if (vv) vv.addEventListener("resize", function () { root.classList.toggle("zoomed", zoomed()); });
+      if (vv) vv.addEventListener("resize", check); else window.addEventListener("resize", check);
     })();
   </script>
   <link rel="stylesheet" href="fonts/fonts.css">

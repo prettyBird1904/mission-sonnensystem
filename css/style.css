@@ -21,8 +21,10 @@
 }
 
 /* Tablets: kein Zoomen (zwei Finger oder Doppeltipp) – auf jedem Element, auch in Fenstern mit Bildlauf.
-   Nicht „manipulation“: das erlaubt den Zwei-Finger-Zoom, und das iPad übergeht user-scalable=no. */
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: pan-x pan-y; }
+   Nicht nur „manipulation“: das erlaubt den Zwei-Finger-Zoom, und das iPad übergeht user-scalable=no.
+   Auf jedem Element, weil Safari in Bereichen mit Bildlauf (z. B. Kompass-Leiste) sonst wieder Doppeltipp-Zoom erlaubt.
+   „manipulation“ davor nur als Rückfall für alte iPads (iOS 12 kennt pan-x/pan-y nicht; Zwei Finger sperrt dort index.html). */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; touch-action: pan-x pan-y; }
 /* Notausgang (index.html setzt .zoomed): Ist das Bild doch vergrößert, darf man überall wieder herauszoomen */
 html.zoomed, html.zoomed * { touch-action: manipulation !important; }
 html, body {
