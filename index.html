@@ -18,6 +18,17 @@
     // Touch-Steuerung für Tablets, Smartboards und Touch-Laptops (Test am PC: ?touch)
     if ((window.matchMedia && matchMedia("(pointer: coarse)").matches) || navigator.maxTouchPoints > 0 || /[?&]touch/.test(location.search))
       document.documentElement.classList.add("touch-ui");
+    // Kein Zoomen: iPad/iPhone übergehen user-scalable=no (Zwei-Finger-Geste), Touchpads zoomen per Strg+Mausrad.
+    // Ist das Bild doch vergrößert (z. B. Bedienungshilfen), bleibt Herauszoomen erlaubt (.zoomed in style.css).
+    (function () {
+      var vv = window.visualViewport, root = document.documentElement;
+      function zoomed() { return !!vv && vv.scale > 1.01; }
+      function block(e) { if (!zoomed()) e.preventDefault(); }
+      document.addEventListener("gesturestart", block, { passive: false });
+      document.addEventListener("gesturechange", block, { passive: false });
+      window.addEventListener("wheel", function (e) { if (e.ctrlKey) block(e); }, { passive: false });
+      if (vv) vv.addEventListener("resize", function () { root.classList.toggle("zoomed", zoomed()); });
+    })();
   </script>
   <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="css/style.css">

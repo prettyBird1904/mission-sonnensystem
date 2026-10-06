@@ -20,11 +20,15 @@
   --font-body: "Nunito", system-ui, sans-serif;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Tablets: kein Zoomen (zwei Finger oder Doppeltipp) – auf jedem Element, auch in Fenstern mit Bildlauf.
+   Nicht „manipulation“: das erlaubt den Zwei-Finger-Zoom, und das iPad übergeht user-scalable=no. */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: pan-x pan-y; }
+/* Notausgang (index.html setzt .zoomed): Ist das Bild doch vergrößert, darf man überall wieder herauszoomen */
+html.zoomed, html.zoomed * { touch-action: manipulation !important; }
 html, body {
   margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-body);
-  /* Tablets: kein Doppeltipp-Zoom, kein Gummiband-Scrollen, kein Text-Markieren beim Spielen */
-  touch-action: manipulation; overscroll-behavior: none;
+  /* kein Gummiband-Scrollen, kein Text-Markieren beim Spielen */
+  overscroll-behavior: none;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 input { -webkit-user-select: text; user-select: text; }
